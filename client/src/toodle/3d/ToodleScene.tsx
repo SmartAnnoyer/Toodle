@@ -40,7 +40,7 @@ export default function ToodleScene({
       dpr={[1, 1.5]}
       frameloop={paused ? 'demand' : 'always'}
       gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
-      camera={{ position: [0, 0.86, 5.1], fov: 26, near: 0.1, far: 30 }}
+      camera={{ position: [0, 0.72, 4.15], fov: 30, near: 0.1, far: 30 }}
       style={{ width: '100%', height: '100%', pointerEvents: 'none', touchAction: 'auto' }}
       onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
     >

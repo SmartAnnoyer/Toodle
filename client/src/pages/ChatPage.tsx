@@ -58,6 +58,7 @@ export function ChatPage() {
   async function submit(body = text, extra?: { kind?: 'text' | 'gif' | 'sticker'; metadata?: Record<string, unknown> }) {
     const trimmed = body.trim();
     if (!trimmed && extra?.kind !== 'gif' && extra?.kind !== 'sticker') return;
+    if (trimmed) toodle.notice(trimmed);
     setSending(true);
     try {
       const result = await send(trimmed, { ...extra, replyToId: reply?.id });
@@ -178,7 +179,7 @@ export function ChatPage() {
         {readChaos() !== 'off' && !error && !renewOpen ? (
           <ToodlePresence
             beat={toodle.beat}
-            listening={text.trim().length > 1}
+            listening={Boolean(typing) || text.trim().length > 1}
             onUse={(phrase) => { setText(phrase); toodle.dismiss(); }}
             onDone={toodle.dismiss}
             onTap={toodle.poke}

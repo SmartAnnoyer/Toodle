@@ -60,9 +60,9 @@ export function ToodleStage({
   return (
     <div className={inline
       ? 'relative mx-auto flex w-full max-w-sm items-end justify-center gap-2'
-      : 'pointer-events-none absolute bottom-full left-0 z-20 flex items-end gap-1'}
+      : 'pointer-events-none absolute bottom-full left-0 right-0 z-20 h-48'}
     >
-      <div className="relative h-56 w-40">
+      <div className="relative h-full w-full">
         <Suspense fallback={null}>
           <ToodleScene
             animation={animation}
@@ -78,11 +78,11 @@ export function ToodleStage({
           type="button"
           aria-label="Toodle"
           onClick={onTap}
-          className="pointer-events-auto absolute bottom-1 left-1/2 h-44 w-24 -translate-x-1/2 cursor-pointer bg-transparent"
+          className="pointer-events-auto absolute bottom-1 left-1/2 h-40 w-28 -translate-x-1/2 cursor-pointer bg-transparent"
         />
       </div>
       {bubble ? (
-        <div className={`${suggestion ? 'pointer-events-auto' : 'pointer-events-none'} mb-6 max-w-[200px] rounded-2xl bg-elevated px-3 py-2 text-sm shadow-card`}>
+        <div className={`${suggestion ? 'pointer-events-auto' : 'pointer-events-none'} ${inline ? 'mb-6' : 'absolute left-3 top-1'} max-w-[200px] rounded-2xl bg-elevated px-3 py-2 text-sm shadow-card`}>
           <p>{bubble}</p>
           {suggestion ? (
             <button

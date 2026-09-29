@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage, ConversationDetail } from '../types';
 import { ToodleEngine } from './engine';
+import { reactionForText } from './3d/intent';
 import { feelTap, freshMemory, hearMessage } from './life';
 import { looksSerious, mentionsFiveMinutes, mentionsGoodnight, notableWord, poseForEmoji } from './lines';
 import { readChaos } from './settings';
@@ -41,6 +42,7 @@ export function useToodleChat({
   const prevDraft = useRef('');
   const deletes = useRef<number[]>([]);
   const milestone = useRef(false);
+  const ackedAt = useRef(0);
   const longChat = useRef(false);
   const conversationId = conversation?.id;
 
@@ -128,6 +130,7 @@ export function useToodleChat({
       const texts = messages.filter((item) => item.kind === 'text');
       const index = texts.findIndex((item) => item.id === message.id);
       const recent = texts.slice(Math.max(0, index - 4), index).map((item) => item.body);
+      if (message.senderId === myId && Date.now() - ackedAt.current < 4000) continue;
       const heard = hearMessage(message.body, memory.current, Date.now(), readChaos(), Math.random, {
         userId: message.senderId ?? undefined,
         recent,
@@ -149,6 +152,18 @@ export function useToodleChat({
       else if (rapid) show('USER_SENT_MANY_MESSAGES');
       else if (message.body.length > 280) show('LONG_MESSAGE');
       else if (emojiOnly) show('EMOJI_REACT', { emoji: message.body });
+      else if (message.senderId !== myId && !looksSerious(message.body)) {
+        const pick = reactionForText(message.body);
+        play([{
+          event: 'HEARD',
+          pose: 'happy',
+          animation: pick.animation,
+          prop: pick.prop,
+          spot: 'composer',
+          ms: 900,
+          priority: 48,
+        }]);
+      }
     }
     if (messages.length >= 100 && !milestone.current) {
       milestone.current = true;
@@ -256,6 +271,37 @@ export function useToodleChat({
 
   return {
     beat,
+    notice(text: string) {
+      const trimmed = text.trim();
+      if (!trimmed || paused || readChaos() === 'off') return;
+      if (beatRef.current && beatRef.current.priority >= 75) return;
+      ackedAt.current = Date.now();
+      const heard = hearMessage(trimmed, memory.current, Date.now(), readChaos(), Math.random, { userId: myId });
+      if (heard?.length) {
+        play(heard);
+        return;
+      }
+      const pick = reactionForText(trimmed);
+      play([
+        {
+          event: 'HEARD',
+          pose: 'happy',
+          animation: pick.animation,
+          prop: pick.prop,
+          spot: 'composer',
+          ms: 800,
+          priority: 52,
+        },
+        {
+          event: 'HEARD',
+          pose: 'thinking',
+          animation: 'thinking',
+          spot: 'composer',
+          ms: 900,
+          priority: 28,
+        },
+      ]);
+    },
     poke() {
       if (paused || readChaos() === 'off' || Date.now() < memory.current.chaosUntil) return;
       const cues = feelTap(memory.current, Date.now());

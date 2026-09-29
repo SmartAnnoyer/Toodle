@@ -140,12 +140,12 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
       foreR: { rx: -0.15 },
     }),
   },
-  walk: { duration: 1.2, loop: true, sample: (t) => gait(t, 7.5, 0.72, 0.48) },
+  walk: { duration: 1.2, loop: true, sample: (t) => gait(t, 7.5, 0.72, 1.45) },
   run: {
     duration: 0.7,
     loop: true,
     sample: (t) => {
-      const next = gait(t, 12, 1.05, 0.85);
+      const next = gait(t, 12, 1.05, 1.7);
       next.spine.rx = 0.28;
       next.root.y += 0.04;
       return next;

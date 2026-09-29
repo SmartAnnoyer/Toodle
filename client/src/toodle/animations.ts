@@ -25,7 +25,8 @@ export type ToodleAnimation =
   | 'legShake'
   | 'buttWiggle'
   | 'walkAway'
-  | 'joke';
+  | 'joke'
+  | 'wave';
 
 export type ToodleSize = 'small' | 'medium' | 'large';
 export type ToodlePosition = 'floating' | 'inline' | 'peek';
