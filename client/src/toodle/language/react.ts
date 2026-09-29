@@ -1,11 +1,11 @@
 import { looksSerious } from '../lines';
 import type { LifeMemory } from '../life';
-import { REACTIONS } from '../reactions/catalog';
+import { ALL_TOODLE_REACTIONS, REACTIONS } from '../reactions/catalog';
 import { cue, type ChatReaction, type ReactionCue, type ReactionLevel } from '../reactions/types';
 import { suitcase } from '../reactions/travel';
 import type { ChaosLevel, ToodleBeat } from '../types';
 import { matchesAlias } from './match';
-import { chatTokens, foldToken, normalizeChatText } from './normalize';
+import { chatTokens, foldToken, normalizeChatText, normalizeToodleText } from './normalize';
 
 const WINDOW_MS = 10 * 60_000;
 const BURST_MS = 12_000;
@@ -18,6 +18,7 @@ const SURE = new Set([
   'enjoy', 'happy-ga', 'bavundhi', 'strong-compliment', 'name',
   'birthday', 'cancel', 'deadline', 'exam', 'food', 'doing', 'where',
   'wellbeing', 'bike', 'outside', 'movie',
+  'pspk', 'megastar', 'amma', 'nanna',
 ]);
 
 const LISTEN_LINES = [
@@ -100,7 +101,7 @@ function detect(text: string): Hit[] {
 }
 
 export function keywordHit(text: string): boolean {
-  return detect(text).some((hit) => SURE.has(hit.reaction.id));
+  return detect(text).some((hit) => !negated(text, hit.reaction.category));
 }
 
 function negated(text: string, category: string): boolean {
@@ -628,27 +629,96 @@ function listenBeats(random: () => number, line?: string): ToodleBeat[] {
   return toBeats([cue(chosen, 'peek', 'suspicious', { ms: 1200 })], 40);
 }
 
-function commit(memory: LifeMemory, pick: Pick, now: number, beats: ToodleBeat[]) {
+function coolKey(userId: string, id: string) {
+  return `${userId}:${id}`;
+}
+
+function cooled(memory: LifeMemory, userId: string, id: string, now: number, cooldownMs: number) {
+  const seen = memory.categoryAt.get(coolKey(userId, id));
+  if (seen == null) return { ok: true, remainingMs: 0 };
+  const remainingMs = cooldownMs - (now - seen);
+  return { ok: remainingMs <= 0, remainingMs: Math.max(0, remainingMs) };
+}
+
+function commit(memory: LifeMemory, pick: Pick, now: number, beats: ToodleBeat[], userId: string) {
   const duration = beats.reduce((sum, beat) => sum + beat.ms, 0);
   memory.lockUntil = now + duration;
   memory.lockLevel = beats[0]?.priority ?? levelScore(pick.level);
   memory.lastListenAt = now;
-  memory.categoryAt.set(pick.id, now);
-  for (const category of pick.categories) memory.categoryAt.set(category, now);
+  memory.categoryAt.set(coolKey(userId, pick.id), now);
+  for (const category of pick.categories) memory.categoryAt.set(coolKey(userId, category), now);
   if (pick.categories.includes('name')) memory.namePingAt = now;
   if (pick.level >= 3) memory.majorAt.push(now);
 }
 
-export function getNextToodleReaction(
+export interface ToodleDecision {
+  message: string;
+  normalized: string;
+  detected: string[];
+  selected: string | null;
+  status: 'played' | 'suppressed' | 'none';
+  reason: string | null;
+  remainingMs: number | null;
+  beats: ToodleBeat[] | null;
+}
+
+const recentDecisions: ToodleDecision[] = [];
+
+function debugOn() {
+  try {
+    return globalThis.localStorage?.getItem('toodle-debug') === '1';
+  } catch {
+    return false;
+  }
+}
+
+function remember(decision: ToodleDecision) {
+  recentDecisions.push(decision);
+  if (recentDecisions.length > 12) recentDecisions.shift();
+  if (!debugOn()) return;
+  const lines = [
+    'Toodle Detection',
+    `Message: "${decision.message}"`,
+    `Normalized: "${decision.normalized}"`,
+    decision.detected.length ? `Detected: ${decision.detected.join(', ')}` : 'Detected: NONE',
+    decision.selected ? `Selected: ${decision.selected}` : 'Selected: none',
+    `Status: ${decision.status}${decision.reason ? ` (${decision.reason})` : ''}`,
+  ];
+  console.info(lines.join('\n'));
+}
+
+export function explainToodleReaction(
   text: string,
   memory: LifeMemory,
   now: number,
   chaos: ChaosLevel,
   random: () => number = Math.random,
   context: HearContext = {},
-): ToodleBeat[] | null {
-  if (chaos === 'off' || looksSerious(text)) return null;
-  if (memory.chaosUntil > now) return null;
+): ToodleDecision {
+  const normalized = normalizeToodleText(text);
+  const done = (decision: ToodleDecision) => {
+    remember(decision);
+    return decision;
+  };
+  const blank = (status: ToodleDecision['status'], reason: string | null, detected: string[] = []): ToodleDecision => done({
+    message: text,
+    normalized,
+    detected,
+    selected: null,
+    status,
+    reason,
+    remainingMs: null,
+    beats: null,
+  });
+  if (chaos === 'off') return blank('suppressed', 'chaos-off');
+  if (looksSerious(text)) {
+    const found = detect(text).map((hit) => hit.reaction.id);
+    return blank('suppressed', 'serious', found);
+  }
+  if (memory.chaosUntil > now) {
+    const found = detect(text).map((hit) => hit.reaction.id);
+    return blank('suppressed', 'chaos-escape', found);
+  }
   prune(memory, now);
   const userId = context.userId ?? 'chat';
   const tokensNow = chatTokens(text);
@@ -662,7 +732,7 @@ export function getNextToodleReaction(
 
   if (memory.msgAt.length >= 5) {
     memory.hotUntil = now + 8_000;
-    return null;
+    return blank('suppressed', 'burst', currentHits.map((hit) => hit.reaction.id));
   }
   if (memory.hotUntil && now >= memory.hotUntil) {
     memory.hotUntil = 0;
@@ -696,16 +766,24 @@ export function getNextToodleReaction(
     ...frequencyPicks(text, spans),
     ...socialPicks(text, memory, userId, now, context.recent ?? [], current),
   ];
+  const detected = [...new Set(pool.map((pick) => pick.id))];
   if (pool.length > 0) {
     const majors = memory.majorAt.length;
+    const blocked: { id: string; reason: string; remainingMs: number }[] = [];
     const open = pool.filter((pick) => {
-      if (pick.level >= 3 && majors >= MAX_MAJORS_PER_MINUTE && !surePick(pick)) return false;
-      if (now < memory.lockUntil && levelScore(pick.level) <= memory.lockLevel) return false;
+      if (pick.level >= 3 && majors >= MAX_MAJORS_PER_MINUTE && !surePick(pick)) {
+        blocked.push({ id: pick.id, reason: 'budget', remainingMs: 0 });
+        return false;
+      }
       const keys = pick.combo ? [pick.id] : pick.categories;
-      return keys.every((category) => {
-        const seen = memory.categoryAt.get(category);
-        return seen == null || now - seen >= pick.cooldownMs;
-      });
+      for (const category of keys) {
+        const gate = cooled(memory, userId, category, now, pick.cooldownMs);
+        if (!gate.ok) {
+          blocked.push({ id: pick.id, reason: 'cooldown', remainingMs: gate.remainingMs });
+          return false;
+        }
+      }
+      return true;
     });
     open.sort((a, b) => {
       if (a.combo !== b.combo) return a.combo ? -1 : 1;
@@ -714,36 +792,71 @@ export function getNextToodleReaction(
       return b.probability - a.probability;
     });
     const winner = open[0];
-    if (!winner) return null;
+    if (!winner) {
+      const first = blocked[0];
+      return done({
+        message: text,
+        normalized,
+        detected,
+        selected: first?.id ?? null,
+        status: 'suppressed',
+        reason: first?.reason ?? 'filtered',
+        remainingMs: first?.remainingMs ?? null,
+        beats: null,
+      });
+    }
     if (!surePick(winner)) {
       const chance = Math.min(0.9, winner.probability * gapScale(chaos));
-      if (random() > chance) return null;
+      if (random() > chance) {
+        return done({
+          message: text,
+          normalized,
+          detected,
+          selected: winner.id,
+          status: 'suppressed',
+          reason: 'probability',
+          remainingMs: null,
+          beats: null,
+        });
+      }
     }
-    const beats = toBeats(winner.build(random), levelScore(winner.level) + (winner.combo ? 4 : 0));
-    commit(memory, winner, now, beats);
-    return beats;
+    const built = winner.build(random);
+    const beats = toBeats(built, levelScore(winner.level) + (winner.combo ? 4 : 0));
+    commit(memory, winner, now, beats, userId);
+    return done({ message: text, normalized, detected, selected: winner.id, status: 'played', reason: null, remainingMs: null, beats });
   }
 
   if (memory.oweListen) {
     memory.oweListen = false;
     if (random() < 0.55) {
       const beats = listenBeats(random, "Okay... I'm listening.");
-      memory.categoryAt.set('listen', now);
+      memory.categoryAt.set(coolKey(userId, 'listen'), now);
       memory.lastListenAt = now;
-      return beats;
+      return done({ message: text, normalized, detected, selected: 'listen', status: 'played', reason: null, remainingMs: null, beats });
     }
   }
 
-  const listenSeen = memory.categoryAt.get('listen');
+  const listenSeen = memory.categoryAt.get(coolKey(userId, 'listen'));
   const enoughChat = memory.recentCats.length >= 3;
   if (currentHits.length === 0 && enoughChat && (listenSeen == null || now - listenSeen >= 180_000) && random() < 0.06 * gapScale(chaos)) {
     const beats = listenBeats(random);
-    memory.categoryAt.set('listen', now);
+    memory.categoryAt.set(coolKey(userId, 'listen'), now);
     memory.lockUntil = now + (beats[0]?.ms ?? 1200);
     memory.lockLevel = 40;
-    return beats;
+    return done({ message: text, normalized, detected, selected: 'listen', status: 'played', reason: null, remainingMs: null, beats });
   }
-  return null;
+  return blank('none', detected.length ? null : 'no-matcher', detected);
+}
+
+export function getNextToodleReaction(
+  text: string,
+  memory: LifeMemory,
+  now: number,
+  chaos: ChaosLevel,
+  random: () => number = Math.random,
+  context: HearContext = {},
+): ToodleBeat[] | null {
+  return explainToodleReaction(text, memory, now, chaos, random, context).beats;
 }
 
 export function hearMessage(
@@ -754,5 +867,32 @@ export function hearMessage(
   random: () => number = Math.random,
   context?: HearContext,
 ): ToodleBeat[] | null {
-  return getNextToodleReaction(text, memory, now, chaos, random, context);
+  return explainToodleReaction(text, memory, now, chaos, random, context).beats;
 }
+
+export function getToodleReactionHealth() {
+  const ids = ALL_TOODLE_REACTIONS.map((reaction) => reaction.id);
+  const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+  const missingKeywords = ALL_TOODLE_REACTIONS.filter((reaction) => reaction.aliases.length === 0).map((reaction) => reaction.id);
+  return {
+    total: ALL_TOODLE_REACTIONS.length,
+    loaded: ALL_TOODLE_REACTIONS.length,
+    duplicateIds,
+    missingKeywords,
+    groups: {
+      english: true,
+      tanglish: true,
+      aliases: true,
+      context: true,
+      combinations: true,
+      frequency: true,
+      cooldown: true,
+    },
+    recent: recentDecisions.map((decision) => ({
+      id: decision.selected,
+      status: decision.status,
+      reason: decision.reason,
+    })),
+  };
+}
+

@@ -28,3 +28,8 @@ export function foldToken(token: string): string {
 export function chatTokens(message: string): string[] {
   return normalizeChatText(message).split(' ').filter(Boolean);
 }
+
+/** Matcher input. The stored chat message is never rewritten. */
+export function normalizeToodleText(message: string): string {
+  return normalizeChatText(message);
+}

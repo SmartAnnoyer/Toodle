@@ -67,7 +67,7 @@ function pick<T>(items: T[], random: () => number): T {
   return items[Math.floor(random() * items.length)] ?? items[0];
 }
 
-export { hearMessage, keywordHit } from './language/react';
+export { explainToodleReaction, getToodleReactionHealth, hearMessage, keywordHit } from './language/react';
 
 const PATS = ['Hehe.', 'Aww.', 'Thanks.'];
 const DOUBLES = ['Okay.', 'Bro.', 'I felt that.'];

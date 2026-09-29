@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage, ConversationDetail } from '../types';
 import { ToodleEngine } from './engine';
 import { reactionForText } from './3d/intent';
-import { feelTap, freshMemory, hearMessage, keywordHit } from './life';
+import { explainToodleReaction, feelTap, freshMemory, hearMessage, keywordHit } from './life';
 import { looksSerious, mentionsFiveMinutes, mentionsGoodnight, notableWord, poseForEmoji } from './lines';
 import { readChaos } from './settings';
 import type { ToodleBeat, ToodleContext, ToodleEvent } from './types';
@@ -30,6 +30,7 @@ export function useToodleChat({
   const memory = useRef(freshMemory());
   const script = useRef<ToodleBeat[]>([]);
   const [beat, setBeat] = useState<ToodleBeat | null>(null);
+  const [waiting, setWaiting] = useState(false);
   const beatRef = useRef<ToodleBeat | null>(null);
   const seriousUntil = useRef(0);
   const counts = useRef(new Map<string, number>());
@@ -73,7 +74,9 @@ export function useToodleChat({
     if (paused || cues.length === 0) return;
     if (!beatRef.current || cues[0].priority > beatRef.current.priority) {
       play(cues);
+      return;
     }
+    script.current.push(...cues);
   }
 
   useEffect(() => {
@@ -102,6 +105,7 @@ export function useToodleChat({
     script.current = [];
     beatRef.current = null;
     setBeat(null);
+    setWaiting(false);
   }, [conversationId]);
 
   useEffect(() => {
@@ -128,6 +132,7 @@ export function useToodleChat({
       const texts = messages.filter((item) => item.kind === 'text');
       const index = texts.findIndex((item) => item.id === message.id);
       const recent = texts.slice(Math.max(0, index - 4), index).map((item) => item.body);
+      if (message.senderId !== myId) setWaiting(false);
       if (message.senderId === myId && Date.now() - ackedAt.current < 4000) continue;
       const heard = hearMessage(message.body, memory.current, Date.now(), readChaos(), Math.random, {
         userId: message.senderId ?? undefined,
@@ -250,17 +255,18 @@ export function useToodleChat({
 
   return {
     beat,
+    waiting,
     notice(text: string) {
       const trimmed = text.trim();
       if (!trimmed || paused || readChaos() === 'off') return;
-      if (beatRef.current && beatRef.current.priority >= 75) return;
       ackedAt.current = Date.now();
-      const heard = hearMessage(trimmed, memory.current, Date.now(), readChaos(), Math.random, { userId: myId });
-      if (heard?.length) {
-        play(heard);
+      setWaiting(true);
+      const decision = explainToodleReaction(trimmed, memory.current, Date.now(), readChaos(), Math.random, { userId: myId });
+      if (decision.beats?.length) {
+        offer(decision.beats);
         return;
       }
-      if (keywordHit(trimmed)) return;
+      if (decision.detected.length || keywordHit(trimmed)) return;
       const pick = reactionForText(trimmed);
       play([
         {
@@ -271,14 +277,6 @@ export function useToodleChat({
           spot: 'composer',
           ms: 700,
           priority: 52,
-        },
-        {
-          event: 'HEARD',
-          pose: 'thinking',
-          animation: 'listen',
-          spot: 'composer',
-          ms: 45000,
-          priority: 28,
         },
       ]);
     },

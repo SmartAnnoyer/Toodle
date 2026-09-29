@@ -4,7 +4,10 @@ export const COMEDY: ChatReaction[] = [
   {
     id: 'secret',
     category: 'secret',
-    aliases: ['secret', 'secret cheptha', 'evariki cheppaku', 'evvariki cheppaku', 'dont tell anyone', "don't tell anyone"],
+    aliases: [
+      'secret', 'secret cheptha', 'secret chepta', 'secret chepptha', 'secret chepthaanu', 'secret chepthanu',
+      'evariki cheppaku', 'evvariki cheppaku', 'dont tell anyone', "don't tell anyone",
+    ],
     probability: 0.5,
     cooldownMs: 180_000,
     level: 4,

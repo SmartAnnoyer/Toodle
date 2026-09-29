@@ -578,15 +578,14 @@ export class ToodleAnimationController {
     }
     if (this.blink > 0) this.blink = Math.max(0, this.blink - step * 7);
 
+    const posing = options.listening && !this.reaction && (this.current === 'idle' || this.current === 'listen');
+    const clipKey = posing ? 'listen' : this.current;
+    const live = CLIPS[clipKey] ?? clip;
     const fromClip = CLIPS[this.from] ?? CLIPS.idle;
-    const mixed = lerpPose(fromClip.sample(this.fromTime, this.style), clip.sample(this.time, this.style), smooth(this.blend));
+    const mixed = lerpPose(fromClip.sample(this.fromTime, this.style), live.sample(this.time, this.style), smooth(this.blend));
     mixed.root.x = this.placeX(mixed.root.x);
-    if (options.listening && !this.reaction) {
-      mixed.spine.rx += 0.2;
-      mixed.head.rx += 0.1;
-    }
     this.focusX = mixed.root.x;
-    const expression = expressionFor(this.current);
+    const expression = expressionFor(clipKey);
     return {
       pose: mixed,
       expression,

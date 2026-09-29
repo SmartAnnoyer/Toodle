@@ -196,7 +196,7 @@ export function ChatPage() {
         <div className="relative h-[26dvh] min-h-[8.5rem] w-full max-h-56 shrink-0">
           <ToodlePresence
             beat={toodle.beat}
-            listening={Boolean(typing)}
+            listening={toodle.waiting || Boolean(typing)}
             onUse={(phrase) => { setText(phrase); toodle.dismiss(); composer.current?.focus({ preventScroll: true }); }}
             onDone={toodle.dismiss}
             onTap={toodle.poke}
