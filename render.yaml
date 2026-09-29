@@ -1,0 +1,40 @@
+# Two Render services from this repo.
+# Set the env vars in the dashboard, then redeploy toodle-web
+# so Vite can bake in the API URL.
+
+services:
+  - type: web
+    name: toodle-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start -w server
+    healthCheckPath: /api/health
+    envVars:
+      - key: CLIENT_ORIGIN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GIPHY_API_KEY
+        sync: false
+
+  - type: web
+    name: toodle-web
+    runtime: static
+    buildCommand: npm install --include=dev && npm run build -w client
+    staticPublishPath: client/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false

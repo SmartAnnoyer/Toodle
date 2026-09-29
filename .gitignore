@@ -1,0 +1,11 @@
+node_modules
+dist
+.vite
+.env
+.env.local
+server/.env
+client/.env
+*.log
+.DS_Store
+coverage
+supabase/.temp
