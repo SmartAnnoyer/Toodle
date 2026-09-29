@@ -11,6 +11,8 @@ import { nudge } from '../lib/feedback';
 import { api } from '../lib/http';
 import { formatClock, formatRemaining, humanDuration, serverNowMs } from '../lib/time';
 import type { ChatMessage, GifResult } from '../types';
+import { ToodlePresence } from '../toodle/ToodlePresence';
+import { useToodleChat } from '../toodle/useToodleChat';
 
 export function ChatPage() {
   const { id = '' } = useParams();
@@ -32,6 +34,16 @@ export function ChatPage() {
   const [tick, setTick] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<number | null>(null);
+  const toodle = useToodleChat({
+    conversation,
+    messages,
+    myId: profile?.id,
+    moodText: profile?.moodText,
+    draft: text,
+    partnerTyping: typing,
+    streakPop,
+    paused: Boolean(error) || renewOpen,
+  });
 
   useEffect(() => {
     const handle = window.setInterval(() => setTick((value) => value + 1), 1000);
@@ -86,6 +98,9 @@ export function ChatPage() {
     return (
       <div className="app-bg grid min-h-dvh place-items-center px-6">
         <EmptyState emoji="💨" title="Poof." body="That conversation is gone." action={<Link to="/" className="text-primary">Back home</Link>} />
+        <div className="mt-6">
+          <ToodlePresence inline beat={{ event: 'CONVERSATION_EXPIRING', pose: 'dramatic', line: 'Well... that was fun.', spot: 'composer', ms: 4000, priority: 90 }} />
+        </div>
       </div>
     );
   }
@@ -158,7 +173,17 @@ export function ChatPage() {
         {typing ? <p className="text-sm text-muted">typing…</p> : null}
       </div>
 
-      <div className="composer-safe border-t border-line px-3 pt-2">
+      <div className="composer-safe relative border-t border-line px-3 pt-2">
+        <AnimatePresence>
+          {toodle.beat ? (
+            <ToodlePresence
+              key={`${toodle.beat.event}-${toodle.beat.line ?? toodle.beat.pose}`}
+              beat={toodle.beat}
+              onUse={(phrase) => { setText(phrase); toodle.dismiss(); }}
+              onDone={toodle.dismiss}
+            />
+          ) : null}
+        </AnimatePresence>
         {reply ? (
           <div className="mb-2 flex items-center justify-between rounded-2xl bg-white/5 px-3 py-2 text-sm">
             <span className="truncate">Replying to {reply.body}</span>

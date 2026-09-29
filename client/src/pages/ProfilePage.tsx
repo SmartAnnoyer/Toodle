@@ -5,6 +5,8 @@ import { Avatar, Button, Field, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { api } from '../lib/http';
+import { CHAOS_OPTIONS, readChaos, writeChaos } from '../toodle/settings';
+import type { ChaosLevel } from '../toodle/types';
 
 export function ProfilePage() {
   const { profile, refreshProfile, signOut } = useAuth();
@@ -17,6 +19,7 @@ export function ProfilePage() {
   const [moodText, setMoodText] = useState(profile?.moodText ?? 'surviving');
   const [avatar, setAvatar] = useState(profile?.avatarEmoji ?? '✨');
   const [busy, setBusy] = useState(false);
+  const [chaos, setChaos] = useState<ChaosLevel>(readChaos);
 
   if (!profile) return <p className="px-4 pt-10 text-muted">Loading you…</p>;
 
@@ -81,6 +84,21 @@ export function ProfilePage() {
           }}
         />
       </label>
+      <div className="mt-4">
+        <p className="mb-2 text-sm text-muted">Toodle reactions</p>
+        <div className="grid grid-cols-2 gap-2">
+          {CHAOS_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => { setChaos(option.id); writeChaos(option.id); }}
+              className={`rounded-2xl border px-3 py-3 text-sm ${chaos === option.id ? 'border-primary bg-white/10' : 'border-line'}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <p className="mt-3 text-sm text-muted">Your email stays hidden. Only your username is public.</p>
       <div className="mt-5 flex flex-col gap-3">
         <Button disabled={busy} onClick={() => void save()}>Save</Button>

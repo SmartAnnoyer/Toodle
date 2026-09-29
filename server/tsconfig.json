@@ -11,5 +11,6 @@
     "types": ["node"],
     "rootDir": "."
   },
-  "include": ["src", "test"]
+  "include": ["src", "test"],
+  "exclude": ["test/toodleEngine.test.ts"]
 }

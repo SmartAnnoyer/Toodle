@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc --noEmit",
     "start": "tsx src/index.ts",
-    "test": "node --import tsx --test test/username.test.ts test/access.test.ts test/ruleEngine.test.ts test/streakEngine.test.ts test/shortcutEngine.test.ts",
+    "test": "node --import tsx --test test/username.test.ts test/access.test.ts test/ruleEngine.test.ts test/streakEngine.test.ts test/shortcutEngine.test.ts test/toodleEngine.test.ts",
     "seed": "tsx src/scripts/seed.ts"
   },
   "dependencies": {
