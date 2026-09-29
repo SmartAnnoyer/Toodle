@@ -7,32 +7,38 @@ import { faceFor } from './ToodleExpressionController';
 import { propAnchor, ToodlePropMesh } from './ToodleProps';
 import type { ToodleCharacterState } from './state';
 
-/** Horizontal speech-bubble outline. The tail is part of the silhouette, matching the Toodle logo. */
+function quad(a: [number, number], b: [number, number], c: [number, number], steps: number) {
+  const points: [number, number][] = [];
+  for (let i = 1; i <= steps; i += 1) {
+    const t = i / steps;
+    const u = 1 - t;
+    points.push([
+      u * u * a[0] + 2 * u * t * b[0] + t * t * c[0],
+      u * u * a[1] + 2 * u * t * b[1] + t * t * c[1],
+    ]);
+  }
+  return points;
+}
+
+/** The Toodle logo outline: a round speech bubble with its tail in the same contour. */
 function speechBubbleShape() {
   const shape = new Shape();
-  const rx = 0.86;
-  const ry = 0.7;
-  const n = 2.2;
-  const steps = 140;
-  const tailAt = Math.PI * 1.22;
-  const tailSpan = 0.46;
-  const points: [number, number][] = [];
+  const rx = 0.84;
+  const ry = 0.8;
+  const leave = 1.12 * Math.PI;
+  const back = 1.4 * Math.PI;
+  const arc: [number, number][] = [];
+  const steps = 110;
   for (let i = 0; i <= steps; i += 1) {
-    const t = (i / steps) * Math.PI * 2;
-    const c = Math.cos(t);
-    const s = Math.sin(t);
-    let x = Math.sign(c || 1) * rx * Math.abs(c) ** (2 / n);
-    let y = Math.sign(s || 1) * ry * Math.abs(s) ** (2 / n);
-    let delta = Math.abs(t - tailAt);
-    delta = Math.min(delta, Math.PI * 2 - delta);
-    if (delta < tailSpan) {
-      const u = delta / tailSpan;
-      const lobe = Math.cos(u * Math.PI * 0.5) ** 0.85;
-      x += -0.2 * lobe;
-      y += -0.48 * lobe;
-    }
-    points.push([x, y]);
+    const t = back + (i / steps) * (leave + Math.PI * 2 - back);
+    arc.push([Math.cos(t) * rx, Math.sin(t) * ry]);
   }
+  const tip: [number, number] = [-0.4, -1.12];
+  const points = [
+    ...arc,
+    ...quad(arc[arc.length - 1], [-1.0, -0.52], tip, 24),
+    ...quad(tip, [-0.48, -1.08], arc[0], 24),
+  ];
   shape.moveTo(points[0][0], points[0][1]);
   for (let i = 1; i < points.length; i += 1) shape.lineTo(points[i][0], points[i][1]);
   shape.closePath();
@@ -99,15 +105,15 @@ export function ToodleCharacter({
   const map = useBubbleTexture();
   const body = useMemo(() => {
     const geo = new ExtrudeGeometry(speechBubbleShape(), {
-      depth: 0.42,
+      depth: 0.045,
       bevelEnabled: true,
-      bevelThickness: 0.18,
-      bevelSize: 0.16,
-      bevelSegments: 8,
-      curveSegments: 4,
+      bevelThickness: 0.035,
+      bevelSize: 0.028,
+      bevelSegments: 3,
+      curveSegments: 2,
     });
     geo.computeVertexNormals();
-    geo.translate(0, 0.16, -0.3);
+    geo.center();
     return geo;
   }, []);
   const root = useRef<Group>(null);
@@ -144,19 +150,19 @@ export function ToodleCharacter({
       if (name === 'root') group.position.set(part.x, part.y, part.z);
       group.rotation.set(part.rx, part.ry, part.rz);
     });
-    const breathe = reduced ? 1 : 1 + Math.sin(performance.now() / 480) * 0.028;
-    const fit = 0.58;
-    if (hips.current) hips.current.scale.set((1.05 / breathe) * fit, breathe * fit, fit);
+    const breathe = reduced ? 1 : 1 + Math.sin(performance.now() / 480) * 0.02;
+    const fit = 0.74;
+    if (hips.current) hips.current.scale.set((1.03 / breathe) * fit, breathe * fit, fit * 0.85);
     const face = faceFor(frame.expression, frame.blink, frame.wink);
     const leftY = Math.max(0.12, face.eyeScale * face.narrow * (1 - face.lid * 0.9));
     const rightShut = frame.wink ? 1 : face.lid;
     const rightY = Math.max(0.12, face.eyeScale * (frame.wink ? 0.12 : face.narrow) * (1 - rightShut * 0.9));
-    if (eyeL.current) eyeL.current.scale.set(face.eyeScale * 0.92, leftY, 0.5);
-    if (eyeR.current) eyeR.current.scale.set(face.eyeScale * 0.92, rightY, 0.5);
+    if (eyeL.current) eyeL.current.scale.set(face.eyeScale * 0.9, leftY, 0.28);
+    if (eyeR.current) eyeR.current.scale.set(face.eyeScale * 0.9, rightY, 0.28);
     if (mouth.current) {
       const open = 0.62 + Math.min(face.mouthOpen, 1.2) * 0.55;
       mouth.current.scale.set(face.mouthWide, open, 0.7);
-      mouth.current.position.y = -0.2 - face.mouthDrop * 0.12;
+      mouth.current.position.y = -0.2 - face.mouthDrop * 0.1;
       mouth.current.rotation.z = face.mouthDrop > 0.03 ? 0 : Math.PI;
     }
     const blush = 0.75 + face.cheek * 0.4;
@@ -179,65 +185,61 @@ export function ToodleCharacter({
 
   return (
     <group ref={root}>
-      <mesh position={[0, 0.72, -0.35]} scale={[1.35, 1.05, 0.2]}>
-        <sphereGeometry args={[0.62, 20, 12]} />
-        <meshBasicMaterial color="#c4b5fd" transparent opacity={0.2} depthWrite={false} />
-      </mesh>
-      <group ref={hips} position={[0, 0.62, 0]}>
+      <group ref={hips} position={[0, 0.68, 0]}>
         <mesh geometry={body}>
           <Gloss map={map} />
         </mesh>
         <group ref={spine}>
-          <group ref={head} position={[0.02, 0.28, 0.46]}>
-            <mesh ref={eyeL} position={[-0.26, 0.08, 0]}>
-              <sphereGeometry args={[0.12, 16, 12]} />
+          <group ref={head} position={[0.02, 0.16, 0.1]}>
+            <mesh ref={eyeL} position={[-0.26, 0.1, 0]}>
+              <sphereGeometry args={[0.13, 16, 12]} />
               <meshStandardMaterial color="#1a1024" roughness={0.25} />
               <mesh position={[-0.03, 0.04, 0.07]}>
                 <sphereGeometry args={[0.03, 8, 8]} />
                 <meshBasicMaterial color="#ffffff" />
               </mesh>
             </mesh>
-            <mesh ref={eyeR} position={[0.26, 0.08, 0]}>
-              <sphereGeometry args={[0.12, 16, 12]} />
+            <mesh ref={eyeR} position={[0.26, 0.1, 0]}>
+              <sphereGeometry args={[0.13, 16, 12]} />
               <meshStandardMaterial color="#1a1024" roughness={0.25} />
               <mesh position={[-0.03, 0.04, 0.07]}>
                 <sphereGeometry args={[0.03, 8, 8]} />
                 <meshBasicMaterial color="#ffffff" />
               </mesh>
             </mesh>
-            <mesh ref={browL} position={[-0.26, 0.34, 0.02]} rotation={[0, 0, 0.4]}>
+            <mesh ref={browL} position={[-0.24, 0.32, 0.01]} rotation={[0, 0, 0.4]}>
               <capsuleGeometry args={[0.018, 0.12, 4, 6]} />
               <meshStandardMaterial color="#3b2030" transparent opacity={0.25} />
             </mesh>
-            <mesh ref={browR} position={[0.26, 0.34, 0.02]} rotation={[0, 0, -0.4]}>
+            <mesh ref={browR} position={[0.24, 0.32, 0.01]} rotation={[0, 0, -0.4]}>
               <capsuleGeometry args={[0.018, 0.12, 4, 6]} />
               <meshStandardMaterial color="#3b2030" transparent opacity={0.25} />
             </mesh>
-            <mesh ref={mouth} position={[0, -0.22, 0.05]} rotation={[0.15, 0, Math.PI]}>
-              <torusGeometry args={[0.115, 0.03, 8, 18, Math.PI]} />
+            <mesh ref={mouth} position={[0, -0.2, 0.02]} rotation={[0.1, 0, Math.PI]}>
+              <torusGeometry args={[0.12, 0.028, 8, 18, Math.PI]} />
               <meshStandardMaterial color="#4a1530" roughness={0.4} />
             </mesh>
-            <mesh ref={cheekL} position={[-0.42, -0.02, 0.02]}>
+            <mesh ref={cheekL} position={[-0.4, -0.02, 0.01]}>
               <sphereGeometry args={[0.055, 10, 8]} />
               <meshStandardMaterial color="#fb7185" transparent opacity={0.55} />
             </mesh>
-            <mesh ref={cheekR} position={[0.42, -0.02, 0.02]}>
+            <mesh ref={cheekR} position={[0.4, -0.02, 0.01]}>
               <sphereGeometry args={[0.055, 10, 8]} />
               <meshStandardMaterial color="#fb7185" transparent opacity={0.55} />
             </mesh>
             {slot === 'face' && prop ? <ToodlePropMesh prop={prop} /> : null}
             {slot === 'head' && prop ? <ToodlePropMesh prop={prop} /> : null}
           </group>
-          <group ref={armL} position={[-1.02, 0.22, 0.16]}>
+          <group ref={armL} position={[-0.9, 0.02, 0.04]}>
             <mesh>
-              <sphereGeometry args={[0.075, 12, 10]} />
+              <sphereGeometry args={[0.05, 12, 10]} />
               <Gloss map={map} />
             </mesh>
             <group ref={foreL} />
           </group>
-          <group ref={armR} position={[0.98, 0.1, 0.16]}>
+          <group ref={armR} position={[0.86, 0.06, 0.04]}>
             <mesh>
-              <sphereGeometry args={[0.075, 12, 10]} />
+              <sphereGeometry args={[0.05, 12, 10]} />
               <Gloss map={map} />
             </mesh>
             <group ref={foreR}>
