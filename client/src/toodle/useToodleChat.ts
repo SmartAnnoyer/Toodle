@@ -4,6 +4,8 @@ import { ToodleEngine } from './engine';
 import { reactionForText } from './3d/intent';
 import { explainToodleReaction, feelTap, freshMemory, hearMessage, keywordHit } from './life';
 import { looksSerious, mentionsFiveMinutes, mentionsGoodnight, notableWord, poseForEmoji } from './lines';
+import { toodleAudio } from './audio/ToodleAudioEngine';
+import { shouldPopIncoming } from './audio/ToodleAudioState';
 import { readChaos } from './settings';
 import type { ToodleBeat, ToodleContext, ToodleEvent } from './types';
 
@@ -47,6 +49,12 @@ export function useToodleChat({
   const longChat = useRef(false);
   const conversationId = conversation?.id;
 
+  function present(next: ToodleBeat | null) {
+    beatRef.current = next;
+    setBeat(next);
+    toodleAudio.playBeat(next);
+  }
+
   function show(event: ToodleEvent, context?: ToodleContext) {
     if (paused) return;
     const next = engine.current.decide({
@@ -59,15 +67,13 @@ export function useToodleChat({
     if (!next) return;
     if (beatRef.current && beatRef.current.priority >= next.priority) return;
     script.current = [];
-    beatRef.current = next;
-    setBeat(next);
+    present(next);
   }
 
   function play(cues: ToodleBeat[]) {
     if (paused || cues.length === 0) return;
     script.current = cues.slice(1);
-    beatRef.current = cues[0];
-    setBeat(cues[0]);
+    present(cues[0]);
   }
 
   function offer(cues: ToodleBeat[]) {
@@ -84,12 +90,10 @@ export function useToodleChat({
     const handle = window.setTimeout(() => {
       const next = script.current.shift();
       if (next) {
-        beatRef.current = next;
-        setBeat(next);
+        present(next);
         return;
       }
-      beatRef.current = null;
-      setBeat(null);
+      present(null);
     }, beat.ms);
     return () => window.clearTimeout(handle);
   }, [beat]);
@@ -103,8 +107,7 @@ export function useToodleChat({
     engine.current = new ToodleEngine();
     memory.current = freshMemory();
     script.current = [];
-    beatRef.current = null;
-    setBeat(null);
+    present(null);
     setWaiting(false);
   }, [conversationId]);
 
@@ -121,6 +124,13 @@ export function useToodleChat({
       return;
     }
     for (const message of fresh) {
+      const mine = message.senderId === myId;
+      if (shouldPopIncoming({
+        mine,
+        system: message.kind === 'system',
+        alreadySeen: false,
+        booted: true,
+      })) toodleAudio.noteIncoming();
       seen.current.add(message.id);
       if (message.kind === 'gif' || message.kind === 'sticker') {
         show('GIF_SENT');
@@ -260,6 +270,7 @@ export function useToodleChat({
       const trimmed = text.trim();
       if (!trimmed || paused || readChaos() === 'off') return;
       ackedAt.current = Date.now();
+      toodleAudio.unlock();
       setWaiting(true);
       const decision = explainToodleReaction(trimmed, memory.current, Date.now(), readChaos(), Math.random, { userId: myId });
       if (decision.beats?.length) {
@@ -282,13 +293,13 @@ export function useToodleChat({
     },
     poke() {
       if (paused || readChaos() === 'off' || Date.now() < memory.current.chaosUntil) return;
+      toodleAudio.unlock();
       const cues = feelTap(memory.current, Date.now());
       if (cues.length) play(cues);
     },
     dismiss() {
       script.current = [];
-      beatRef.current = null;
-      setBeat(null);
+      present(null);
     },
   };
 }

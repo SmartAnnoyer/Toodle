@@ -4,6 +4,7 @@ import { ALL_TOODLE_REACTIONS, REACTIONS } from '../reactions/catalog';
 import { cue, type ChatReaction, type ReactionCue, type ReactionLevel } from '../reactions/types';
 import { suitcase } from '../reactions/travel';
 import type { ChaosLevel, ToodleBeat } from '../types';
+import { timelineFor } from '../audio/reactionSounds';
 import { matchesAlias } from './match';
 import { chatTokens, foldToken, normalizeChatText, normalizeToodleText } from './normalize';
 
@@ -74,8 +75,8 @@ function gapScale(chaos: ChaosLevel): number {
   return 1;
 }
 
-function toBeats(items: ReactionCue[], score: number): ToodleBeat[] {
-  return items.map((item) => ({
+function toBeats(items: ReactionCue[], score: number, reactionId?: string): ToodleBeat[] {
+  return items.map((item, index) => ({
     event: 'HEARD' as const,
     pose: item.pose,
     line: item.line,
@@ -85,6 +86,10 @@ function toBeats(items: ReactionCue[], score: number): ToodleBeat[] {
     priority: score,
     animation: item.animation,
     prop: item.prop,
+    reactionId,
+    sound: item.sound,
+    soundVariants: item.soundVariants,
+    timeline: item.timeline ?? timelineFor(reactionId, index),
   }));
 }
 
@@ -821,7 +826,7 @@ export function explainToodleReaction(
       }
     }
     const built = winner.build(random);
-    const beats = toBeats(built, levelScore(winner.level) + (winner.combo ? 4 : 0));
+    const beats = toBeats(built, levelScore(winner.level) + (winner.combo ? 4 : 0), winner.id);
     commit(memory, winner, now, beats, userId);
     return done({ message: text, normalized, detected, selected: winner.id, status: 'played', reason: null, remainingMs: null, beats });
   }

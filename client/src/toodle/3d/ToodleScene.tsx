@@ -6,9 +6,18 @@ import { ToodleAnimationController } from './ToodleAnimationController';
 import { ToodleLighting } from './ToodleLighting';
 import { ToodleModel } from './ToodleModel';
 
-function CameraRig({ controller, onPlace }: { controller: ToodleAnimationController; onPlace?: (x: number) => void }) {
+function CameraRig({
+  controller,
+  glance,
+  onPlace,
+}: {
+  controller: ToodleAnimationController;
+  glance: 'left' | 'right' | 'center';
+  onPlace?: (x: number) => void;
+}) {
   useFrame((state, dt) => {
     controller.setHalfWidth(state.viewport.width / 2);
+    controller.setGlance(glance);
     followToodle(state.camera, dt);
     if (!onPlace || controller.halfW <= 0) return;
     const norm = (controller.focusX / controller.halfW + 1) / 2;
@@ -25,6 +34,7 @@ export default function ToodleScene({
   listening,
   reduced,
   paused,
+  glance,
   onPlace,
 }: {
   animation: string | null;
@@ -34,6 +44,7 @@ export default function ToodleScene({
   listening: boolean;
   reduced: boolean;
   paused: boolean;
+  glance: 'left' | 'right' | 'center';
   onPlace?: (x: number) => void;
 }) {
   const controller = useMemo(() => new ToodleAnimationController(), []);
@@ -45,13 +56,17 @@ export default function ToodleScene({
     <Canvas
       dpr={[1, 1.5]}
       frameloop={paused ? 'demand' : 'always'}
-      gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
+      gl={{ alpha: true, antialias: true, premultipliedAlpha: false, powerPreference: 'high-performance' }}
       camera={{ position: [0, 0.72, 4.15], fov: 30, near: 0.1, far: 30 }}
-      style={{ width: '100%', height: '100%', pointerEvents: 'none', touchAction: 'auto' }}
-      onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
+      style={{ width: '100%', height: '100%', background: 'transparent', pointerEvents: 'none', touchAction: 'auto' }}
+      onCreated={({ gl, scene }) => {
+        scene.background = null;
+        gl.setClearColor(0x000000, 0);
+        gl.domElement.style.background = 'transparent';
+      }}
     >
       <ToodleLighting />
-      <CameraRig controller={controller} onPlace={onPlace} />
+      <CameraRig controller={controller} glance={glance} onPlace={onPlace} />
       <ToodleModel controller={controller} danceStyle={danceStyle} prop={prop} listening={listening} reduced={reduced} />
     </Canvas>
   );

@@ -8,6 +8,6 @@ export const FOOD: ChatReaction[] = [
     probability: 0.36,
     cooldownMs: 90_000,
     level: 3,
-    cues: () => [cue('Nannu adagaledu?', 'happy', 'happy', { prop: 'popcorn', ms: 1600, mood: 'happy' })],
+    cues: () => [cue('Nannu adagaledu?', 'happy', 'happy', { prop: 'popcorn', ms: 1600, mood: 'happy', timeline: [{ at: 200, sound: 'popcorn' }] })],
   },
 ];

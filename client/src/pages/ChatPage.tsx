@@ -55,6 +55,13 @@ export function ChatPage() {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
   }, [messages.length, typing]);
 
+  useEffect(() => {
+    const node = scroller.current;
+    if (!node || !toodle.beat) return;
+    const nearBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 180;
+    if (nearBottom) node.scrollTo({ top: node.scrollHeight });
+  }, [toodle.beat]);
+
   async function submit(body = text, extra?: { kind?: 'text' | 'gif' | 'sticker'; metadata?: Record<string, unknown> }) {
     const trimmed = body.trim();
     if (!trimmed && extra?.kind !== 'gif' && extra?.kind !== 'sticker') return;
@@ -115,6 +122,16 @@ export function ChatPage() {
 
   const pending = conversation.pendingRenewal;
   const minePending = pending?.requestedBy === profile?.id;
+  const lastVoice = [...messages].reverse().find((message) => message.kind !== 'system');
+  const glance: 'left' | 'right' | 'center' = typing
+    ? 'left'
+    : text.trim()
+      ? 'right'
+      : !lastVoice
+        ? 'center'
+        : lastVoice.senderId === profile?.id
+          ? 'right'
+          : 'left';
 
   return (
     <div className="app-bg mx-auto flex h-dvh max-w-[820px] flex-col">
@@ -156,8 +173,9 @@ export function ChatPage() {
         {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
       </header>
 
-      <div ref={scroller} className="flex-1 space-y-2 overflow-y-auto px-4 pb-3">
-        {messages.length === 0 ? <p className="pt-16 text-center text-muted">Say the first thing.</p> : null}
+      <div ref={scroller} className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-1">
+        <div className="space-y-2 px-4">
+        {messages.length === 0 ? <p className="pt-6 text-center text-muted">Say the first thing.</p> : null}
         {messages.map((message) => (
           <MessageBubble
             key={message.id}
@@ -190,19 +208,18 @@ export function ChatPage() {
           />
         ))}
         {typing ? <p className="text-sm text-muted">typing…</p> : null}
-      </div>
-
-      {readChaos() !== 'off' && !error && !renewOpen ? (
-        <div className="relative h-[26dvh] min-h-[8.5rem] w-full max-h-56 shrink-0">
+        </div>
+        {readChaos() !== 'off' && !error && !renewOpen ? (
           <ToodlePresence
             beat={toodle.beat}
             listening={toodle.waiting || Boolean(typing)}
+            glance={glance}
             onUse={(phrase) => { setText(phrase); toodle.dismiss(); composer.current?.focus({ preventScroll: true }); }}
             onDone={toodle.dismiss}
             onTap={toodle.poke}
           />
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <div className="composer-safe relative border-t border-line px-3 pt-2">
         {reply ? (

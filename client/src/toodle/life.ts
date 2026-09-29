@@ -1,3 +1,4 @@
+import type { SoundCue, ToodleSoundId } from './audio/types';
 import type { ToodleAnimation, ToodleProp } from './animations';
 import type { ToodleBeat, ToodlePose } from './types';
 
@@ -48,6 +49,9 @@ interface Cue {
   priority: number;
   mood?: LifeMood;
   category?: string;
+  sound?: ToodleSoundId;
+  soundVariants?: ToodleSoundId[];
+  timeline?: SoundCue[];
 }
 
 function beat(cue: Cue, event: 'HEARD' | 'TOUCHED'): ToodleBeat {
@@ -60,6 +64,9 @@ function beat(cue: Cue, event: 'HEARD' | 'TOUCHED'): ToodleBeat {
     priority: cue.priority,
     animation: cue.animation,
     prop: cue.prop,
+    sound: cue.sound,
+    soundVariants: cue.soundVariants,
+    timeline: cue.timeline,
   };
 }
 
@@ -91,13 +98,13 @@ export function feelTap(memory: LifeMemory, now: number, random: () => number = 
     memory.mood = 'dramatic';
     memory.touches = [];
     const runaway: Cue[] = [
-      { animation: 'angry', pose: 'chaotic', line: 'Okay.', ms: 700, priority: 98 },
+      { animation: 'angry', pose: 'chaotic', line: 'Okay.', ms: 700, priority: 98, sound: 'angry' },
       { animation: 'run', pose: 'shocked', ms: 700, priority: 98 },
-      { animation: 'fall', pose: 'dead', ms: 650, priority: 98 },
+      { animation: 'fall', pose: 'dead', ms: 650, priority: 98, timeline: [{ at: 0, sound: 'fall' }, { at: 420, sound: 'land' }] },
       { animation: 'shocked', pose: 'shocked', line: 'You saw nothing.', ms: 1200, priority: 98 },
-      { animation: 'peek', pose: 'happy', ms: 800, priority: 98 },
-      { animation: 'laugh', pose: 'laughing', line: 'HAHA.', ms: 800, priority: 98 },
-      { animation: 'walkAway', pose: 'dramatic', ms: 800, priority: 98 },
+      { animation: 'peek', pose: 'happy', ms: 800, priority: 98, sound: 'boop' },
+      { animation: 'laugh', pose: 'laughing', line: 'HAHA.', ms: 800, priority: 98, sound: 'giggle' },
+      { animation: 'walkAway', pose: 'dramatic', ms: 800, priority: 98, sound: 'whoosh' },
     ];
     return arm(memory, runaway.map((item) => beat(item, 'TOUCHED')), now, true);
   }
@@ -105,40 +112,40 @@ export function feelTap(memory: LifeMemory, now: number, random: () => number = 
   if (burst >= 3 && random() > 0.12) {
     memory.mood = 'annoyed';
     const stung: Cue[] = [
-      { animation: 'fall', pose: 'dead', line: 'OW!', ms: 700, priority: 97 },
-      { animation: 'angry', pose: 'chaotic', line: pick(TRIPLES, random), ms: 1100, priority: 97 },
-      { animation: 'walkAway', pose: 'dramatic', ms: 900, priority: 97 },
+      { animation: 'fall', pose: 'dead', line: 'OW!', ms: 700, priority: 97, timeline: [{ at: 0, sound: 'impact' }] },
+      { animation: 'angry', pose: 'chaotic', line: pick(TRIPLES, random), ms: 1100, priority: 97, sound: 'angry' },
+      { animation: 'walkAway', pose: 'dramatic', ms: 900, priority: 97, sound: 'whoosh' },
     ];
     return arm(memory, stung.map((item) => beat(item, 'TOUCHED')), now);
   }
 
   if (burst === 2) {
     memory.mood = 'annoyed';
-    return arm(memory, [beat({ animation: 'confused', pose: 'confused', line: pick(DOUBLES, random), ms: 1200, priority: 97 }, 'TOUCHED')], now);
+    return arm(memory, [beat({ animation: 'confused', pose: 'confused', line: pick(DOUBLES, random), ms: 1200, priority: 97, sound: 'confused' }, 'TOUCHED')], now);
   }
 
   if (memory.mood === 'sleepy') {
     memory.mood = 'sleepy';
     return [
-      beat({ animation: 'shocked', pose: 'shocked', line: 'Huh?', ms: 800, priority: 97 }, 'TOUCHED'),
-      beat({ animation: 'sleepy', pose: 'sleeping', ms: 1400, priority: 97, prop: 'blanket' }, 'TOUCHED'),
+      beat({ animation: 'shocked', pose: 'shocked', line: 'Huh?', ms: 800, priority: 97, sound: 'huh' }, 'TOUCHED'),
+      beat({ animation: 'sleepy', pose: 'sleeping', ms: 1400, priority: 97, prop: 'blanket', sound: 'snore' }, 'TOUCHED'),
     ];
   }
   if (memory.mood === 'excited') {
-    return [beat({ animation: 'celebrate', pose: 'celebrating', line: 'LET\'S GOOO!', ms: 1600, priority: 97, prop: 'sparkles' }, 'TOUCHED')];
+    return [beat({ animation: 'celebrate', pose: 'celebrating', line: 'LET\'S GOOO!', ms: 1600, priority: 97, prop: 'sparkles', sound: 'celebration' }, 'TOUCHED')];
   }
   if (memory.mood === 'sad') {
-    return [beat({ animation: 'blush', pose: 'blushing', line: 'Thanks.', ms: 1500, priority: 97, prop: 'heart' }, 'TOUCHED')];
+    return [beat({ animation: 'blush', pose: 'blushing', line: 'Thanks.', ms: 1500, priority: 97, prop: 'heart', sound: 'sad' }, 'TOUCHED')];
   }
   if (memory.mood === 'scared') {
     return [
-      beat({ animation: 'fear', pose: 'shocked', ms: 900, priority: 97 }, 'TOUCHED'),
+      beat({ animation: 'fear', pose: 'shocked', ms: 900, priority: 97, sound: 'surprise' }, 'TOUCHED'),
       beat({ animation: 'peek', pose: 'suspicious', line: 'I\'m not judging.', ms: 1200, priority: 97 }, 'TOUCHED'),
     ];
   }
   if (memory.mood === 'annoyed') {
-    return [beat({ animation: 'angry', pose: 'chaotic', line: 'Not now.', ms: 1400, priority: 97 }, 'TOUCHED')];
+    return [beat({ animation: 'angry', pose: 'chaotic', line: 'Not now.', ms: 1400, priority: 97, sound: 'angry' }, 'TOUCHED')];
   }
 
-  return arm(memory, [beat({ animation: 'blush', pose: 'blushing', line: pick(PATS, random), ms: 1100, priority: 97, prop: 'sparkles', mood: 'happy' }, 'TOUCHED')], now);
+  return arm(memory, [beat({ animation: 'blush', pose: 'blushing', line: pick(PATS, random), ms: 1100, priority: 97, prop: 'sparkles', mood: 'happy', sound: 'boop' }, 'TOUCHED')], now);
 }

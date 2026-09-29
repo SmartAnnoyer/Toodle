@@ -1,3 +1,4 @@
+import type { SoundCue, ToodleSoundId } from '../audio/types';
 import type { ToodleAnimation, ToodleProp } from '../animations';
 import type { LifeMemory, LifeMood } from '../life';
 import type { ToodlePose } from '../types';
@@ -13,6 +14,9 @@ export interface ReactionCue {
   ms: number;
   priority: number;
   mood?: LifeMood;
+  sound?: ToodleSoundId;
+  soundVariants?: ToodleSoundId[];
+  timeline?: SoundCue[];
 }
 
 export interface ChatReaction {

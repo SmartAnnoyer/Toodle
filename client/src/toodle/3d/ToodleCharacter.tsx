@@ -1,6 +1,7 @@
 import { useMemo, useRef, type RefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CanvasTexture, ExtrudeGeometry, Shape, type Group, type Mesh } from 'three';
+import { toodleAudio } from '../audio/ToodleAudioEngine';
 import type { DanceStyle, ToodleProp } from '../animations';
 import { ToodleAnimationController, type BoneName } from './ToodleAnimationController';
 import { faceFor } from './ToodleExpressionController';
@@ -142,6 +143,7 @@ export function ToodleCharacter({
   useFrame((_, dt) => {
     controller.setDance(danceStyle);
     const frame = controller.update(dt, { listening, reduced, prop });
+    toodleAudio.syncMotion(frame.state.animation, frame.state.position.x, controller.halfW, dt, reduced);
     onState?.(frame.state);
     (Object.keys(bones) as BoneName[]).forEach((name) => {
       const group = bones[name].current;

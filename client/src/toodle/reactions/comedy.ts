@@ -12,9 +12,9 @@ export const COMEDY: ChatReaction[] = [
     cooldownMs: 180_000,
     level: 4,
     cues: () => [
-      cue(undefined, 'suspicious', 'suspicious', { ms: 700 }),
-      cue(undefined, 'thinking', 'thinking', { prop: 'glasses', ms: 800 }),
-      cue("I'm listening... 👀", 'dramatic', 'dramatic', { prop: 'notebook', ms: 1500, mood: 'curious' }),
+      cue(undefined, 'suspicious', 'suspicious', { ms: 700, timeline: [{ at: 80, sound: 'whoosh' }] }),
+      cue(undefined, 'thinking', 'thinking', { prop: 'glasses', ms: 800, timeline: [{ at: 40, sound: 'page_flip' }] }),
+      cue("I'm listening... 👀", 'dramatic', 'dramatic', { prop: 'notebook', ms: 1500, mood: 'curious', timeline: [{ at: 220, sound: 'pen' }] }),
     ],
   },
   {
@@ -25,8 +25,8 @@ export const COMEDY: ChatReaction[] = [
     cooldownMs: 180_000,
     level: 4,
     cues: () => [
-      cue('PARTYYYY 🎉', 'celebrate', 'celebrating', { prop: 'cake', ms: 1400, mood: 'excited' }),
-      cue(undefined, 'dance', 'celebrating', { prop: 'party', ms: 1100 }),
+      cue('PARTYYYY 🎉', 'celebrate', 'celebrating', { prop: 'cake', ms: 1400, mood: 'excited', timeline: [{ at: 0, sound: 'celebration' }, { at: 420, sound: 'pop' }] }),
+      cue(undefined, 'dance', 'celebrating', { prop: 'party', ms: 1100, timeline: [{ at: 80, sound: 'sparkle' }] }),
     ],
   },
   {
@@ -37,8 +37,8 @@ export const COMEDY: ChatReaction[] = [
     cooldownMs: 90_000,
     level: 3,
     cues: () => [
-      cue("I'm seated.", 'peek', 'happy', { prop: 'popcorn', ms: 1300, mood: 'happy' }),
-      cue(undefined, 'sleepy', 'thinking', { prop: 'popcorn', ms: 1000 }),
+      cue("I'm seated.", 'peek', 'happy', { prop: 'popcorn', ms: 1300, mood: 'happy', timeline: [{ at: 160, sound: 'popcorn' }] }),
+      cue(undefined, 'sleepy', 'thinking', { prop: 'popcorn', ms: 1000, timeline: [{ at: 280, sound: 'snore' }] }),
     ],
   },
   {

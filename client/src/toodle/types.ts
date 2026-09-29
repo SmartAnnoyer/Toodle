@@ -1,3 +1,4 @@
+import type { SoundCue, ToodleSoundId } from './audio/types';
 import type { ToodleAnimation, ToodleProp } from './animations';
 
 export type ChaosLevel = 'full' | 'normal' | 'quiet' | 'off';
@@ -60,4 +61,8 @@ export interface ToodleBeat {
   priority: number;
   animation?: ToodleAnimation;
   prop?: ToodleProp;
+  reactionId?: string;
+  sound?: ToodleSoundId;
+  soundVariants?: ToodleSoundId[];
+  timeline?: SoundCue[];
 }

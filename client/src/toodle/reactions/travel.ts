@@ -2,9 +2,9 @@ import { cue, type ChatReaction, type ReactionCue } from './types';
 
 export function suitcase(): ReactionCue[] {
   return [
-    cue("WAIT. I'M COMING.", 'run', 'excited', { prop: 'suitcase', ms: 900, mood: 'excited' }),
-    cue(undefined, 'bounce', 'excited', { prop: 'suitcase', ms: 800 }),
-    cue(undefined, 'fall', 'dead', { ms: 800 }),
+    cue("WAIT. I'M COMING.", 'run', 'excited', { prop: 'suitcase', ms: 900, mood: 'excited', timeline: [{ at: 360, sound: 'suitcase_open' }] }),
+    cue(undefined, 'bounce', 'excited', { prop: 'suitcase', ms: 800, timeline: [{ at: 180, sound: 'suitcase_close' }] }),
+    cue(undefined, 'fall', 'dead', { ms: 800, timeline: [{ at: 0, sound: 'fall' }, { at: 480, sound: 'land' }] }),
   ];
 }
 
@@ -54,8 +54,8 @@ export const TRAVEL: ChatReaction[] = [
     cooldownMs: 120_000,
     level: 3,
     cues: () => [
-      cue('Helmet first bro.', 'wink', 'chaotic', { prop: 'helmet', ms: 1100, mood: 'excited' }),
-      cue(undefined, 'run', 'excited', { prop: 'helmet', ms: 800 }),
+      cue('Helmet first bro.', 'wink', 'chaotic', { prop: 'helmet', ms: 1100, mood: 'excited', timeline: [{ at: 80, sound: 'helmet' }] }),
+      cue(undefined, 'run', 'excited', { prop: 'helmet', ms: 800, timeline: [{ at: 120, sound: 'bike' }] }),
       cue(undefined, 'peek', 'happy', { ms: 700 }),
     ],
   },
@@ -67,8 +67,8 @@ export const TRAVEL: ChatReaction[] = [
     cooldownMs: 120_000,
     level: 3,
     cues: () => [
-      cue('2 mins bro.', 'thinking', 'thinking', { prop: 'phone', ms: 1000 }),
-      cue(undefined, 'run', 'excited', { prop: 'helmet', ms: 900 }),
+      cue('2 mins bro.', 'thinking', 'thinking', { prop: 'phone', ms: 1000, timeline: [{ at: 40, sound: 'phone' }] }),
+      cue(undefined, 'run', 'excited', { prop: 'helmet', ms: 900, timeline: [{ at: 80, sound: 'helmet' }] }),
     ],
   },
   {

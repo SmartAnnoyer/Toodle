@@ -518,9 +518,15 @@ export class ToodleAnimationController {
   private style: DanceStyle = 'bounce';
   focusX = 0;
   halfW = 2.2;
+  private glance = 0;
+  private glanceYaw = 0;
 
   setHalfWidth(width: number) {
     if (Number.isFinite(width) && width > 0.3) this.halfW = width;
+  }
+
+  setGlance(side: 'left' | 'right' | 'center') {
+    this.glance = side === 'left' ? -1 : side === 'right' ? 1 : 0;
   }
 
   private placeX(local: number) {
@@ -583,7 +589,14 @@ export class ToodleAnimationController {
     const live = CLIPS[clipKey] ?? clip;
     const fromClip = CLIPS[this.from] ?? CLIPS.idle;
     const mixed = lerpPose(fromClip.sample(this.fromTime, this.style), live.sample(this.time, this.style), smooth(this.blend));
-    mixed.root.x = this.placeX(mixed.root.x);
+    const targetYaw = this.glance * -0.42;
+    this.glanceYaw += (targetYaw - this.glanceYaw) * Math.min(1, step * 4);
+    mixed.root.ry += this.glanceYaw;
+    const margin = 0.9;
+    const left = -this.halfW + margin;
+    const right = this.halfW - margin;
+    const shift = this.glance * Math.min(0.45, this.halfW * 0.16);
+    mixed.root.x = Math.min(right, Math.max(left, this.placeX(mixed.root.x) + shift));
     this.focusX = mixed.root.x;
     const expression = expressionFor(clipKey);
     return {

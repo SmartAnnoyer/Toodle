@@ -53,6 +53,7 @@ export function ToodlePresence({
   beat = null,
   inline = false,
   listening = false,
+  glance = 'center',
   onUse,
   onDone,
   onTap,
@@ -60,6 +61,7 @@ export function ToodlePresence({
   beat?: ToodleBeat | null;
   inline?: boolean;
   listening?: boolean;
+  glance?: 'left' | 'right' | 'center';
   onUse?: (phrase: string) => void;
   onDone?: () => void;
   onTap?: () => void;
@@ -77,6 +79,7 @@ export function ToodlePresence({
       suggestion={beat?.suggestion}
       listening={listening}
       inline={inline}
+      glance={glance}
       onTap={onTap}
       onUse={onUse}
       onDone={onDone}

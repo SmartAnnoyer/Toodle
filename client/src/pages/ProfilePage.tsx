@@ -5,6 +5,7 @@ import { Avatar, Button, Field, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { api } from '../lib/http';
+import { readSoundPrefs, writeSoundEnabled, writeSoundVolume } from '../toodle/audio/ToodleAudioState';
 import { CHAOS_OPTIONS, readChaos, writeChaos } from '../toodle/settings';
 import type { ChaosLevel } from '../toodle/types';
 
@@ -20,6 +21,8 @@ export function ProfilePage() {
   const [avatar, setAvatar] = useState(profile?.avatarEmoji ?? '✨');
   const [busy, setBusy] = useState(false);
   const [chaos, setChaos] = useState<ChaosLevel>(readChaos);
+  const [soundsOn, setSoundsOn] = useState(() => readSoundPrefs().enabled);
+  const [soundVolume, setSoundVolume] = useState(() => readSoundPrefs().volume);
 
   if (loading) return <p className="px-4 pt-10 text-muted">Loading you…</p>;
   if (!profile) {
@@ -107,6 +110,36 @@ export function ProfilePage() {
           ))}
         </div>
       </div>
+      <label className="mt-4 flex items-center justify-between rounded-2xl border border-line px-4 py-3 text-sm">
+        Toodle sounds
+        <input
+          type="checkbox"
+          checked={soundsOn}
+          onChange={(event) => {
+            setSoundsOn(event.target.checked);
+            writeSoundEnabled(event.target.checked);
+          }}
+        />
+      </label>
+      {soundsOn ? (
+        <label className="mt-3 block text-sm text-muted">
+          Volume
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={soundVolume}
+            aria-label="Toodle volume"
+            className="mt-2 w-full"
+            onChange={(event) => {
+              const next = Number(event.target.value);
+              setSoundVolume(next);
+              writeSoundVolume(next);
+            }}
+          />
+        </label>
+      ) : null}
       <p className="mt-3 text-sm text-muted">Your email stays hidden. Only your username is public.</p>
       <div className="mt-5 flex flex-col gap-3">
         <Button disabled={busy} onClick={() => void save()}>Save</Button>
