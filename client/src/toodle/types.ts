@@ -1,3 +1,5 @@
+import type { ToodleAnimation, ToodleProp } from './animations';
+
 export type ChaosLevel = 'full' | 'normal' | 'quiet' | 'off';
 
 export type ToodlePose =
@@ -35,7 +37,9 @@ export type ToodleEvent =
   | 'LONG_MESSAGE'
   | 'MESSAGE_MILESTONE'
   | 'SHORTCUT_USED'
-  | 'GOODNIGHT';
+  | 'GOODNIGHT'
+  | 'HEARD'
+  | 'TOUCHED';
 
 export interface ToodleContext {
   word?: string;
@@ -54,4 +58,6 @@ export interface ToodleBeat {
   spot: 'composer' | 'edge';
   ms: number;
   priority: number;
+  animation?: ToodleAnimation;
+  prop?: ToodleProp;
 }

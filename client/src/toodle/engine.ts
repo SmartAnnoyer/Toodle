@@ -30,6 +30,8 @@ const RULES: Record<ToodleEvent, Rule> = {
   MESSAGE_MILESTONE: { probability: 0.85, cooldown: 3_600_000, priority: 70, pose: 'dramatic', spoken: true, spot: 'edge', ms: 4600 },
   SHORTCUT_USED: { probability: 0.28, cooldown: 120_000, priority: 30, pose: 'chaotic', spoken: true, spot: 'composer', ms: 2800 },
   GOODNIGHT: { probability: 0.7, cooldown: 600_000, priority: 68, pose: 'sleeping', spoken: true, spot: 'composer', ms: 4200 },
+  HEARD: { probability: 0, cooldown: 20_000, priority: 50, pose: 'suspicious', spoken: true, spot: 'composer', ms: 2200 },
+  TOUCHED: { probability: 0, cooldown: 400, priority: 96, pose: 'happy', spoken: true, spot: 'composer', ms: 1400 },
 };
 
 const APPEAR_GAP: Record<ChaosLevel, number> = { full: 12_000, normal: 28_000, quiet: 55_000, off: Number.POSITIVE_INFINITY };
@@ -54,6 +56,7 @@ export class ToodleEngine {
     const random = input.random ?? Math.random;
     if (chaos === 'off') return null;
     const rule = RULES[event];
+    if (rule.probability <= 0) return null;
     if (serious && rule.priority < 75) return null;
 
     const sinceEvent = now - (this.lastEvent.get(event) ?? 0);

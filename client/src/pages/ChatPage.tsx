@@ -11,6 +11,8 @@ import { nudge } from '../lib/feedback';
 import { api } from '../lib/http';
 import { formatClock, formatRemaining, humanDuration, serverNowMs } from '../lib/time';
 import type { ChatMessage, GifResult } from '../types';
+import { readChaos } from '../toodle/settings';
+import { Toodle } from '../toodle/Toodle';
 import { ToodlePresence } from '../toodle/ToodlePresence';
 import { useToodleChat } from '../toodle/useToodleChat';
 
@@ -175,13 +177,20 @@ export function ChatPage() {
 
       <div className="composer-safe relative border-t border-line px-3 pt-2">
         <AnimatePresence>
-          {toodle.beat ? (
-            <ToodlePresence
-              key={`${toodle.beat.event}-${toodle.beat.line ?? toodle.beat.pose}`}
-              beat={toodle.beat}
-              onUse={(phrase) => { setText(phrase); toodle.dismiss(); }}
-              onDone={toodle.dismiss}
-            />
+          {readChaos() !== 'off' && !error && !renewOpen ? (
+            toodle.beat ? (
+              <ToodlePresence
+                key={`${toodle.beat.event}-${toodle.beat.line ?? toodle.beat.pose}`}
+                beat={toodle.beat}
+                onUse={(phrase) => { setText(phrase); toodle.dismiss(); }}
+                onDone={toodle.dismiss}
+                onTap={toodle.poke}
+              />
+            ) : (
+              <motion.div key="toodle-idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-none absolute bottom-full left-1 z-10">
+                <Toodle animation="idle" size="small" position="floating" intensity="soft" onTap={toodle.poke} />
+              </motion.div>
+            )
           ) : null}
         </AnimatePresence>
         {reply ? (

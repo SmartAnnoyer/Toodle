@@ -1,39 +1,53 @@
 import { motion } from 'framer-motion';
-import type { ToodleBeat, ToodlePose } from './types';
+import type { ToodleBeat, ToodleEvent, ToodlePose } from './types';
+import type { ToodleAnimation, ToodleProp } from './animations';
+import { Toodle } from './Toodle';
 
-const BADGE: Partial<Record<ToodlePose, string>> = {
-  laughing: '😂',
-  blushing: '💗',
-  sleeping: '💤',
-  shocked: '👀',
-  thinking: '🤔',
-  confused: '❓',
-  crying: '🥺',
-  excited: '🍿',
-  dramatic: '🎭',
-  suspicious: '👀',
-  celebrating: '🎉',
-  dead: '💀',
-  chaotic: '😎',
-  happy: '✨',
+const BY_EVENT: Partial<Record<ToodleEvent, ToodleAnimation>> = {
+  USER_TYPING_TOO_LONG: 'thinking',
+  USER_DELETED_DRAFT: 'suspicious',
+  WORD_REPEATED: 'laugh',
+  CHAT_IDLE: 'sleepy',
+  CHAT_ACTIVE_LONG: 'dramatic',
+  STREAK_INCREASED: 'celebrate',
+  STREAK_AT_RISK: 'fear',
+  CONVERSATION_EXPIRING: 'dramatic',
+  GIF_SENT: 'bounce',
+  GOODNIGHT: 'sleepy',
+  CHAT_OPENED: 'peek',
+  USER_SENT_MANY_MESSAGES: 'shocked',
+  LATE_CLAIM: 'suspicious',
+  MOOD_CHANGED: 'happy',
+  MESSAGE_MILESTONE: 'dramatic',
+  SHORTCUT_USED: 'wink',
+  LONG_MESSAGE: 'thinking',
 };
 
-const POSE: Record<ToodlePose, { rotate?: number | number[]; y?: number | number[]; scale?: number | number[]; x?: number | number[] }> = {
-  idle: { y: [0, -3, 0] },
-  happy: { y: [8, 0], scale: [0.85, 1] },
-  laughing: { rotate: [0, -10, 9, -6, 0] },
-  blushing: { y: [6, 0], scale: [0.9, 1] },
-  sleeping: { rotate: -10, y: 8 },
-  shocked: { scale: [0.7, 1.08, 1], y: [8, 0] },
-  thinking: { rotate: [0, -4, 0], y: [0, -4, 0] },
-  confused: { rotate: [0, 8, -6, 0] },
-  crying: { y: [0, 3, 0] },
-  excited: { y: [0, -12, 0], rotate: [0, -6, 6, 0] },
-  dramatic: { scale: [1, 1.12, 1], rotate: [0, -3, 3, 0] },
-  suspicious: { x: [-28, 0] },
-  celebrating: { y: [0, -14, 0], scale: [1, 1.08, 1] },
-  dead: { rotate: 72, y: 14 },
-  chaotic: { rotate: [0, 8, -8, 4, 0] },
+const PROP_FOR: Partial<Record<ToodleEvent, ToodleProp>> = {
+  STREAK_INCREASED: 'sparkles',
+  GIF_SENT: 'popcorn',
+  GOODNIGHT: 'blanket',
+  CONVERSATION_EXPIRING: 'magnifyingGlass',
+  WORD_REPEATED: 'exclamation',
+  LONG_MESSAGE: 'popcorn',
+};
+
+const ANIMATION: Record<ToodlePose, ToodleAnimation> = {
+  idle: 'idle',
+  happy: 'happy',
+  laughing: 'laugh',
+  blushing: 'blush',
+  sleeping: 'sleepy',
+  shocked: 'shocked',
+  thinking: 'thinking',
+  confused: 'confused',
+  crying: 'cry',
+  excited: 'bounce',
+  dramatic: 'dramatic',
+  suspicious: 'suspicious',
+  celebrating: 'celebrate',
+  dead: 'fall',
+  chaotic: 'dance',
 };
 
 export function ToodlePresence({
@@ -41,28 +55,34 @@ export function ToodlePresence({
   inline = false,
   onUse,
   onDone,
+  onTap,
 }: {
   beat: ToodleBeat;
   inline?: boolean;
   onUse?: (phrase: string) => void;
   onDone?: () => void;
+  onTap?: () => void;
 }) {
-  const pose = POSE[beat.pose];
+  const animation = beat.animation ?? BY_EVENT[beat.event] ?? ANIMATION[beat.pose];
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 8 }}
+      exit={{ opacity: 0, y: 6 }}
       className={inline
         ? 'flex items-end justify-center gap-2'
-        : `pointer-events-none absolute z-20 flex items-end gap-2 ${beat.spot === 'edge' ? 'bottom-full left-1' : 'bottom-full left-3'}`}
+        : `pointer-events-none absolute z-20 flex max-w-[92%] items-end gap-2 ${beat.spot === 'edge' ? 'bottom-full left-1' : 'bottom-full left-2'}`}
     >
-      <motion.div animate={pose} transition={{ duration: beat.pose === 'dead' ? 0.45 : 0.55 }} className="relative">
-        <img src="/icon.jpg" alt="" className="h-16 w-16 rounded-[1.1rem] object-cover shadow-card" />
-        {BADGE[beat.pose] ? <span className="absolute -right-1 -top-2 text-lg">{BADGE[beat.pose]}</span> : null}
-      </motion.div>
+      <Toodle
+        animation={animation}
+        size="small"
+        position={beat.spot === 'edge' ? 'peek' : 'floating'}
+        danceStyle={beat.event === 'STREAK_INCREASED' ? 'victory' : beat.pose === 'chaotic' ? 'chaotic' : 'bounce'}
+        prop={beat.prop ?? PROP_FOR[beat.event]}
+        onTap={onTap}
+      />
       {beat.line ? (
-        <div className="pointer-events-auto mb-2 max-w-[220px] rounded-2xl bg-elevated px-3 py-2 text-sm shadow-card">
+        <div className={`${beat.suggestion ? 'pointer-events-auto' : 'pointer-events-none'} mb-3 max-w-[210px] rounded-2xl bg-elevated px-3 py-2 text-sm shadow-card`}>
           <p>{beat.line}</p>
           {beat.suggestion ? (
             <button

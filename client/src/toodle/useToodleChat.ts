@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage, ConversationDetail } from '../types';
 import { ToodleEngine } from './engine';
+import { feelTap, freshMemory, hearMessage } from './life';
 import { looksSerious, mentionsFiveMinutes, mentionsGoodnight, notableWord, poseForEmoji } from './lines';
 import { readChaos } from './settings';
 import type { ToodleBeat, ToodleContext, ToodleEvent } from './types';
@@ -25,6 +26,8 @@ export function useToodleChat({
   paused: boolean;
 }) {
   const engine = useRef(new ToodleEngine());
+  const memory = useRef(freshMemory());
+  const script = useRef<ToodleBeat[]>([]);
   const [beat, setBeat] = useState<ToodleBeat | null>(null);
   const beatRef = useRef<ToodleBeat | null>(null);
   const seriousUntil = useRef(0);
@@ -52,13 +55,36 @@ export function useToodleChat({
     });
     if (!next) return;
     if (beatRef.current && beatRef.current.priority >= next.priority) return;
+    script.current = [];
     beatRef.current = next;
     setBeat(next);
+  }
+
+  function play(cues: ToodleBeat[]) {
+    if (paused || cues.length === 0) return;
+    script.current = cues.slice(1);
+    beatRef.current = cues[0];
+    setBeat(cues[0]);
+  }
+
+  function offer(cues: ToodleBeat[]) {
+    if (paused || cues.length === 0) return;
+    if (!beatRef.current) {
+      play(cues);
+      return;
+    }
+    if (cues[0].priority > beatRef.current.priority) script.current.push(...cues);
   }
 
   useEffect(() => {
     if (!beat) return;
     const handle = window.setTimeout(() => {
+      const next = script.current.shift();
+      if (next) {
+        beatRef.current = next;
+        setBeat(next);
+        return;
+      }
       beatRef.current = null;
       setBeat(null);
     }, beat.ms);
@@ -72,6 +98,8 @@ export function useToodleChat({
     milestone.current = false;
     longChat.current = false;
     engine.current = new ToodleEngine();
+    memory.current = freshMemory();
+    script.current = [];
     beatRef.current = null;
     setBeat(null);
   }, [conversationId]);
@@ -97,6 +125,17 @@ export function useToodleChat({
       if (message.kind !== 'text') continue;
       if (looksSerious(message.body)) seriousUntil.current = Date.now() + 10 * 60_000;
       const hit = notableWord(message.body, counts.current);
+      const texts = messages.filter((item) => item.kind === 'text');
+      const index = texts.findIndex((item) => item.id === message.id);
+      const recent = texts.slice(Math.max(0, index - 4), index).map((item) => item.body);
+      const heard = hearMessage(message.body, memory.current, Date.now(), readChaos(), Math.random, {
+        userId: message.senderId ?? undefined,
+        recent,
+      });
+      if (heard?.length) {
+        offer(heard);
+        continue;
+      }
       if (message.senderId === myId) {
         const now = Date.now();
         sendTimes.current = [...sendTimes.current.filter((time) => now - time < 10_000), now];
@@ -196,9 +235,34 @@ export function useToodleChat({
     if (previous && previous !== moodText) show('MOOD_CHANGED', { moodText });
   }, [moodText, conversationId]);
 
+  useEffect(() => {
+    if (!conversationId) return;
+    const handle = window.setInterval(() => {
+      if (paused || beatRef.current || readChaos() === 'off') return;
+      if (Math.random() > 0.28) return;
+      const roll = Math.random();
+      const animation = roll < 0.25 ? 'wink' : roll < 0.5 ? 'walk' : roll < 0.7 ? 'sleepy' : roll < 0.85 ? 'thinking' : 'dance';
+      play([{
+        event: 'HEARD',
+        pose: 'happy',
+        animation,
+        spot: 'edge',
+        ms: 1400,
+        priority: 8,
+      }]);
+    }, 42_000);
+    return () => window.clearInterval(handle);
+  }, [conversationId, paused]);
+
   return {
     beat,
+    poke() {
+      if (paused || readChaos() === 'off' || Date.now() < memory.current.chaosUntil) return;
+      const cues = feelTap(memory.current, Date.now());
+      if (cues.length) play(cues);
+    },
     dismiss() {
+      script.current = [];
       beatRef.current = null;
       setBeat(null);
     },
