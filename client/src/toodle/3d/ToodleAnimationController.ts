@@ -16,8 +16,6 @@ export interface BonePose {
 
 export type Pose = Record<BoneName, BonePose>;
 
-const IDLE_LIFE = ['wink', 'laugh', 'happy', 'blush', 'shocked', 'confused', 'celebrate', 'thinking', 'bounce', 'wave'] as const;
-
 function bone(partial: Partial<BonePose> = {}): BonePose {
   return { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, ...partial };
 }
@@ -62,7 +60,7 @@ function gait(t: number, speed: number, stride: number, localX = 0, faceAway = f
   const s = Math.sin(t * speed);
   const bob = Math.abs(Math.sin(t * speed));
   return pose({
-    root: { x: localX, y: bob * 0.045, ry: faceAway ? Math.PI : 0 },
+    root: { x: localX, y: bob * 0.07, ry: faceAway ? Math.PI : 0 },
     hips: { ry: s * 0.08 },
     spine: { rx: 0.08, ry: s * 0.05 },
     head: { rx: -0.04, ry: -s * 0.1 },
@@ -140,8 +138,9 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     duration: 3.2,
     loop: true,
     sample: (t) => pose({
-      spine: { rx: Math.sin(t * 1.6) * 0.035 },
-      head: { ry: Math.sin(t * 0.45) * 0.12, rx: Math.sin(t * 0.7) * 0.03 },
+      root: { y: Math.sin(t * 1.7) * 0.03 },
+      spine: { rx: Math.sin(t * 1.6) * 0.04 },
+      head: { ry: Math.sin(t * 0.45) * 0.14, rx: Math.sin(t * 0.7) * 0.03 },
       armL: { rz: 0.12 },
       armR: { rz: -0.12 },
       foreL: { rx: -0.15 },
@@ -465,6 +464,7 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     duration: 1.2,
     loop: true,
     sample: (t) => pose({
+      root: { y: Math.sin(t * 2.2) * 0.02 },
       spine: { rx: 0.28 },
       head: { rx: 0.22, ry: Math.sin(t * 1.5) * 0.08 },
       armL: { rx: -0.2 },
@@ -513,8 +513,6 @@ export class ToodleAnimationController {
   private queue: string[] = [];
   private reaction: string | null = null;
   private playId = 'idle';
-  private idleClock = 0;
-  private nextIdle = 1.1;
   private blinkAt = 2.4;
   private blink = 0;
   private style: DanceStyle = 'bounce';
@@ -526,9 +524,12 @@ export class ToodleAnimationController {
   }
 
   private placeX(local: number) {
-    const home = -this.halfW + 0.92;
-    const span = Math.max(0.4, this.halfW * 2 - 1.84);
-    return home + local * span;
+    const margin = 0.9;
+    const left = -this.halfW + margin;
+    const right = this.halfW - margin;
+    const span = Math.max(0.2, right - left);
+    const t = Math.min(1, Math.max(0, local));
+    return left + t * span;
   }
 
   setDance(style: DanceStyle) {
@@ -570,22 +571,6 @@ export class ToodleAnimationController {
       else if (!this.reaction) this.start('idle');
       else this.time = clip.duration;
     }
-    const life = !this.reaction && this.current === 'idle' && this.blend > 0.95 && !options.reduced;
-    if (life) {
-      this.idleClock += step;
-      if (options.listening && this.idleClock > 2.2) {
-        this.idleClock = 0;
-        this.nextIdle = 2.4 + Math.random() * 2;
-        this.start('notice');
-        this.queue.push('listen', 'idle');
-      } else if (this.idleClock > this.nextIdle) {
-        this.idleClock = 0;
-        this.nextIdle = 2.2 + Math.random() * 2.4;
-        const micro = IDLE_LIFE[Math.floor(Math.random() * IDLE_LIFE.length)];
-        this.start(micro);
-        this.queue.push('idle');
-      }
-    }
     this.blinkAt -= step;
     if (this.blinkAt <= 0) {
       this.blink = 1;
@@ -596,6 +581,10 @@ export class ToodleAnimationController {
     const fromClip = CLIPS[this.from] ?? CLIPS.idle;
     const mixed = lerpPose(fromClip.sample(this.fromTime, this.style), clip.sample(this.time, this.style), smooth(this.blend));
     mixed.root.x = this.placeX(mixed.root.x);
+    if (options.listening && !this.reaction) {
+      mixed.spine.rx += 0.2;
+      mixed.head.rx += 0.1;
+    }
     this.focusX = mixed.root.x;
     const expression = expressionFor(this.current);
     return {

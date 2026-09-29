@@ -30,7 +30,6 @@ export function ToodleStage({
 }) {
   const [paused, setPaused] = useState(false);
   const [reduced, setReduced] = useState(false);
-  const [aside, setAside] = useState<string | null>(null);
   const hit = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -46,17 +45,7 @@ export function ToodleStage({
     };
   }, []);
 
-  useEffect(() => {
-    if (!listening || line) return;
-    const handle = window.setTimeout(() => {
-      if (Math.random() > 0.35) return;
-      setAside("I'm listening... 👀");
-      window.setTimeout(() => setAside((current) => current?.startsWith("I'm listening") ? null : current), 1600);
-    }, 2600);
-    return () => window.clearTimeout(handle);
-  }, [listening, line]);
-
-  const bubble = line ?? aside;
+  const bubble = line;
 
   return (
     <div className={inline

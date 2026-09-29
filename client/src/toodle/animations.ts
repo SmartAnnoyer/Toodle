@@ -26,6 +26,7 @@ export type ToodleAnimation =
   | 'buttWiggle'
   | 'walkAway'
   | 'joke'
+  | 'listen'
   | 'wave';
 
 export type ToodleSize = 'small' | 'medium' | 'large';

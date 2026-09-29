@@ -71,11 +71,9 @@ export function useToodleChat({
 
   function offer(cues: ToodleBeat[]) {
     if (paused || cues.length === 0) return;
-    if (!beatRef.current) {
+    if (!beatRef.current || cues[0].priority > beatRef.current.priority) {
       play(cues);
-      return;
     }
-    if (cues[0].priority > beatRef.current.priority) script.current.push(...cues);
   }
 
   useEffect(() => {
@@ -154,13 +152,13 @@ export function useToodleChat({
       else if (emojiOnly) show('EMOJI_REACT', { emoji: message.body });
       else if (message.senderId !== myId && !looksSerious(message.body) && !keywordHit(message.body)) {
         const pick = reactionForText(message.body);
-        play([{
+        offer([{
           event: 'HEARD',
           pose: 'happy',
-          animation: pick.animation,
+          animation: pick.animation === 'happy' ? 'celebrate' : pick.animation,
           prop: pick.prop,
           spot: 'composer',
-          ms: 900,
+          ms: 1000,
           priority: 48,
         }]);
       }
@@ -250,25 +248,6 @@ export function useToodleChat({
     if (previous && previous !== moodText) show('MOOD_CHANGED', { moodText });
   }, [moodText, conversationId]);
 
-  useEffect(() => {
-    if (!conversationId) return;
-    const handle = window.setInterval(() => {
-      if (paused || beatRef.current || readChaos() === 'off') return;
-      if (Math.random() > 0.28) return;
-      const roll = Math.random();
-      const animation = roll < 0.25 ? 'wink' : roll < 0.5 ? 'walk' : roll < 0.7 ? 'sleepy' : roll < 0.85 ? 'thinking' : 'dance';
-      play([{
-        event: 'HEARD',
-        pose: 'happy',
-        animation,
-        spot: 'edge',
-        ms: 1400,
-        priority: 8,
-      }]);
-    }, 42_000);
-    return () => window.clearInterval(handle);
-  }, [conversationId, paused]);
-
   return {
     beat,
     notice(text: string) {
@@ -287,18 +266,18 @@ export function useToodleChat({
         {
           event: 'HEARD',
           pose: 'happy',
-          animation: pick.animation,
+          animation: pick.animation === 'happy' ? 'bounce' : pick.animation,
           prop: pick.prop,
           spot: 'composer',
-          ms: 800,
+          ms: 700,
           priority: 52,
         },
         {
           event: 'HEARD',
           pose: 'thinking',
-          animation: 'thinking',
+          animation: 'listen',
           spot: 'composer',
-          ms: 900,
+          ms: 45000,
           priority: 28,
         },
       ]);

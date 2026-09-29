@@ -43,10 +43,11 @@ export function expressionFor(animation: string): ToodleExpression {
       return 'happy';
     case 'dance':
     case 'celebrate':
-    case 'laugh':
     case 'joke':
     case 'spin':
       return 'excited';
+    case 'laugh':
+      return 'happy';
     case 'blush':
       return 'embarrassed';
     case 'cry':
