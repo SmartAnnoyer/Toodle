@@ -1,7 +1,6 @@
-import { motion } from 'framer-motion';
 import type { ToodleBeat, ToodleEvent, ToodlePose } from './types';
-import type { ToodleAnimation, ToodleProp } from './animations';
-import { Toodle } from './Toodle';
+import type { DanceStyle, ToodleAnimation, ToodleProp } from './animations';
+import { ToodleStage } from './3d/ToodleStage';
 
 const BY_EVENT: Partial<Record<ToodleEvent, ToodleAnimation>> = {
   USER_TYPING_TOO_LONG: 'thinking',
@@ -51,53 +50,36 @@ const ANIMATION: Record<ToodlePose, ToodleAnimation> = {
 };
 
 export function ToodlePresence({
-  beat,
+  beat = null,
   inline = false,
+  listening = false,
   onUse,
   onDone,
   onTap,
 }: {
-  beat: ToodleBeat;
+  beat?: ToodleBeat | null;
   inline?: boolean;
+  listening?: boolean;
   onUse?: (phrase: string) => void;
   onDone?: () => void;
   onTap?: () => void;
 }) {
-  const animation = beat.animation ?? BY_EVENT[beat.event] ?? ANIMATION[beat.pose];
+  const animation = beat ? beat.animation ?? BY_EVENT[beat.event] ?? ANIMATION[beat.pose] : null;
+  const danceStyle: DanceStyle = beat?.event === 'STREAK_INCREASED' ? 'victory' : beat?.pose === 'chaotic' ? 'chaotic' : 'bounce';
+  const playId = beat ? `${beat.event}:${beat.pose}:${beat.animation ?? ''}:${beat.line ?? ''}:${beat.ms}` : 'idle';
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 6 }}
-      className={inline
-        ? 'flex items-end justify-center gap-2'
-        : `pointer-events-none absolute z-20 flex max-w-[92%] items-end gap-2 ${beat.spot === 'edge' ? 'bottom-full left-1' : 'bottom-full left-2'}`}
-    >
-      <Toodle
-        animation={animation}
-        size="small"
-        position={beat.spot === 'edge' ? 'peek' : 'floating'}
-        danceStyle={beat.event === 'STREAK_INCREASED' ? 'victory' : beat.pose === 'chaotic' ? 'chaotic' : 'bounce'}
-        prop={beat.prop ?? PROP_FOR[beat.event]}
-        onTap={onTap}
-      />
-      {beat.line ? (
-        <div className={`${beat.suggestion ? 'pointer-events-auto' : 'pointer-events-none'} mb-3 max-w-[210px] rounded-2xl bg-elevated px-3 py-2 text-sm shadow-card`}>
-          <p>{beat.line}</p>
-          {beat.suggestion ? (
-            <button
-              type="button"
-              className="mt-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold"
-              onClick={() => {
-                onUse?.(beat.suggestion!);
-                onDone?.();
-              }}
-            >
-              Use this
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </motion.div>
+    <ToodleStage
+      animation={animation}
+      playId={playId}
+      danceStyle={danceStyle}
+      prop={beat?.prop ?? (beat ? PROP_FOR[beat.event] : undefined)}
+      line={beat?.line}
+      suggestion={beat?.suggestion}
+      listening={listening}
+      inline={inline}
+      onTap={onTap}
+      onUse={onUse}
+      onDone={onDone}
+    />
   );
 }
