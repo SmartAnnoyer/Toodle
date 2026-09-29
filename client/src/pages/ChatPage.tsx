@@ -31,9 +31,9 @@ export function ChatPage() {
   const [plusOpen, setPlusOpen] = useState(false);
   const [renewOpen, setRenewOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
   const [tick, setTick] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
+  const composer = useRef<HTMLTextAreaElement>(null);
   const typingTimer = useRef<number | null>(null);
   const toodle = useToodleChat({
     conversation,
@@ -59,9 +59,20 @@ export function ChatPage() {
     const trimmed = body.trim();
     if (!trimmed && extra?.kind !== 'gif' && extra?.kind !== 'sticker') return;
     if (trimmed) toodle.notice(trimmed);
-    setSending(true);
+    const fromComposer = body === text;
+    const replyTo = reply ? {
+      id: reply.id,
+      body: reply.body,
+      senderName: reply.senderId === profile?.id ? profile.displayName : conversation?.otherUser.displayName ?? '',
+    } : null;
+    const replyToId = reply?.id;
+    setText('');
+    setReply(null);
+    setEmojiOpen(false);
+    signalTyping(false);
+    if (fromComposer) composer.current?.focus({ preventScroll: true });
     try {
-      const result = await send(trimmed, { ...extra, replyToId: reply?.id });
+      const result = await send(trimmed, { ...extra, replyToId, replyTo });
       if (result.type === 'action') {
         if (result.action === 'rules') navigate(`/chat/${id}/rules`);
         if (result.action === 'renew') setRenewOpen(true);
@@ -77,14 +88,9 @@ export function ChatPage() {
         if (result.action === 'ghost') toast(result.ghostEnabled ? '🫥 Ghost mode is on' : 'Ghost mode is off');
       }
       if (result.streak?.increased) nudge([8, 20, 8]);
-      setText('');
-      setReply(null);
-      setEmojiOpen(false);
-      signalTyping(false);
     } catch (err) {
+      if (fromComposer && trimmed.startsWith('/')) setText(trimmed);
       toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.');
-    } finally {
-      setSending(false);
     }
   }
 
@@ -170,21 +176,35 @@ export function ChatPage() {
               api(`/api/messages/${message.id}/reactions`, { method: 'POST', body: JSON.stringify({ emoji }) })
                 .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
             }}
+            onRetry={() => {
+              if (!message.clientId || message.kind === 'system') return;
+              void send(message.body, {
+                kind: message.kind,
+                metadata: message.metadata,
+                clientId: message.clientId,
+                retry: true,
+                replyToId: message.replyTo?.id,
+                replyTo: message.replyTo,
+              }).catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
+            }}
           />
         ))}
         {typing ? <p className="text-sm text-muted">typing…</p> : null}
       </div>
 
-      <div className="composer-safe relative border-t border-line px-3 pt-2">
-        {readChaos() !== 'off' && !error && !renewOpen ? (
+      {readChaos() !== 'off' && !error && !renewOpen ? (
+        <div className="relative h-[26dvh] min-h-[8.5rem] w-full max-h-56 shrink-0">
           <ToodlePresence
             beat={toodle.beat}
             listening={Boolean(typing) || text.trim().length > 1}
-            onUse={(phrase) => { setText(phrase); toodle.dismiss(); }}
+            onUse={(phrase) => { setText(phrase); toodle.dismiss(); composer.current?.focus({ preventScroll: true }); }}
             onDone={toodle.dismiss}
             onTap={toodle.poke}
           />
-        ) : null}
+        </div>
+      ) : null}
+
+      <div className="composer-safe relative border-t border-line px-3 pt-2">
         {reply ? (
           <div className="mb-2 flex items-center justify-between rounded-2xl bg-white/5 px-3 py-2 text-sm">
             <span className="truncate">Replying to {reply.body}</span>
@@ -240,14 +260,17 @@ export function ChatPage() {
         <div className="flex items-end gap-2">
           <button type="button" className="pb-2 text-xl" onClick={() => setPlusOpen((open) => !open)}>+</button>
           <textarea
+            ref={composer}
             value={text}
             rows={1}
+            enterKeyHint="send"
             placeholder="Message..."
             onChange={(event) => onType(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 void submit();
+                composer.current?.focus({ preventScroll: true });
               }
             }}
             className="max-h-28 flex-1 resize-none rounded-3xl border border-line bg-elevated px-4 py-3 outline-none"
@@ -255,7 +278,17 @@ export function ChatPage() {
           <button type="button" className="pb-2 text-xl" onClick={() => setEmojiOpen((open) => !open)}>😊</button>
           <button type="button" className="pb-2 text-sm font-semibold" onClick={() => { setMediaKind('gif'); setGifOpen((open) => mediaKind === 'gif' ? !open : true); }}>GIF</button>
           <button type="button" className="pb-2 text-xl" onClick={() => { setMediaKind('sticker'); setGifOpen((open) => mediaKind === 'sticker' ? !open : true); }} aria-label="Stickers">✨</button>
-          <button type="button" disabled={sending} className="pb-2 text-xl" onClick={() => void submit()}>➤</button>
+          <button
+            type="button"
+            className="pb-2 text-xl"
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={() => {
+              void submit();
+              composer.current?.focus({ preventScroll: true });
+            }}
+          >
+            ➤
+          </button>
         </div>
       </div>
     </div>
@@ -272,6 +305,7 @@ function MessageBubble({
   onReply,
   onDelete,
   onReact,
+  onRetry,
 }: {
   message: ChatMessage;
   mine: boolean;
@@ -282,6 +316,7 @@ function MessageBubble({
   onReply: () => void;
   onDelete: () => void;
   onReact: (emoji: string) => void;
+  onRetry?: () => void;
 }) {
   if (message.kind === 'system') {
     return <p className="py-2 text-center text-sm text-muted">{message.body}</p>;
@@ -291,7 +326,7 @@ function MessageBubble({
   const expiresLabel = message.expiresAt ? formatRemaining((new Date(message.expiresAt).getTime() - serverNowMs()) / 1000) : null;
   void tick;
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.08 }} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
       <button type="button" onClick={onSelect} className={`max-w-[80%] rounded-[1.4rem] px-3 py-2 text-left ${mine ? 'bubble-mine' : 'bubble-theirs'}`}>
         {message.replyTo ? <p className="mb-1 truncate text-xs opacity-70">↩ {message.replyTo.body}</p> : null}
         {message.kind === 'gif' && gifUrl ? <img src={gifUrl} alt={message.body} className="mb-1 max-h-52 rounded-2xl" /> : null}
@@ -299,7 +334,13 @@ function MessageBubble({
         {message.kind === 'sticker' && gifUrl ? <img src={gifUrl} alt={message.body} className="mb-1 max-h-40 object-contain" /> : null}
         {message.kind === 'sticker' && !gifUrl ? <span className="block text-5xl">{label || message.body}</span> : null}
         {message.kind === 'text' ? <span className="whitespace-pre-wrap">{message.body}</span> : null}
-        <span className="mt-1 block text-[10px] opacity-60">{formatClock(message.createdAt)}{seen ? ' · Seen' : ''}</span>
+        <span className="mt-1 block text-[10px] opacity-60">
+          {formatClock(message.createdAt)}
+          {seen ? ' · Seen' : ''}
+          {message.localStatus === 'failed' ? (
+            <button type="button" className="ml-1 text-danger" onClick={(event) => { event.stopPropagation(); onRetry?.(); }}>Didn't send · Retry</button>
+          ) : null}
+        </span>
         {expiresLabel ? <span className="block text-[10px] opacity-70">⏳ disappears in {expiresLabel}</span> : null}
         {message.reactions.length > 0 ? (
           <span className="mt-1 flex gap-1 text-xs">{message.reactions.map((reaction) => <span key={`${reaction.userId}${reaction.emoji}`}>{reaction.emoji}</span>)}</span>

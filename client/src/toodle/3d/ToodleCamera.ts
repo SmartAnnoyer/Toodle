@@ -1,8 +1,7 @@
 import type { Camera } from 'three';
 
-export function followToodle(camera: Camera, focusX: number, dt: number) {
-  const desired = focusX * 0.08;
+export function followToodle(camera: Camera, dt: number) {
   const step = Math.min(1, dt * 3.2);
-  camera.position.x += (desired - camera.position.x) * step;
-  camera.lookAt(camera.position.x * 0.35, 0.72, 0);
+  camera.position.x += (0 - camera.position.x) * step;
+  camera.lookAt(0, 0.68, 0);
 }

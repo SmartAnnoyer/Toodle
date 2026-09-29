@@ -50,11 +50,19 @@ function smooth(t: number): number {
   return x * x * (3 - 2 * x);
 }
 
-function gait(t: number, speed: number, stride: number, travel: number): Pose {
+function patrol(t: number, period: number) {
+  const cycle = ((t % period) + period) % period;
+  const p = cycle / period;
+  const forward = p < 0.5;
+  const amount = forward ? p * 2 : (1 - p) * 2;
+  return { amount, forward };
+}
+
+function gait(t: number, speed: number, stride: number, localX = 0, faceAway = false): Pose {
   const s = Math.sin(t * speed);
   const bob = Math.abs(Math.sin(t * speed));
   return pose({
-    root: { x: Math.sin(t * speed * 0.22) * travel, y: bob * 0.045 },
+    root: { x: localX, y: bob * 0.045, ry: faceAway ? Math.PI : 0 },
     hips: { ry: s * 0.08 },
     spine: { rx: 0.08, ry: s * 0.05 },
     head: { rx: -0.04, ry: -s * 0.1 },
@@ -140,12 +148,20 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
       foreR: { rx: -0.15 },
     }),
   },
-  walk: { duration: 1.2, loop: true, sample: (t) => gait(t, 7.5, 0.72, 1.45) },
-  run: {
-    duration: 0.7,
+  walk: {
+    duration: 3.2,
     loop: true,
     sample: (t) => {
-      const next = gait(t, 12, 1.05, 1.7);
+      const step = patrol(t, 3.2);
+      return gait(t, 7.5, 0.72, step.amount * 0.92, !step.forward);
+    },
+  },
+  run: {
+    duration: 1.8,
+    loop: true,
+    sample: (t) => {
+      const step = patrol(t, 1.8);
+      const next = gait(t, 12, 1.05, step.amount, !step.forward);
       next.spine.rx = 0.28;
       next.root.y += 0.04;
       return next;
@@ -351,7 +367,7 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     duration: 0.9,
     loop: false,
     sample: (t) => pose({
-      root: { x: -0.95 + Math.min(0.7, t * 0.9), ry: 0.35 },
+      root: { x: -0.16 + Math.min(0.16, t * 0.22), ry: 0.35 },
       head: { ry: -0.25 },
       spine: { rx: 0.08 },
     }),
@@ -429,10 +445,8 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     duration: 1.3,
     loop: false,
     sample: (t) => {
-      const next = gait(t, 8, 0.7, 0);
       const p = Math.min(1, t / 1.3);
-      next.root.ry = Math.PI;
-      next.root.x = p * 1.35;
+      const next = gait(t, 8, 0.7, p * 1.18, true);
       next.head.ry = 0.4;
       return next;
     },
@@ -441,13 +455,10 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     duration: 2.4,
     loop: false,
     sample: (t) => {
-      if (t < 0.6) return gait(t, 8, 0.6, 0.2);
+      if (t < 0.6) return gait(t, 8, 0.6, (t / 0.6) * 0.28, false);
       if (t < 1.3) return CLIPS.thinking.sample(t, 'bounce');
       if (t < 1.9) return CLIPS.laugh.sample(t, 'bounce');
-      const leaving = gait(t, 8, 0.6, 0);
-      leaving.root.ry = Math.PI;
-      leaving.root.x = (t - 1.9) * 0.8;
-      return leaving;
+      return gait(t, 8, 0.6, 0.45 + (t - 1.9) * 0.9, true);
     },
   },
   listen: {
@@ -508,6 +519,17 @@ export class ToodleAnimationController {
   private blink = 0;
   private style: DanceStyle = 'bounce';
   focusX = 0;
+  halfW = 2.2;
+
+  setHalfWidth(width: number) {
+    if (Number.isFinite(width) && width > 0.3) this.halfW = width;
+  }
+
+  private placeX(local: number) {
+    const home = -this.halfW + 0.92;
+    const span = Math.max(0.4, this.halfW * 2 - 1.84);
+    return home + local * span;
+  }
 
   setDance(style: DanceStyle) {
     this.style = style;
@@ -573,6 +595,7 @@ export class ToodleAnimationController {
 
     const fromClip = CLIPS[this.from] ?? CLIPS.idle;
     const mixed = lerpPose(fromClip.sample(this.fromTime, this.style), clip.sample(this.time, this.style), smooth(this.blend));
+    mixed.root.x = this.placeX(mixed.root.x);
     this.focusX = mixed.root.x;
     const expression = expressionFor(this.current);
     return {

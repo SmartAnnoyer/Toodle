@@ -1,11 +1,45 @@
 import { useCallback, useEffect, useState } from 'react';
 import { SocketEvents } from '../constants';
 import { api } from '../lib/http';
-import type { ChatMessage, ConversationDetail, SendResult } from '../types';
+import type { ChatMessage, ConversationDetail, ReplyPreview, SendResult } from '../types';
+import { useAuth } from './useAuth';
 import { emitAck, useSocket } from './useSocket';
+
+type SendExtra = {
+  kind?: 'text' | 'gif' | 'sticker';
+  replyToId?: string;
+  replyTo?: ReplyPreview | null;
+  metadata?: Record<string, unknown>;
+  clientId?: string;
+  retry?: boolean;
+};
+
+function adoptIncoming(prev: ChatMessage[], message: ChatMessage): ChatMessage[] {
+  if (prev.some((item) => item.id === message.id)) {
+    return prev.map((item) => (item.id === message.id ? message : item));
+  }
+  const pending = prev.findIndex((item) =>
+    item.localStatus === 'sending'
+    && item.senderId === message.senderId
+    && item.kind === message.kind
+    && item.body === message.body,
+  );
+  if (pending >= 0) {
+    const next = prev.slice();
+    next[pending] = message;
+    return next;
+  }
+  return [...prev, message];
+}
+
+function commitServer(prev: ChatMessage[], clientId: string, message: ChatMessage): ChatMessage[] {
+  const rest = prev.filter((item) => item.clientId !== clientId && item.id !== message.id);
+  return [...rest, message];
+}
 
 export function useChat(conversationId: string) {
   const { socket, status } = useSocket();
+  const { profile } = useAuth();
   const [conversation, setConversation] = useState<ConversationDetail | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [typing, setTyping] = useState(false);
@@ -20,7 +54,22 @@ export function useChat(conversationId: string) {
         api<{ messages: ChatMessage[] }>(`/api/conversations/${conversationId}/messages`),
       ]);
       setConversation(detail);
-      setMessages(history.messages);
+      setMessages((current) => {
+        const locals = current.filter((item) => item.localStatus);
+        const kept = locals.filter((item) => {
+          if (item.localStatus === 'failed') return !history.messages.some((remote) => remote.id === item.id);
+          return !history.messages.some((remote) =>
+            remote.id === item.id
+            || (
+              remote.senderId === item.senderId
+              && remote.body === item.body
+              && remote.kind === item.kind
+              && Math.abs(new Date(remote.createdAt).getTime() - new Date(item.createdAt).getTime()) < 20_000
+            ),
+          );
+        });
+        return [...history.messages, ...kept];
+      });
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Toodle tripped. Try again.');
@@ -45,7 +94,7 @@ export function useChat(conversationId: string) {
 
     const onNew = (message: ChatMessage) => {
       if (message.conversationId !== conversationId) return;
-      setMessages((prev) => prev.some((item) => item.id === message.id) ? prev : [...prev, message]);
+      setMessages((prev) => adoptIncoming(prev, message));
       if (message.streak?.increased) {
         setStreakPop(true);
         window.setTimeout(() => setStreakPop(false), 1400);
@@ -115,18 +164,62 @@ export function useChat(conversationId: string) {
     };
   }, [socket, conversationId, load]);
 
-  const send = useCallback(async (body: string, extra?: { kind?: 'text' | 'gif' | 'sticker'; replyToId?: string; metadata?: Record<string, unknown> }) => {
-    const payload = { conversationId, body, ...extra };
-    if (socket && status === 'connected') {
-      const result = await emitAck<SendResult & { ok: boolean; error?: string }>(socket, SocketEvents.MessageSend, payload);
-      if (!result.ok) throw new Error(result.error || 'Toodle tripped. Try again.');
-      return result;
+  const send = useCallback(async (body: string, extra?: SendExtra) => {
+    const trimmed = body.trim();
+    const kind = extra?.kind ?? 'text';
+    const clientId = extra?.clientId ?? crypto.randomUUID();
+    const command = kind === 'text' && trimmed.startsWith('/');
+    if (!command) {
+      const optimistic: ChatMessage = {
+        id: clientId,
+        clientId,
+        conversationId,
+        senderId: profile?.id ?? null,
+        body: trimmed || (kind === 'gif' ? 'GIF' : '✨'),
+        kind,
+        metadata: extra?.metadata ?? {},
+        replyTo: extra?.replyTo ?? null,
+        reactions: [],
+        expiresAt: null,
+        createdAt: new Date().toISOString(),
+        localStatus: 'sending',
+      };
+      setMessages((prev) => (
+        extra?.retry
+          ? prev.map((item) => item.clientId === clientId ? { ...item, localStatus: 'sending' } : item)
+          : [...prev, optimistic]
+      ));
     }
-    return api<SendResult>(`/api/conversations/${conversationId}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ body, ...extra }),
-    });
-  }, [conversationId, socket, status]);
+    const payload = {
+      conversationId,
+      body,
+      kind: extra?.kind,
+      replyToId: extra?.replyToId,
+      metadata: extra?.metadata,
+    };
+    try {
+      const result = socket && status === 'connected'
+        ? await emitAck<SendResult & { ok: boolean; error?: string }>(socket, SocketEvents.MessageSend, payload)
+        : await api<SendResult>(`/api/conversations/${conversationId}/messages`, {
+          method: 'POST',
+          body: JSON.stringify({ body, kind: extra?.kind, replyToId: extra?.replyToId, metadata: extra?.metadata }),
+        });
+      if (result.ok === false) throw new Error(result.error || 'Toodle tripped. Try again.');
+      if (!command) {
+        if (result.type === 'action' || !result.message) {
+          setMessages((prev) => prev.filter((item) => item.clientId !== clientId));
+        } else {
+          setMessages((prev) => commitServer(prev, clientId, result.message as ChatMessage));
+        }
+      }
+      return result;
+    } catch (error) {
+      if (!command) {
+        setMessages((prev) => prev.map((item) => item.clientId === clientId ? { ...item, localStatus: 'failed' } : item));
+      }
+      throw error;
+    }
+  }, [conversationId, profile?.id, socket, status]);
 
   const signalTyping = useCallback((active: boolean) => {
     if (!socket || status !== 'connected') return;

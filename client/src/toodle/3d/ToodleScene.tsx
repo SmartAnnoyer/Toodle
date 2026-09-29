@@ -6,9 +6,13 @@ import { ToodleAnimationController } from './ToodleAnimationController';
 import { ToodleLighting } from './ToodleLighting';
 import { ToodleModel } from './ToodleModel';
 
-function CameraRig({ controller }: { controller: ToodleAnimationController }) {
+function CameraRig({ controller, onPlace }: { controller: ToodleAnimationController; onPlace?: (x: number) => void }) {
   useFrame((state, dt) => {
-    followToodle(state.camera, controller.focusX, dt);
+    controller.setHalfWidth(state.viewport.width / 2);
+    followToodle(state.camera, dt);
+    if (!onPlace || controller.halfW <= 0) return;
+    const norm = (controller.focusX / controller.halfW + 1) / 2;
+    onPlace(Math.min(0.9, Math.max(0.1, norm)));
   });
   return null;
 }
@@ -21,6 +25,7 @@ export default function ToodleScene({
   listening,
   reduced,
   paused,
+  onPlace,
 }: {
   animation: string | null;
   playId: string;
@@ -29,6 +34,7 @@ export default function ToodleScene({
   listening: boolean;
   reduced: boolean;
   paused: boolean;
+  onPlace?: (x: number) => void;
 }) {
   const controller = useMemo(() => new ToodleAnimationController(), []);
   useEffect(() => {
@@ -45,7 +51,7 @@ export default function ToodleScene({
       onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
     >
       <ToodleLighting />
-      <CameraRig controller={controller} />
+      <CameraRig controller={controller} onPlace={onPlace} />
       <ToodleModel controller={controller} danceStyle={danceStyle} prop={prop} listening={listening} reduced={reduced} />
     </Canvas>
   );

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import type { DanceStyle, ToodleProp } from '../animations';
 
 const ToodleScene = lazy(() => import('./ToodleScene'));
@@ -31,6 +31,7 @@ export function ToodleStage({
   const [paused, setPaused] = useState(false);
   const [reduced, setReduced] = useState(false);
   const [aside, setAside] = useState<string | null>(null);
+  const hit = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -59,8 +60,8 @@ export function ToodleStage({
 
   return (
     <div className={inline
-      ? 'relative mx-auto flex w-full max-w-sm items-end justify-center gap-2'
-      : 'pointer-events-none absolute bottom-full left-0 right-0 z-20 h-48'}
+      ? 'relative mx-auto flex h-48 w-full max-w-sm items-end justify-center gap-2'
+      : 'pointer-events-none relative h-full w-full'}
     >
       <div className="relative h-full w-full">
         <Suspense fallback={null}>
@@ -72,13 +73,19 @@ export function ToodleStage({
             listening={listening}
             reduced={reduced}
             paused={paused}
+            onPlace={(x) => {
+              const node = hit.current;
+              if (!node) return;
+              node.style.left = `${x * 100}%`;
+            }}
           />
         </Suspense>
         <button
+          ref={hit}
           type="button"
           aria-label="Toodle"
           onClick={onTap}
-          className="pointer-events-auto absolute bottom-1 left-1/2 h-40 w-28 -translate-x-1/2 cursor-pointer bg-transparent"
+          className="pointer-events-auto absolute bottom-1 left-[18%] h-[78%] w-28 -translate-x-1/2 cursor-pointer bg-transparent"
         />
       </div>
       {bubble ? (

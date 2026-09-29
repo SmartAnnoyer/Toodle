@@ -99,6 +99,8 @@ export interface ChatMessage {
   expiresAt: string | null;
   createdAt: string;
   streak?: { count: number; increased: boolean };
+  clientId?: string;
+  localStatus?: 'sending' | 'failed';
 }
 
 export interface Shortcut {
