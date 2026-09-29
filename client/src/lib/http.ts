@@ -21,6 +21,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const serverTime = response.headers.get('X-Server-Time');
   if (serverTime) noteServerTime(serverTime);
   const data = await response.json().catch(() => ({}));
+  if (response.status === 401 && supabase) {
+    await supabase.auth.signOut({ scope: 'local' });
+  }
   if (!response.ok) {
     throw new Error(typeof data.error === 'string' ? data.error : 'Toodle tripped. Try again.');
   }

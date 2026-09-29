@@ -9,7 +9,7 @@ import { CHAOS_OPTIONS, readChaos, writeChaos } from '../toodle/settings';
 import type { ChaosLevel } from '../toodle/types';
 
 export function ProfilePage() {
-  const { profile, refreshProfile, signOut } = useAuth();
+  const { profile, loading, refreshProfile, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const toast = useToast();
   const navigate = useNavigate();
@@ -21,7 +21,15 @@ export function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [chaos, setChaos] = useState<ChaosLevel>(readChaos);
 
-  if (!profile) return <p className="px-4 pt-10 text-muted">Loading you…</p>;
+  if (loading) return <p className="px-4 pt-10 text-muted">Loading you…</p>;
+  if (!profile) {
+    return (
+      <div className="px-4 pt-16 text-center">
+        <p className="text-muted">Your session wandered off. Sign in again.</p>
+        <Button className="mt-5" variant="danger" onClick={() => void signOut().then(() => navigate('/welcome'))}>Log out</Button>
+      </div>
+    );
+  }
 
   async function save() {
     setBusy(true);

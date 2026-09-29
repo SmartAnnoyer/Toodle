@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Avatar, EmptyState, Wordmark } from '../components/ui';
+import { Avatar, Button, EmptyState, Wordmark } from '../components/ui';
+import { useAuth } from '../hooks/useAuth';
 import { SocketEvents } from '../constants';
 import { useCountdown } from '../hooks/useCountdown';
 import { useSocket } from '../hooks/useSocket';
@@ -10,6 +11,7 @@ import type { ConversationSummary } from '../types';
 
 export function HomePage() {
   const { socket } = useSocket();
+  const { signOut } = useAuth();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [pending, setPending] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -17,12 +19,12 @@ export function HomePage() {
 
   async function load() {
     try {
-      const [inbox, notes] = await Promise.all([
+      const [inbox, requests] = await Promise.all([
         api<{ conversations: ConversationSummary[] }>('/api/conversations'),
-        api<{ pendingRequests: number }>('/api/notifications'),
+        api<{ incoming: { id: string }[] }>('/api/requests'),
       ]);
       setConversations(inbox.conversations);
-      setPending(notes.pendingRequests);
+      setPending(requests.incoming.length);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Toodle tripped. Try again.');
@@ -55,15 +57,19 @@ export function HomePage() {
 
   return (
     <div className="px-4 pt-6">
-      <header className="flex items-center justify-between">
+      <header>
         <Wordmark className="text-4xl" />
-        <Link to="/notifications" className="glass rounded-full px-3 py-2 text-sm">🔔</Link>
       </header>
       <Link to="/find" className="glass mt-5 block rounded-[1.6rem] px-4 py-4 text-muted">Find someone to Toodle with</Link>
       {pending > 0 ? (
         <Link to="/requests" className="mt-3 block rounded-2xl bg-white/10 px-4 py-3 text-sm">👋 {pending} {pending === 1 ? 'person wants' : 'people want'} to Toodle</Link>
       ) : null}
-      {error ? <p className="mt-6 text-center text-muted">{error}</p> : null}
+      {error ? (
+        <div className="mt-6 text-center">
+          <p className="text-muted">{error}</p>
+          <Button className="mt-4" variant="danger" onClick={() => void signOut()}>Log out</Button>
+        </div>
+      ) : null}
       {loading ? <p className="mt-10 text-center text-muted">Loading chats…</p> : null}
       {!loading && active.length === 0 && gone.length === 0 ? (
         <EmptyState emoji="👀" title="It's suspiciously quiet here" body="Find someone and send a ping." action={<Link to="/find" className="text-primary">Find someone</Link>} />

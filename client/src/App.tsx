@@ -9,7 +9,6 @@ import { ChatPage } from './pages/ChatPage';
 import { FindPage } from './pages/FindPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
-import { NotificationsPage } from './pages/NotificationsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RequestsPage } from './pages/RequestsPage';
 import { RulesPage } from './pages/RulesPage';
@@ -33,7 +32,6 @@ export function App() {
                     <Route path="/find" element={<FindPage />} />
                     <Route path="/shortcuts" element={<ShortcutsPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
-                    <Route path="/notifications" element={<NotificationsPage />} />
                   </Route>
                   <Route path="/chat/:id" element={<ChatPage />} />
                   <Route path="/chat/:id/rules" element={<RulesPage />} />
