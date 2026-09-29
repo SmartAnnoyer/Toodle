@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { CHALLENGE_OPTIONS, CONVERSATION_EXPIRY, MESSAGE_COUNTS, MESSAGE_EXPIRY } from '../constants';
-import { Button, useToast } from '../components/ui';
+import { Button, OptionPicker, useToast } from '../components/ui';
 import { api } from '../lib/http';
 import type { ConversationDetail, RuleView } from '../types';
 
@@ -53,40 +53,70 @@ export function RulesPage() {
           {rules.map((rule) => (
             <article key={rule.ruleType} className="glass rounded-[1.6rem] p-4">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-semibold">{rule.title}</h2>
-                  <p className="mt-1 text-sm text-muted">{rule.explanation}</p>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base font-semibold leading-snug">{rule.title}</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">{rule.explanation}</p>
                 </div>
-                <input type="checkbox" checked={rule.enabled} onChange={(event) => update(rule.ruleType, { enabled: event.target.checked })} />
+                <button
+                  type="button"
+                  role="switch"
+                  aria-label={`${rule.title} ${rule.enabled ? 'on' : 'off'}`}
+                  aria-checked={rule.enabled}
+                  onClick={() => update(rule.ruleType, { enabled: !rule.enabled })}
+                  className={`relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition ${rule.enabled ? 'bg-primary' : 'bg-ink/20'}`}
+                >
+                  <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition ${rule.enabled ? 'left-5' : 'left-0.5'}`} />
+                </button>
               </div>
               {rule.ruleType === 'message_expiration' ? (
-                <select className="mt-3 w-full rounded-2xl bg-elevated px-3 py-2" value={Number(rule.configuration.durationSeconds ?? 30)} onChange={(event) => update(rule.ruleType, { configuration: { durationSeconds: Number(event.target.value) } })}>
-                  {MESSAGE_EXPIRY.map((option) => <option key={option.seconds} value={option.seconds}>{option.label}</option>)}
-                </select>
+                <OptionPicker
+                  label="Fade after"
+                  value={String(Number(rule.configuration.durationSeconds ?? 30))}
+                  options={MESSAGE_EXPIRY.map((option) => ({ value: String(option.seconds), label: option.label }))}
+                  onChange={(next) => update(rule.ruleType, { configuration: { durationSeconds: Number(next) } })}
+                />
               ) : null}
               {rule.ruleType === 'message_count' ? (
-                <select className="mt-3 w-full rounded-2xl bg-elevated px-3 py-2" value={Number(rule.configuration.limit ?? 50)} onChange={(event) => update(rule.ruleType, { configuration: { limit: Number(event.target.value) } })}>
-                  {MESSAGE_COUNTS.map((count) => <option key={count} value={count}>{count} messages</option>)}
-                </select>
+                <OptionPicker
+                  label="Message limit"
+                  value={String(Number(rule.configuration.limit ?? 50))}
+                  options={MESSAGE_COUNTS.map((count) => ({ value: String(count), label: `${count} messages` }))}
+                  onChange={(next) => update(rule.ruleType, { configuration: { limit: Number(next) } })}
+                />
               ) : null}
               {rule.ruleType === 'conversation_expiration' ? (
-                <div className="mt-3 space-y-2">
-                  <select className="w-full rounded-2xl bg-elevated px-3 py-2" value={Number(rule.configuration.durationSeconds ?? 3600)} onChange={(event) => update(rule.ruleType, { configuration: { durationSeconds: Number(event.target.value) } })}>
-                    {CONVERSATION_EXPIRY.map((option) => <option key={option.seconds} value={option.seconds}>{option.label}</option>)}
-                  </select>
-                  <label className="flex items-center justify-between text-sm">
-                    Require approval for renewals
-                    <input type="checkbox" checked={rule.configuration.requireApproval !== false} onChange={(event) => update(rule.ruleType, { configuration: { requireApproval: event.target.checked } })} />
-                  </label>
-                  <p className="text-xs text-muted">Turning this on starts the timer now.</p>
+                <div>
+                  <OptionPicker
+                    label="Chat timer"
+                    value={String(Number(rule.configuration.durationSeconds ?? 3600))}
+                    options={CONVERSATION_EXPIRY.map((option) => ({ value: String(option.seconds), label: option.label }))}
+                    onChange={(next) => update(rule.ruleType, { configuration: { durationSeconds: Number(next) } })}
+                  />
+                  <div className="mt-3 flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 leading-snug">Require approval for renewals</span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-label="Require approval for renewals"
+                      aria-checked={rule.configuration.requireApproval !== false}
+                      onClick={() => update(rule.ruleType, { configuration: { requireApproval: rule.configuration.requireApproval === false } })}
+                      className={`relative h-7 w-12 shrink-0 rounded-full transition ${rule.configuration.requireApproval !== false ? 'bg-primary' : 'bg-ink/20'}`}
+                    >
+                      <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition ${rule.configuration.requireApproval !== false ? 'left-5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs text-muted">Turning this on starts the timer now.</p>
                 </div>
               ) : null}
               {rule.ruleType === 'challenge_mode' ? (
-                <select className="mt-3 w-full rounded-2xl bg-elevated px-3 py-2" value={Number(rule.configuration.intervalSeconds ?? 60)} onChange={(event) => update(rule.ruleType, { configuration: { intervalSeconds: Number(event.target.value) } })}>
-                  {CHALLENGE_OPTIONS.map((option) => <option key={option.seconds} value={option.seconds}>{option.label}</option>)}
-                </select>
+                <OptionPicker
+                  label="Send pace"
+                  value={String(Number(rule.configuration.intervalSeconds ?? 60))}
+                  options={CHALLENGE_OPTIONS.map((option) => ({ value: String(option.seconds), label: option.label }))}
+                  onChange={(next) => update(rule.ruleType, { configuration: { intervalSeconds: Number(next) } })}
+                />
               ) : null}
-              <Button className="mt-3 px-4 py-2" disabled={busy} onClick={() => void save(rule)}>Save</Button>
+              <Button className="mt-4 w-full px-4 py-3 sm:w-auto" disabled={busy} onClick={() => void save(rule)}>Save</Button>
             </article>
           ))}
         </div>

@@ -327,33 +327,37 @@ function MessageBubble({
   void tick;
   return (
     <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.08 }} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-      <button type="button" onClick={onSelect} className={`max-w-[80%] rounded-[1.4rem] px-3 py-2 text-left ${mine ? 'bubble-mine' : 'bubble-theirs'}`}>
-        {message.replyTo ? <p className="mb-1 truncate text-xs opacity-70">↩ {message.replyTo.body}</p> : null}
-        {message.kind === 'gif' && gifUrl ? <img src={gifUrl} alt={message.body} className="mb-1 max-h-52 rounded-2xl" /> : null}
-        {message.kind === 'gif' && !gifUrl ? <span className="block text-5xl">{label || '✨'}</span> : null}
-        {message.kind === 'sticker' && gifUrl ? <img src={gifUrl} alt={message.body} className="mb-1 max-h-40 object-contain" /> : null}
-        {message.kind === 'sticker' && !gifUrl ? <span className="block text-5xl">{label || message.body}</span> : null}
-        {message.kind === 'text' ? <span className="whitespace-pre-wrap">{message.body}</span> : null}
-        <span className="mt-1 block text-[10px] opacity-60">
-          {formatClock(message.createdAt)}
-          {seen ? ' · Seen' : ''}
-          {message.localStatus === 'failed' ? (
-            <button type="button" className="ml-1 text-danger" onClick={(event) => { event.stopPropagation(); onRetry?.(); }}>Didn't send · Retry</button>
-          ) : null}
-        </span>
-        {expiresLabel ? <span className="block text-[10px] opacity-70">⏳ disappears in {expiresLabel}</span> : null}
-        {message.reactions.length > 0 ? (
-          <span className="mt-1 flex gap-1 text-xs">{message.reactions.map((reaction) => <span key={`${reaction.userId}${reaction.emoji}`}>{reaction.emoji}</span>)}</span>
-        ) : null}
-        {selected ? (
-          <span className="mt-2 flex flex-wrap gap-2 text-xs">
-            {REACTIONS.map((emoji) => <span key={emoji} onClick={(event) => { event.stopPropagation(); onReact(emoji); }}>{emoji}</span>)}
-            <span onClick={(event) => { event.stopPropagation(); onReply(); }}>Reply</span>
-            <span onClick={(event) => { event.stopPropagation(); void navigator.clipboard.writeText(message.body); }}>Copy</span>
-            {mine ? <span onClick={(event) => { event.stopPropagation(); onDelete(); }}>Delete</span> : null}
+      <div className="flex max-w-[min(80%,20rem)] flex-col gap-2">
+        <button type="button" onClick={onSelect} className={`rounded-[1.4rem] px-3 py-2 text-left ${mine ? 'bubble-mine' : 'bubble-theirs'}`}>
+          {message.replyTo ? <p className="mb-1 truncate text-xs opacity-70">↩ {message.replyTo.body}</p> : null}
+          {message.kind === 'gif' && gifUrl ? <img src={gifUrl} alt={message.body} className="mb-1 max-h-52 rounded-2xl" /> : null}
+          {message.kind === 'gif' && !gifUrl ? <span className="block text-5xl">{label || '✨'}</span> : null}
+          {message.kind === 'sticker' && gifUrl ? <img src={gifUrl} alt={message.body} className="mb-1 max-h-40 object-contain" /> : null}
+          {message.kind === 'sticker' && !gifUrl ? <span className="block text-5xl">{label || message.body}</span> : null}
+          {message.kind === 'text' ? <span className="whitespace-pre-wrap break-words">{message.body}</span> : null}
+          <span className="mt-1 block text-[10px] opacity-60">
+            {formatClock(message.createdAt)}
+            {seen ? ' · Seen' : ''}
+            {message.localStatus === 'failed' ? (
+              <button type="button" className="ml-1 text-danger" onClick={(event) => { event.stopPropagation(); onRetry?.(); }}>Didn't send · Retry</button>
+            ) : null}
           </span>
+          {expiresLabel ? <span className="block text-[10px] opacity-70">⏳ disappears in {expiresLabel}</span> : null}
+          {message.reactions.length > 0 ? (
+            <span className="mt-1 flex flex-wrap gap-1 text-xs">{message.reactions.map((reaction) => <span key={`${reaction.userId}${reaction.emoji}`}>{reaction.emoji}</span>)}</span>
+          ) : null}
+        </button>
+        {selected ? (
+          <div className="glass flex flex-wrap gap-1.5 rounded-2xl p-2">
+            {REACTIONS.map((emoji) => (
+              <button key={emoji} type="button" className="grid h-10 w-10 place-items-center rounded-full bg-ink/10 text-lg" onClick={() => onReact(emoji)}>{emoji}</button>
+            ))}
+            <button type="button" className="min-h-10 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={onReply}>Reply</button>
+            <button type="button" className="min-h-10 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={() => void navigator.clipboard.writeText(message.body)}>Copy</button>
+            {mine ? <button type="button" className="min-h-10 rounded-full bg-danger/15 px-3 text-xs font-semibold text-danger" onClick={onDelete}>Delete</button> : null}
+          </div>
         ) : null}
-      </button>
+      </div>
     </motion.div>
   );
 }

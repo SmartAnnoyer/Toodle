@@ -27,6 +27,60 @@ export function Button({
   );
 }
 
+export function OptionPicker({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find((option) => option.value === value)?.label ?? 'Choose';
+  return (
+    <div className="mt-3">
+      {label ? <span className="mb-2 block text-xs font-medium text-muted">{label}</span> : null}
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={() => setOpen((shown) => !shown)}
+        className="flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-line bg-elevated px-4 py-3 text-left text-base text-ink"
+      >
+        <span className="min-w-0 flex-1 truncate">{current}</span>
+        <span className={`shrink-0 text-xs text-muted transition ${open ? 'rotate-180' : ''}`} aria-hidden>▾</span>
+      </button>
+      {open ? (
+        <ul role="listbox" className="mt-2 max-h-64 overflow-y-auto overscroll-contain rounded-2xl border border-line bg-bg p-1.5 shadow-card">
+          {options.map((option) => {
+            const chosen = option.value === value;
+            return (
+              <li key={option.value}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={chosen}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpen(false);
+                  }}
+                  className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-ink ${chosen ? 'bg-primary/15 font-semibold' : 'active:bg-white/10'}`}
+                >
+                  <span className="min-w-0 flex-1">{option.label}</span>
+                  {chosen ? <span className="shrink-0 text-primary" aria-hidden>✓</span> : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 export function Field({
   label,
   hint,
