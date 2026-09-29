@@ -16,7 +16,7 @@ export interface BonePose {
 
 export type Pose = Record<BoneName, BonePose>;
 
-const IDLE_LIFE = ['wink', 'thinking', 'walk', 'happy', 'wave', 'bounce', 'suspicious', 'listen'] as const;
+const IDLE_LIFE = ['wink', 'laugh', 'happy', 'blush', 'shocked', 'confused', 'celebrate', 'thinking', 'bounce', 'wave'] as const;
 
 function bone(partial: Partial<BonePose> = {}): BonePose {
   return { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, ...partial };
@@ -503,7 +503,7 @@ export class ToodleAnimationController {
   private reaction: string | null = null;
   private playId = 'idle';
   private idleClock = 0;
-  private nextIdle = 3.2;
+  private nextIdle = 1.1;
   private blinkAt = 2.4;
   private blink = 0;
   private style: DanceStyle = 'bounce';
@@ -541,7 +541,7 @@ export class ToodleAnimationController {
     const step = Math.min(dt, 0.05);
     const clip = CLIPS[this.current] ?? CLIPS.idle;
     if (!options.reduced) this.time += step;
-    this.blend = Math.min(1, this.blend + step / 0.28);
+    this.blend = Math.min(1, this.blend + step / 0.1);
     if (!clip.loop && this.time >= clip.duration) {
       const next = this.queue.shift();
       if (next) this.start(next);
@@ -553,12 +553,12 @@ export class ToodleAnimationController {
       this.idleClock += step;
       if (options.listening && this.idleClock > 2.2) {
         this.idleClock = 0;
-        this.nextIdle = 5 + Math.random() * 4;
+        this.nextIdle = 2.4 + Math.random() * 2;
         this.start('notice');
         this.queue.push('listen', 'idle');
       } else if (this.idleClock > this.nextIdle) {
         this.idleClock = 0;
-        this.nextIdle = 4.5 + Math.random() * 5.5;
+        this.nextIdle = 2.2 + Math.random() * 2.4;
         const micro = IDLE_LIFE[Math.floor(Math.random() * IDLE_LIFE.length)];
         this.start(micro);
         this.queue.push('idle');
