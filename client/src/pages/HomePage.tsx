@@ -84,7 +84,7 @@ export function HomePage() {
 function ChatCard({ chat }: { chat: ConversationSummary }) {
   const countdown = useCountdown(chat.status === 'active' ? chat.expiresAt : null);
   const preview = chat.lastMessage
-    ? chat.lastMessage.kind === 'gif' ? 'GIF' : chat.lastMessage.body
+    ? chat.lastMessage.kind === 'gif' ? 'GIF' : chat.lastMessage.kind === 'sticker' ? 'Sticker' : chat.lastMessage.body
     : 'No messages yet';
   return (
     <Link to={`/chat/${chat.id}`} className="glass mb-3 flex items-center gap-3 rounded-[1.6rem] p-3">

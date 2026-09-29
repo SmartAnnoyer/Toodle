@@ -228,6 +228,7 @@ export const http = {
 
   async gifs(req: Request, res: Response) {
     const query = typeof req.query.q === 'string' ? req.query.q : '';
-    res.json(await searchGifs(query));
+    const kind = req.query.kind === 'sticker' ? 'sticker' : 'gif';
+    res.json(await searchGifs(query, kind));
   },
 };

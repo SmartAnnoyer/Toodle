@@ -24,6 +24,7 @@ export function ChatPage() {
   const [reply, setReply] = useState<ChatMessage | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [gifOpen, setGifOpen] = useState(false);
+  const [mediaKind, setMediaKind] = useState<'gif' | 'sticker'>('gif');
   const [plusOpen, setPlusOpen] = useState(false);
   const [renewOpen, setRenewOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -50,7 +51,10 @@ export function ChatPage() {
       if (result.type === 'action') {
         if (result.action === 'rules') navigate(`/chat/${id}/rules`);
         if (result.action === 'renew') setRenewOpen(true);
-        if (result.action === 'gif') setGifOpen(true);
+        if (result.action === 'gif') {
+          setMediaKind('gif');
+          setGifOpen(true);
+        }
         if (result.action === 'mood') navigate('/profile');
         if (result.action === 'streak') {
           const count = result.streak?.count ?? conversation?.streakCount ?? 0;
@@ -186,8 +190,9 @@ export function ChatPage() {
             ))}
           </div>
         ) : null}
-        {gifOpen ? <GifSheet onClose={() => setGifOpen(false)} onPick={(gif) => {
-          void submit(gif.title || 'GIF', { kind: 'gif', metadata: { gifUrl: gif.url, previewUrl: gif.previewUrl, title: gif.title, mockId: gif.mock ? gif.id : undefined, label: gif.label } });
+        {gifOpen ? <GifSheet kind={mediaKind} onKind={setMediaKind} onClose={() => setGifOpen(false)} onPick={(gif) => {
+          const kind = mediaKind;
+          void submit(gif.title || (kind === 'sticker' ? 'Sticker' : 'GIF'), { kind, metadata: { gifUrl: gif.url, previewUrl: gif.previewUrl, title: gif.title, mockId: gif.mock ? gif.id : undefined, label: gif.label } });
           setGifOpen(false);
         }} /> : null}
         {plusOpen ? (
@@ -222,7 +227,8 @@ export function ChatPage() {
             className="max-h-28 flex-1 resize-none rounded-3xl border border-line bg-elevated px-4 py-3 outline-none"
           />
           <button type="button" className="pb-2 text-xl" onClick={() => setEmojiOpen((open) => !open)}>😊</button>
-          <button type="button" className="pb-2 text-sm font-semibold" onClick={() => setGifOpen((open) => !open)}>GIF</button>
+          <button type="button" className="pb-2 text-sm font-semibold" onClick={() => { setMediaKind('gif'); setGifOpen((open) => mediaKind === 'gif' ? !open : true); }}>GIF</button>
+          <button type="button" className="pb-2 text-xl" onClick={() => { setMediaKind('sticker'); setGifOpen((open) => mediaKind === 'sticker' ? !open : true); }} aria-label="Stickers">✨</button>
           <button type="button" disabled={sending} className="pb-2 text-xl" onClick={() => void submit()}>➤</button>
         </div>
       </div>
@@ -264,7 +270,8 @@ function MessageBubble({
         {message.replyTo ? <p className="mb-1 truncate text-xs opacity-70">↩ {message.replyTo.body}</p> : null}
         {message.kind === 'gif' && gifUrl ? <img src={gifUrl} alt={message.body} className="mb-1 max-h-52 rounded-2xl" /> : null}
         {message.kind === 'gif' && !gifUrl ? <span className="block text-5xl">{label || '✨'}</span> : null}
-        {message.kind === 'sticker' ? <span className="block text-5xl">{message.body}</span> : null}
+        {message.kind === 'sticker' && gifUrl ? <img src={gifUrl} alt={message.body} className="mb-1 max-h-40 object-contain" /> : null}
+        {message.kind === 'sticker' && !gifUrl ? <span className="block text-5xl">{label || message.body}</span> : null}
         {message.kind === 'text' ? <span className="whitespace-pre-wrap">{message.body}</span> : null}
         <span className="mt-1 block text-[10px] opacity-60">{formatClock(message.createdAt)}{seen ? ' · Seen' : ''}</span>
         {expiresLabel ? <span className="block text-[10px] opacity-70">⏳ disappears in {expiresLabel}</span> : null}
@@ -284,32 +291,35 @@ function MessageBubble({
   );
 }
 
-function GifSheet({ onPick, onClose }: { onPick: (gif: GifResult) => void; onClose: () => void }) {
+function GifSheet({ kind, onKind, onPick, onClose }: { kind: 'gif' | 'sticker'; onKind: (kind: 'gif' | 'sticker') => void; onPick: (gif: GifResult) => void; onClose: () => void }) {
   const [query, setQuery] = useState('');
   const [gifs, setGifs] = useState<GifResult[]>([]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
-      api<{ results: GifResult[] }>(`/api/gifs?q=${encodeURIComponent(query)}`)
+      api<{ results: GifResult[] }>(`/api/gifs?kind=${kind}&q=${encodeURIComponent(query)}`)
         .then((result) => setGifs(result.results))
         .catch(() => setGifs([]));
     }, 200);
     return () => window.clearTimeout(handle);
-  }, [query]);
+  }, [query, kind]);
 
   return (
     <div className="mb-2 rounded-3xl border border-line p-3">
       <div className="mb-2 flex items-center gap-2">
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search GIFs" className="flex-1 bg-transparent outline-none" />
+        <button type="button" className={`text-sm font-semibold ${kind === 'gif' ? '' : 'opacity-50'}`} onClick={() => onKind('gif')}>GIFs</button>
+        <button type="button" className={`text-sm font-semibold ${kind === 'sticker' ? '' : 'opacity-50'}`} onClick={() => onKind('sticker')}>Stickers</button>
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={kind === 'sticker' ? 'Search stickers' : 'Search GIFs'} className="min-w-0 flex-1 bg-transparent outline-none" />
         <button type="button" onClick={onClose}>✕</button>
       </div>
       <div className="grid grid-cols-4 gap-2">
         {gifs.map((gif) => (
           <button key={gif.id} type="button" onClick={() => onPick(gif)} className="grid h-16 place-items-center overflow-hidden rounded-2xl bg-white/10 text-3xl">
-            {gif.url ? <img src={gif.previewUrl || gif.url} alt={gif.title} className="h-full w-full object-cover" /> : gif.label}
+            {gif.url ? <img src={gif.previewUrl || gif.url} alt={gif.title} className={`h-full w-full ${kind === 'sticker' ? 'object-contain' : 'object-cover'}`} /> : gif.label}
           </button>
         ))}
       </div>
+      <p className="mt-2 text-[10px] text-muted">Powered by GIPHY</p>
     </div>
   );
 }

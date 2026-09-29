@@ -17,21 +17,6 @@ begin
 end;
 $$;
 
-create or replace function public.is_conversation_member(cid uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from public.conversation_members
-    where conversation_id = cid
-      and user_id = auth.uid()
-  );
-$$;
-
 -- ---------------------------------------------------------------------------
 -- Profiles
 -- ---------------------------------------------------------------------------
@@ -114,6 +99,21 @@ create table public.conversation_members (
 );
 
 create index conversation_members_user_idx on public.conversation_members (user_id);
+
+create or replace function public.is_conversation_member(cid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.conversation_members
+    where conversation_id = cid
+      and user_id = auth.uid()
+  );
+$$;
 
 create table public.messages (
   id uuid primary key default gen_random_uuid(),

@@ -27,12 +27,12 @@ function mockGifs(query: string): GifResult[] {
   return matched.length ? matched : MOCKS;
 }
 
-export async function searchGifs(query: string): Promise<{ provider: 'giphy' | 'mock'; results: GifResult[] }> {
+export async function searchGifs(query: string, kind: 'gif' | 'sticker' = 'gif'): Promise<{ provider: 'giphy' | 'mock'; results: GifResult[] }> {
   if (!config.giphyApiKey) return { provider: 'mock', results: mockGifs(query) };
   try {
-    const url = new URL('https://api.giphy.com/v1/gifs/search');
+    const url = new URL(`https://api.giphy.com/v1/${kind === 'sticker' ? 'stickers' : 'gifs'}/search`);
     url.searchParams.set('api_key', config.giphyApiKey);
-    url.searchParams.set('q', query.trim() || 'reaction');
+    url.searchParams.set('q', query.trim() || (kind === 'sticker' ? 'sticker' : 'reaction'));
     url.searchParams.set('limit', '18');
     url.searchParams.set('rating', 'pg-13');
     const response = await fetch(url);
