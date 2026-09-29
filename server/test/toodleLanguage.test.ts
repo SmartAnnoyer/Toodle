@@ -148,5 +148,15 @@ test('two big reactions in a minute is the budget', () => {
   const memory = freshMemory();
   assert.equal(hearMessage('secret cheptha', memory, 1_000, 'normal', () => 0)?.length ? true : false, true);
   assert.equal(hearMessage('birthday', memory, 6_000, 'normal', () => 0)?.some((beat) => beat.line === 'PARTYYYY 🎉'), true);
-  assert.equal(hearMessage('movie ki veldham', memory, 10_000, 'normal', () => 0), null);
+  assert.equal(hearMessage('office', memory, 10_000, 'normal', () => 0), null);
+});
+
+test('named keywords answer even when the dice would miss', () => {
+  const miss = () => 0.99;
+  assert.equal(hearMessage('trip', freshMemory(), 10_000, 'normal', miss)?.some((beat) => beat.prop === 'suitcase' || beat.animation === 'spin' || beat.animation === 'wink'), true);
+  assert.equal(hearMessage('doctor', freshMemory(), 10_000, 'normal', miss)?.some((beat) => beat.line === 'Doctor Toodle reporting.'), true);
+  assert.equal(hearMessage('secret', freshMemory(), 10_000, 'normal', miss)?.some((beat) => beat.line === "I'm listening... 👀"), true);
+  assert.equal(hearMessage('chadhuvkunta', freshMemory(), 10_000, 'normal', miss)?.some((beat) => beat.line === 'Focus bro.'), true);
+  assert.equal(hearMessage('nekey best', freshMemory(), 10_000, 'normal', miss)?.some((beat) => beat.line != null), true);
+  assert.equal(hearMessage('plan', freshMemory(), 10_000, 'normal', miss), null);
 });

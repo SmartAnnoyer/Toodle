@@ -36,7 +36,10 @@ export const OFFICE: ChatReaction[] = [
     category: 'study',
     aliases: [
       'chadhuvkovali', 'chaduvkovali', 'chadhuvukovali', 'chaduvukovali',
-      'chadhuvukuntunna', 'chaduvthunna', 'chaduvutunna', 'study', 'studying', 'preparation', 'prepare',
+      'chadhuvukuntunna', 'chaduvthunna', 'chaduvutunna',
+      'chadhuvkunta', 'chaduvkunta', 'chadhuvkunna', 'chaduvkunna',
+      'chadhuvkuntunna', 'chaduvkuntunna', 'chadhuvkutunna', 'chadhuvukunta',
+      'study', 'studying', 'preparation', 'prepare',
     ],
     probability: 0.32,
     cooldownMs: 120_000,

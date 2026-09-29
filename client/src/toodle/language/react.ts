@@ -12,6 +12,14 @@ const BURST_MS = 12_000;
 const BUDGET_MS = 60_000;
 const MAX_MAJORS_PER_MINUTE = 2;
 
+/** Phrases from the reaction shortlist. These play their own bit instead of losing a dice roll. */
+const SURE = new Set([
+  'trip', 'secret', 'study', 'best', 'doctor', 'fever', 'headache',
+  'enjoy', 'happy-ga', 'bavundhi', 'strong-compliment', 'name',
+  'birthday', 'cancel', 'deadline', 'exam', 'food', 'doing', 'where',
+  'wellbeing', 'bike', 'outside', 'movie',
+]);
+
 const LISTEN_LINES = [
   "I'm listening... 👀",
   'Hoo...?',
@@ -47,6 +55,10 @@ interface Pick {
   cooldownMs: number;
   combo: boolean;
   build: (random: () => number) => ReactionCue[];
+}
+
+function surePick(pick: Pick): boolean {
+  return pick.combo || SURE.has(pick.id);
 }
 
 function levelScore(level: ReactionLevel): number {
@@ -85,6 +97,10 @@ function detect(text: string): Hit[] {
     if (specificity > 0) hits.push({ reaction, specificity });
   }
   return hits;
+}
+
+export function keywordHit(text: string): boolean {
+  return detect(text).some((hit) => SURE.has(hit.reaction.id));
 }
 
 function negated(text: string, category: string): boolean {
@@ -683,7 +699,7 @@ export function getNextToodleReaction(
   if (pool.length > 0) {
     const majors = memory.majorAt.length;
     const open = pool.filter((pick) => {
-      if (pick.level >= 3 && majors >= MAX_MAJORS_PER_MINUTE) return false;
+      if (pick.level >= 3 && majors >= MAX_MAJORS_PER_MINUTE && !surePick(pick)) return false;
       if (now < memory.lockUntil && levelScore(pick.level) <= memory.lockLevel) return false;
       const keys = pick.combo ? [pick.id] : pick.categories;
       return keys.every((category) => {
@@ -699,8 +715,10 @@ export function getNextToodleReaction(
     });
     const winner = open[0];
     if (!winner) return null;
-    const chance = Math.min(0.9, winner.probability * gapScale(chaos));
-    if (random() > chance) return null;
+    if (!surePick(winner)) {
+      const chance = Math.min(0.9, winner.probability * gapScale(chaos));
+      if (random() > chance) return null;
+    }
     const beats = toBeats(winner.build(random), levelScore(winner.level) + (winner.combo ? 4 : 0));
     commit(memory, winner, now, beats);
     return beats;

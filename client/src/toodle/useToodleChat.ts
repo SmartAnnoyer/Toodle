@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage, ConversationDetail } from '../types';
 import { ToodleEngine } from './engine';
 import { reactionForText } from './3d/intent';
-import { feelTap, freshMemory, hearMessage } from './life';
+import { feelTap, freshMemory, hearMessage, keywordHit } from './life';
 import { looksSerious, mentionsFiveMinutes, mentionsGoodnight, notableWord, poseForEmoji } from './lines';
 import { readChaos } from './settings';
 import type { ToodleBeat, ToodleContext, ToodleEvent } from './types';
@@ -152,7 +152,7 @@ export function useToodleChat({
       else if (rapid) show('USER_SENT_MANY_MESSAGES');
       else if (message.body.length > 280) show('LONG_MESSAGE');
       else if (emojiOnly) show('EMOJI_REACT', { emoji: message.body });
-      else if (message.senderId !== myId && !looksSerious(message.body)) {
+      else if (message.senderId !== myId && !looksSerious(message.body) && !keywordHit(message.body)) {
         const pick = reactionForText(message.body);
         play([{
           event: 'HEARD',
@@ -281,6 +281,7 @@ export function useToodleChat({
         play(heard);
         return;
       }
+      if (keywordHit(trimmed)) return;
       const pick = reactionForText(trimmed);
       play([
         {

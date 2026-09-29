@@ -7,6 +7,15 @@ const doctor = () => [
 
 export const HEALTH: ChatReaction[] = [
   {
+    id: 'doctor',
+    category: 'doctor',
+    aliases: ['doctor', 'doctor ki', 'hospital'],
+    probability: 0.4,
+    cooldownMs: 150_000,
+    level: 4,
+    cues: doctor,
+  },
+  {
     id: 'fever',
     category: 'fever',
     aliases: ['fever', 'jwaram', 'jvaram', 'sick'],
