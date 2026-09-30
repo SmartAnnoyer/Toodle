@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { EMOJIS, REACTIONS, RENEW_OPTIONS } from '../constants';
+import { EMOJIS, MOODS, REACTIONS, RENEW_OPTIONS } from '../constants';
+import { RulesEditor } from '../components/RulesEditor';
 import { Button, EmptyState, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
@@ -18,28 +19,36 @@ import { readChaos } from '../toodle/settings';
 import { ToodlePresence } from '../toodle/ToodlePresence';
 import { useToodleChat } from '../toodle/useToodleChat';
 
+type Drawer = 'emoji' | 'gif' | 'sticker' | 'more' | 'renew' | null;
+
+const GHOST_PULL = 96;
+
 export function ChatPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const { banner, status } = useSocket();
   const { conversation, messages, typing, loading, error, streakPop, send, signalTyping } = useChat(id);
   const countdown = useCountdown(conversation?.status === 'active' ? conversation.expiresAt : null);
   const [text, setText] = useState('');
   const [reply, setReply] = useState<ChatMessage | null>(null);
-  const [emojiOpen, setEmojiOpen] = useState(false);
-  const [gifOpen, setGifOpen] = useState(false);
-  const [mediaKind, setMediaKind] = useState<'gif' | 'sticker'>('gif');
-  const [plusOpen, setPlusOpen] = useState(false);
-  const [renewOpen, setRenewOpen] = useState(false);
+  const [drawer, setDrawer] = useState<Drawer>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [safetyOpen, setSafetyOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [moodOpen, setMoodOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [customMood, setCustomMood] = useState('');
   const [reportReason, setReportReason] = useState('harassment');
   const [reportDetails, setReportDetails] = useState('');
+  const [ghostPull, setGhostPull] = useState(0);
   const [tick, setTick] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
+  const lastContactTap = useRef(0);
+  const enterGhostRef = useRef<() => void>(() => {});
+  const ghostLock = useRef(false);
   const typingTimer = useRef<number | null>(null);
   const musicRef = useRef<MusicSnapshot | null>(null);
   const noteMusic = useRef<(event: ToodleMusicEvent) => void>(() => {});
@@ -57,7 +66,7 @@ export function ChatPage() {
     draft: text,
     partnerTyping: typing,
     streakPop,
-    paused: Boolean(error) || renewOpen,
+    paused: Boolean(error) || drawer === 'renew' || rulesOpen,
     musicRef,
     musicTick: vibe.tick,
   });
@@ -79,6 +88,114 @@ export function ChatPage() {
     if (nearBottom) node.scrollTo({ top: node.scrollHeight });
   }, [toodle.beat]);
 
+  useEffect(() => {
+    const node = frame.current;
+    const viewport = window.visualViewport;
+    if (!node || !viewport) return;
+    const apply = () => {
+      node.style.setProperty('--chat-height', `${viewport.height}px`);
+      node.style.setProperty('--chat-shift', `${viewport.offsetTop}px`);
+    };
+    apply();
+    viewport.addEventListener('resize', apply);
+    viewport.addEventListener('scroll', apply);
+    return () => {
+      viewport.removeEventListener('resize', apply);
+      viewport.removeEventListener('scroll', apply);
+    };
+  }, [conversation?.status, loading]);
+
+  useEffect(() => {
+    const node = scroller.current;
+    if (!node || conversation?.status !== 'active' || conversation.ghostMode) return;
+    const pull = { y: 0, active: false, amount: 0 };
+    const atBottom = () => node.scrollHeight - node.scrollTop - node.clientHeight < 36;
+    const start = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return;
+      pull.y = event.touches[0].clientY;
+      pull.active = atBottom();
+      pull.amount = 0;
+    };
+    const move = (event: TouchEvent) => {
+      if (!pull.active || event.touches.length !== 1) return;
+      const travel = pull.y - event.touches[0].clientY;
+      if (travel <= 12 || !atBottom()) {
+        if (pull.amount !== 0) {
+          pull.amount = 0;
+          setGhostPull(0);
+        }
+        return;
+      }
+      const amount = Math.min(112, (travel - 12) * 0.36);
+      pull.amount = amount;
+      setGhostPull(amount);
+      if (amount > 6) event.preventDefault();
+    };
+    const end = () => {
+      if (pull.amount >= GHOST_PULL) enterGhostRef.current();
+      pull.active = false;
+      pull.amount = 0;
+      setGhostPull(0);
+    };
+    node.addEventListener('touchstart', start, { passive: true });
+    node.addEventListener('touchmove', move, { passive: false });
+    node.addEventListener('touchend', end);
+    node.addEventListener('touchcancel', end);
+    return () => {
+      node.removeEventListener('touchstart', start);
+      node.removeEventListener('touchmove', move);
+      node.removeEventListener('touchend', end);
+      node.removeEventListener('touchcancel', end);
+    };
+  }, [conversation?.ghostMode, conversation?.status, id]);
+
+  async function enterGhost() {
+    if (!conversation || conversation.ghostMode || ghostLock.current) return;
+    ghostLock.current = true;
+    try {
+      await api(`/api/conversations/${id}/rules`, {
+        method: 'PUT',
+        body: JSON.stringify({ ruleType: 'ghost_mode', enabled: true, configuration: {} }),
+      });
+      toast('Ghost mode is on. This chat disappears when you both leave.');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.');
+    } finally {
+      ghostLock.current = false;
+    }
+  }
+  enterGhostRef.current = () => { void enterGhost(); };
+
+  function toggleDrawer(next: Drawer) {
+    setMoodOpen(false);
+    setContactOpen(false);
+    setDrawer((current) => current === next ? null : next);
+  }
+
+  async function pickMood(emoji: string, textValue: string) {
+    const moodText = textValue.trim();
+    if (!moodText) return;
+    setMoodOpen(false);
+    try {
+      await api('/api/profile/me', { method: 'PATCH', body: JSON.stringify({ moodEmoji: emoji, moodText }) });
+      await refreshProfile();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.');
+    }
+  }
+
+  function openContact() {
+    const now = Date.now();
+    if (now - lastContactTap.current < 320) {
+      lastContactTap.current = 0;
+      setMoodOpen(false);
+      setDrawer(null);
+      setContactOpen(true);
+      return;
+    }
+    lastContactTap.current = now;
+  }
+
   async function submit(body = text, extra?: { kind?: 'text' | 'gif' | 'sticker'; metadata?: Record<string, unknown> }) {
     const trimmed = body.trim();
     if (!trimmed && extra?.kind !== 'gif' && extra?.kind !== 'sticker') return;
@@ -92,19 +209,16 @@ export function ChatPage() {
     const replyToId = reply?.id;
     setText('');
     setReply(null);
-    setEmojiOpen(false);
+    setDrawer(null);
     signalTyping(false);
     if (fromComposer) composer.current?.focus({ preventScroll: true });
     try {
       const result = await send(trimmed, { ...extra, replyToId, replyTo });
       if (result.type === 'action') {
-        if (result.action === 'rules') navigate(`/chat/${id}/rules`);
-        if (result.action === 'renew') setRenewOpen(true);
-        if (result.action === 'gif') {
-          setMediaKind('gif');
-          setGifOpen(true);
-        }
-        if (result.action === 'mood') navigate('/profile');
+        if (result.action === 'rules') setRulesOpen(true);
+        if (result.action === 'renew') setDrawer('renew');
+        if (result.action === 'gif') setDrawer('gif');
+        if (result.action === 'mood') setMoodOpen(true);
         if (result.action === 'streak') {
           const count = result.streak?.count ?? conversation?.streakCount ?? 0;
           toast(count > 0 ? `🔥 ${count} day streak` : 'No streak yet. Both of you have to show up.');
@@ -152,55 +266,85 @@ export function ChatPage() {
           ? 'right'
           : 'left';
 
+  const mediaKind = drawer === 'sticker' ? 'sticker' : 'gif';
+
   return (
-    <div className="app-bg mx-auto flex h-dvh max-w-[820px] flex-col">
-      <header className="px-4 pb-3 pt-4">
+    <div ref={frame} className="chat-frame app-bg mx-auto flex max-w-[820px] flex-col">
+      <header className="relative z-20 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
         {banner ? <p className="mb-2 text-center text-xs text-muted">{banner}</p> : null}
-        <div className="flex items-start gap-3">
-          <button type="button" onClick={() => navigate('/')} className="pt-1 text-lg">←</button>
-          <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={() => navigate('/')} className="chat-tool shrink-0 text-lg" aria-label="Back">←</button>
+          <button type="button" onClick={openContact} className="min-w-0 flex-1 touch-manipulation rounded-2xl px-1 py-1 text-left" aria-label={`Double tap to open ${conversation.otherUser.displayName}`}>
             <p className="truncate text-lg font-semibold">{conversation.otherUser.avatarEmoji} {conversation.otherUser.displayName}</p>
-            <p className="text-sm text-muted">{conversation.otherUser.moodEmoji} {conversation.otherUser.moodText} · {conversation.otherUser.online ? 'online' : 'offline'}</p>
-            <div className="mt-1 flex flex-wrap gap-2 text-xs">
-              {conversation.streakCount > 0 ? <span className="rounded-full bg-white/10 px-2 py-1">🔥 {conversation.streakCount} day streak</span> : null}
-              {conversation.streakLost ? <span>💔 The streak didn't survive.</span> : null}
-              {conversation.streakAtRisk && conversation.streakExpiresInSeconds != null ? (
-                <span>🔥 Your streak expires in {formatRemaining(conversation.streakExpiresInSeconds)}</span>
-              ) : null}
-              {countdown ? <span>💣 This conversation ends in {countdown}</span> : null}
-              {conversation.remainingMessages != null ? <span>💬 {conversation.remainingMessages} messages remaining</span> : null}
-              {conversation.ghostMode ? <span>🫥 Ghost mode</span> : null}
-            </div>
-          </div>
-          <Link to={`/chat/${id}/rules`} className="text-lg">⚙️</Link>
+            <p className="truncate text-sm text-muted">{conversation.otherUser.moodEmoji} {conversation.otherUser.moodText} · {conversation.otherUser.online ? 'online' : 'offline'}</p>
+          </button>
+          <button
+            type="button"
+            className="chat-tool shrink-0 text-xl"
+            aria-label="Change mood"
+            aria-expanded={moodOpen}
+            onClick={() => { setContactOpen(false); setDrawer(null); setMoodOpen((open) => !open); }}
+          >
+            {profile?.moodEmoji ?? '🫠'}
+          </button>
+          <button
+            type="button"
+            className="chat-tool shrink-0 text-lg"
+            aria-label="Chat settings"
+            aria-expanded={rulesOpen}
+            onClick={() => { setMoodOpen(false); setContactOpen(false); setDrawer(null); setRulesOpen(true); }}
+          >
+            ⚙️
+          </button>
         </div>
-        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-3 text-xs">
-          <button type="button" className="text-muted" onClick={() => setSafetyOpen((open) => !open)}>Report or block</button>
-          <VibePanel vibe={{ ...vibe, reconnecting: status === 'disconnected' || vibe.reconnecting }} friendName={conversation.otherUser.displayName} myId={profile?.id} />
-        </div>
-        {safetyOpen ? (
-          <div className="mt-3 rounded-2xl bg-white/10 p-3 text-sm">
-            <p className="font-semibold">Safety</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {['spam', 'harassment', 'hate', 'sexual', 'other'].map((reason) => (
-                <button key={reason} type="button" className={`rounded-full px-3 py-1 text-xs ${reportReason === reason ? 'bg-white/20' : 'bg-white/5'}`} onClick={() => setReportReason(reason)}>{reason}</button>
-              ))}
-            </div>
-            <textarea value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} maxLength={500} placeholder="What happened? Optional." className="mt-3 w-full rounded-2xl border border-line bg-transparent px-3 py-2 text-sm outline-none" />
-            <div className="mt-3 flex gap-2">
-              <Button className="px-4 py-2" onClick={() => {
-                api('/api/safety/report', { method: 'POST', body: JSON.stringify({ userId: conversation.otherUser.id, conversationId: id, reason: reportReason, details: reportDetails }) })
-                  .then(() => { toast('Report sent. We will review it.'); setSafetyOpen(false); setReportDetails(''); })
-                  .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
-              }}>Report</Button>
-              <Button variant="danger" className="px-4 py-2" onClick={() => {
-                api('/api/safety/block', { method: 'POST', body: JSON.stringify({ userId: conversation.otherUser.id }) })
-                  .then(() => { toast('Blocked. They cannot ping you.'); setSafetyOpen(false); })
-                  .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
-              }}>Block</Button>
+        {moodOpen ? (
+          <div className="relative">
+            <div className="absolute right-0 z-30 mt-1 w-[min(19rem,calc(100vw-1.5rem))] rounded-3xl border border-line bg-bg p-3 shadow-card">
+              <p className="mb-2 text-xs text-muted">Your mood</p>
+              <div className="flex flex-wrap gap-2">
+                {MOODS.map((mood) => (
+                  <button
+                    key={mood.text}
+                    type="button"
+                    className={`rounded-full border px-3 py-2 text-left text-sm ${profile?.moodText === mood.text ? 'border-primary bg-white/10' : 'border-line'}`}
+                    onClick={() => void pickMood(mood.emoji, mood.text)}
+                  >
+                    {mood.emoji} {mood.text}
+                  </button>
+                ))}
+              </div>
+              <form
+                className="mt-3 flex gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void pickMood(profile?.moodEmoji ?? '🫠', customMood);
+                }}
+              >
+                <input
+                  value={customMood}
+                  onChange={(event) => setCustomMood(event.target.value)}
+                  maxLength={48}
+                  placeholder="or type one"
+                  className="min-w-0 flex-1 rounded-full border border-line bg-transparent px-3 py-2 text-base outline-none"
+                />
+                <button type="submit" className="min-h-11 shrink-0 rounded-full px-3 text-sm font-semibold">Set</button>
+              </form>
             </div>
           </div>
         ) : null}
+        <div className="mt-1 flex flex-wrap gap-2 px-1 text-xs">
+          {conversation.streakCount > 0 ? <span className="rounded-full bg-white/10 px-2 py-1">🔥 {conversation.streakCount} day streak</span> : null}
+          {conversation.streakLost ? <span>💔 The streak didn't survive.</span> : null}
+          {conversation.streakAtRisk && conversation.streakExpiresInSeconds != null ? (
+            <span>🔥 Your streak expires in {formatRemaining(conversation.streakExpiresInSeconds)}</span>
+          ) : null}
+          {countdown ? <span>💣 This conversation ends in {countdown}</span> : null}
+          {conversation.remainingMessages != null ? <span>💬 {conversation.remainingMessages} messages remaining</span> : null}
+          {conversation.ghostMode ? <span>🫥 Ghost mode</span> : null}
+        </div>
+        <div className="mt-2 flex min-w-0 items-center">
+          <VibePanel vibe={{ ...vibe, reconnecting: status === 'disconnected' || vibe.reconnecting }} friendName={conversation.otherUser.displayName} myId={profile?.id} />
+        </div>
         <AnimatePresence>
           {streakPop ? (
             <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} className="mt-2 text-center text-sm">🔥 Streak up</motion.div>
@@ -219,7 +363,7 @@ export function ChatPage() {
         {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
       </header>
 
-      <div ref={scroller} className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-1">
+      <div ref={scroller} className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-1" onPointerDown={() => setMoodOpen(false)}>
         <div className="space-y-2 px-4">
         {messages.length === 0 ? <p className="pt-6 text-center text-muted">Say the first thing.</p> : null}
         {messages.map((message) => (
@@ -255,7 +399,7 @@ export function ChatPage() {
         ))}
         {typing ? <p className="text-sm text-muted">typing…</p> : null}
         </div>
-        {readChaos() !== 'off' && !error && !renewOpen ? (
+        {readChaos() !== 'off' && !error && drawer !== 'renew' && !rulesOpen ? (
           <ToodlePresence
             beat={toodle.beat}
             listening={toodle.waiting || Boolean(typing)}
@@ -267,14 +411,20 @@ export function ChatPage() {
         ) : null}
       </div>
 
+      {ghostPull > 0 ? (
+        <div className="flex items-end justify-center overflow-hidden text-xs text-muted" style={{ height: Math.min(ghostPull, 56) }}>
+          {ghostPull >= GHOST_PULL ? 'Release for ghost mode' : 'Pull up for ghost mode'}
+        </div>
+      ) : null}
+
       <div className="composer-safe relative border-t border-line px-3 pt-2">
         {reply ? (
           <div className="mb-2 flex items-center justify-between rounded-2xl bg-white/5 px-3 py-2 text-sm">
             <span className="truncate">Replying to {reply.body}</span>
-            <button type="button" onClick={() => setReply(null)}>✕</button>
+            <button type="button" className="chat-tool" onClick={() => setReply(null)} aria-label="Cancel reply">✕</button>
           </div>
         ) : null}
-        {renewOpen ? (
+        {drawer === 'renew' ? (
           <div className="mb-2 flex gap-2 overflow-x-auto">
             {RENEW_OPTIONS.map((option) => (
               <button
@@ -283,7 +433,7 @@ export function ChatPage() {
                 className="shrink-0 rounded-full bg-white/10 px-3 py-2 text-sm"
                 onClick={() => {
                   api(`/api/conversations/${id}/renew`, { method: 'POST', body: JSON.stringify({ durationSeconds: option.seconds }) })
-                    .then(() => { setRenewOpen(false); toast('Renewal sent'); })
+                    .then(() => { setDrawer(null); toast('Renewal sent'); })
                     .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
                 }}
               >
@@ -292,22 +442,22 @@ export function ChatPage() {
             ))}
           </div>
         ) : null}
-        {emojiOpen ? (
-          <div className="mb-2 grid grid-cols-8 gap-1">
+        {drawer === 'emoji' ? (
+          <div className="mb-2 grid grid-cols-6 gap-1 sm:grid-cols-8">
             {EMOJIS.map((emoji) => (
-              <button key={emoji} type="button" className="text-2xl" onClick={() => onType(text + emoji)}>{emoji}</button>
+              <button key={emoji} type="button" className="chat-tool text-2xl" onClick={() => onType(text + emoji)}>{emoji}</button>
             ))}
           </div>
         ) : null}
-        {gifOpen ? <GifSheet kind={mediaKind} onKind={setMediaKind} onClose={() => setGifOpen(false)} onPick={(gif) => {
+        {drawer === 'gif' || drawer === 'sticker' ? <GifSheet kind={mediaKind} onKind={(kind) => setDrawer(kind)} onClose={() => setDrawer(null)} onPick={(gif) => {
           const kind = mediaKind;
           void submit(gif.title || (kind === 'sticker' ? 'Sticker' : 'GIF'), { kind, metadata: { gifUrl: gif.url, previewUrl: gif.previewUrl, title: gif.title, mockId: gif.mock ? gif.id : undefined, label: gif.label } });
-          setGifOpen(false);
+          setDrawer(null);
         }} /> : null}
-        {plusOpen ? (
-          <div className="mb-2 flex gap-2">
-            <Button variant="soft" className="px-4 py-2" onClick={() => navigate(`/chat/${id}/rules`)}>Rules</Button>
-            <Button variant="soft" className="px-4 py-2" onClick={() => { setRenewOpen(true); setPlusOpen(false); }}>♻️ Renew</Button>
+        {drawer === 'more' ? (
+          <div className="mb-2 grid grid-cols-2 gap-2">
+            <Button variant="soft" className="px-4 py-2" onClick={() => { setDrawer(null); setRulesOpen(true); }}>Rules</Button>
+            <Button variant="soft" className="px-4 py-2" onClick={() => setDrawer('renew')}>♻️ Renew</Button>
             <Button variant="soft" className="px-4 py-2" onClick={() => navigate('/shortcuts')}>Shortcuts</Button>
             <Button variant="danger" className="px-4 py-2" onClick={() => {
               api(`/api/conversations/${id}/leave`, { method: 'POST' })
@@ -321,7 +471,6 @@ export function ChatPage() {
           </div>
         ) : null}
         <div className="flex items-end gap-2">
-          <button type="button" className="pb-2 text-xl" onClick={() => setPlusOpen((open) => !open)}>+</button>
           <textarea
             ref={composer}
             value={text}
@@ -336,14 +485,12 @@ export function ChatPage() {
                 composer.current?.focus({ preventScroll: true });
               }
             }}
-            className="max-h-28 flex-1 resize-none rounded-3xl border border-line bg-elevated px-4 py-3 outline-none"
+            className="max-h-28 min-h-11 flex-1 resize-none rounded-3xl border border-line bg-elevated px-4 py-2.5 text-base leading-6 outline-none"
           />
-          <button type="button" className="pb-2 text-xl" onClick={() => setEmojiOpen((open) => !open)}>😊</button>
-          <button type="button" className="pb-2 text-sm font-semibold" onClick={() => { setMediaKind('gif'); setGifOpen((open) => mediaKind === 'gif' ? !open : true); }}>GIF</button>
-          <button type="button" className="pb-2 text-xl" onClick={() => { setMediaKind('sticker'); setGifOpen((open) => mediaKind === 'sticker' ? !open : true); }} aria-label="Stickers">✨</button>
           <button
             type="button"
-            className="pb-2 text-xl"
+            aria-label="Send"
+            className="btn-primary grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-r from-violet-400 to-pink-400 text-lg text-slate-950"
             onPointerDown={(event) => event.preventDefault()}
             onClick={() => {
               void submit();
@@ -353,8 +500,85 @@ export function ChatPage() {
             ➤
           </button>
         </div>
+        <div className="mt-1 flex items-center justify-between">
+          <button type="button" className="chat-tool" data-on={drawer === 'more'} aria-label="More" onClick={() => toggleDrawer('more')}>
+            <MoreIcon />
+          </button>
+          <button type="button" className="chat-tool text-xl" data-on={drawer === 'emoji'} aria-label="Emoji" onClick={() => toggleDrawer('emoji')}>😊</button>
+          <button type="button" className="chat-tool text-xs font-semibold" data-on={drawer === 'gif'} aria-label="GIFs" onClick={() => toggleDrawer('gif')}>GIF</button>
+          <button type="button" className="chat-tool text-xl" data-on={drawer === 'sticker'} aria-label="Stickers" onClick={() => toggleDrawer('sticker')}>✨</button>
+        </div>
       </div>
+      <Sheet open={rulesOpen} title="Chat settings" onClose={() => setRulesOpen(false)}>
+        <RulesEditor conversationId={id} />
+      </Sheet>
+      <Sheet open={contactOpen} title={conversation.otherUser.displayName} onClose={() => setContactOpen(false)}>
+        <div className="text-center">
+          <p className="text-5xl">{conversation.otherUser.avatarEmoji}</p>
+          <p className="mt-2 text-xl font-semibold">{conversation.otherUser.displayName}</p>
+          <p className="text-sm text-muted">@{conversation.otherUser.username}</p>
+          <p className="mt-2 text-sm">{conversation.otherUser.moodEmoji} {conversation.otherUser.moodText}</p>
+          <p className="mt-1 text-xs text-muted">{conversation.otherUser.online ? 'online' : 'offline'}</p>
+        </div>
+        <div className="mt-5">
+          <p className="font-semibold">Report or block</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {['spam', 'harassment', 'hate', 'sexual', 'other'].map((reason) => (
+              <button key={reason} type="button" className={`rounded-full px-3 py-2 text-xs ${reportReason === reason ? 'bg-white/20' : 'bg-white/5'}`} onClick={() => setReportReason(reason)}>{reason}</button>
+            ))}
+          </div>
+          <textarea value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} maxLength={500} placeholder="What happened? Optional." className="mt-3 w-full rounded-2xl border border-line bg-transparent px-3 py-2 text-base outline-none" />
+          <div className="mt-3 flex gap-2">
+            <Button className="px-4 py-2" onClick={() => {
+              api('/api/safety/report', { method: 'POST', body: JSON.stringify({ userId: conversation.otherUser.id, conversationId: id, reason: reportReason, details: reportDetails }) })
+                .then(() => { toast('Report sent. We will review it.'); setContactOpen(false); setReportDetails(''); })
+                .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
+            }}>Report</Button>
+            <Button variant="danger" className="px-4 py-2" onClick={() => {
+              api('/api/safety/block', { method: 'POST', body: JSON.stringify({ userId: conversation.otherUser.id }) })
+                .then(() => { toast('Blocked. They cannot ping you.'); setContactOpen(false); })
+                .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
+            }}>Block</Button>
+          </div>
+        </div>
+      </Sheet>
     </div>
+  );
+}
+
+function MoreIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <circle cx="5" cy="11" r="1.7" fill="currentColor" />
+      <circle cx="11" cy="11" r="1.7" fill="currentColor" />
+      <circle cx="17" cy="11" r="1.7" fill="currentColor" />
+    </svg>
+  );
+}
+
+function Sheet({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+          <motion.div
+            initial={{ y: 48 }}
+            animate={{ y: 0 }}
+            exit={{ y: 48 }}
+            transition={{ duration: 0.22 }}
+            className="max-h-[min(82dvh,40rem)] w-full max-w-[820px] overflow-y-auto overscroll-contain rounded-t-3xl border border-line bg-bg px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-white/20" />
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="min-w-0 truncate text-lg font-semibold">{title}</h2>
+              <button type="button" className="chat-tool" onClick={onClose} aria-label="Close">✕</button>
+            </div>
+            {children}
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
