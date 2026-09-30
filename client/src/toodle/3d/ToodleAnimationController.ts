@@ -169,7 +169,7 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     sample: (t) => pose({
       root: { y: Math.sin(t * 1.7) * 0.03 },
       spine: { rx: Math.sin(t * 1.6) * 0.04 },
-      head: { ry: Math.sin(t * 0.7) * 0.08, rx: -0.1 + Math.sin(t * 0.7) * 0.02 },
+      head: { ry: 0, rx: -0.06 + Math.sin(t * 0.7) * 0.015 },
       armL: { rz: 0.12 },
       armR: { rz: -0.12 },
       foreL: { rx: -0.15 },
@@ -372,7 +372,7 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
       return pose({
         root: { y: Math.abs(shy) * 0.035, ry: -0.12 },
         spine: { rx: 0.14, ry: shy * 0.16 },
-        head: { rx: -0.06, ry: -0.28 + shy * 0.08, rz: 0.16 },
+        head: { rx: -0.06, ry: 0, rz: shy * 0.06 },
         armL: { rx: -1.2, rz: 0.62 },
         armR: { rx: -1.25, rz: -0.5 },
         foreL: { rx: -1.55 },
@@ -533,12 +533,12 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
       return pose({
         root: {
           y: (draw * 0.07 + slash * 0.12 + back * 0.08) * live,
-          ry: (reach * -0.4 + slash * 1.15 - back * 0.95 + hero * 0.2) * live,
+          ry: 0,
           rz: (slash * 0.1 - back * 0.08) * live,
         },
-        hips: { ry: (slash * 0.3 - back * 0.22) * live },
-        spine: { rx: (-0.14 * draw - slash * 0.22) * live, ry: (slash * 0.45 - back * 0.4) * live },
-        head: { rx: -0.1, ry: 0.16 * live },
+        hips: { ry: 0 },
+        spine: { rx: (-0.08 * draw - slash * 0.1) * live, ry: 0 },
+        head: { rx: -0.08, ry: 0 },
         armR: {
           rx: (-0.35 - reach * 1.15 - draw * 1.55 - hero * 0.35) * (0.15 + 0.85 * live),
           rz: (0.7 * reach - slash * 1.45 + back * 1.25 - hero * 0.8) * live,
@@ -612,7 +612,7 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     sample: (t) => pose({
       root: { y: Math.sin(t * 2.2) * 0.02 },
       spine: { rx: 0.08 },
-      head: { rx: -0.14, ry: Math.sin(t * 1.5) * 0.16 },
+      head: { rx: -0.08, ry: 0 },
       armL: { rx: -0.2 },
       armR: { rx: -0.25 },
     }),
