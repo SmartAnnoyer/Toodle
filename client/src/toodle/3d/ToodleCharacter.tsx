@@ -54,9 +54,15 @@ export function ToodleCharacter({
   const legR = useRef<Group>(null);
   const shinL = useRef<Group>(null);
   const shinR = useRef<Group>(null);
-  const eyeL = useRef<Mesh>(null);
-  const eyeR = useRef<Mesh>(null);
-  const mouth = useRef<Mesh>(null);
+  const eyeL = useRef<Group>(null);
+  const eyeR = useRef<Group>(null);
+  const pupilL = useRef<Mesh>(null);
+  const pupilR = useRef<Mesh>(null);
+  const smile = useRef<Mesh>(null);
+  const frown = useRef<Mesh>(null);
+  const gasp = useRef<Mesh>(null);
+  const tearL = useRef<Mesh>(null);
+  const tearR = useRef<Mesh>(null);
   const cheekL = useRef<Mesh>(null);
   const cheekR = useRef<Mesh>(null);
   const browL = useRef<Mesh>(null);
@@ -84,16 +90,37 @@ export function ToodleCharacter({
     const fit = 0.98;
     if (hips.current) hips.current.scale.set(fit, breathe * fit, fit);
     const face = faceFor(frame.expression, frame.blink, frame.wink);
-    const leftY = Math.max(0.16, face.eyeScale * face.narrow * (1 - face.lid * 0.88));
+    const downcast = frame.state.animation === 'fall' || frame.state.animation === 'sleep' || frame.state.animation === 'sleepy' || frame.state.animation === 'hide' || frame.state.animation === 'get_up';
+    if (head.current && !downcast) head.current.rotation.x = Math.min(head.current.rotation.x, 0.02);
+    const leftY = Math.max(0.2, face.narrow * (1 - face.lid * 0.82));
     const rightShut = frame.wink ? 1 : face.lid;
-    const rightY = Math.max(0.16, face.eyeScale * (frame.wink ? 0.14 : face.narrow) * (1 - rightShut * 0.88));
-    if (eyeL.current) eyeL.current.scale.set(face.eyeScale, leftY, 0.42);
-    if (eyeR.current) eyeR.current.scale.set(face.eyeScale, rightY, 0.42);
-    if (mouth.current) {
-      const open = 0.55 + Math.min(face.mouthOpen, 1.2) * 0.7;
-      mouth.current.scale.set(face.mouthWide, open, 0.7);
-      mouth.current.position.y = -0.12 - face.mouthDrop * 0.06;
-      mouth.current.rotation.z = face.mouthDrop > 0.03 ? 0.15 : Math.PI;
+    const rightY = Math.max(0.2, (frame.wink ? 0.16 : face.narrow) * (1 - rightShut * 0.82));
+    if (eyeL.current) eyeL.current.scale.set(face.eyeScale, leftY * face.eyeScale, 1);
+    if (eyeR.current) eyeR.current.scale.set(face.eyeScale, rightY * face.eyeScale, 1);
+    if (pupilL.current) pupilL.current.position.x = -0.012 + face.pupilX * 0.03;
+    if (pupilR.current) pupilR.current.position.x = -0.012 + face.pupilX * 0.03;
+    const crying = frame.expression === 'sad' || frame.state.animation === 'cry';
+    const open = face.mouthOpen > 0.65;
+    if (smile.current) {
+      smile.current.visible = !crying && !open;
+      smile.current.scale.set(0.85 + face.mouthWide * 0.35, 0.9, 1);
+    }
+    if (frown.current) {
+      frown.current.visible = crying && !open;
+      frown.current.scale.set(0.8 + face.mouthWide * 0.25, 1, 1);
+    }
+    if (gasp.current) {
+      gasp.current.visible = open;
+      gasp.current.scale.set(0.75 + face.mouthWide * 0.2, 0.4 + face.mouthOpen * 0.45, 0.5);
+    }
+    const drip = crying ? (Math.sin(performance.now() / 260) * 0.5 + 0.5) : 0;
+    if (tearL.current) {
+      tearL.current.position.y = -0.01 - drip * 0.09;
+      (tearL.current.material as { opacity: number }).opacity = crying ? 0.35 + drip * 0.65 : 0;
+    }
+    if (tearR.current) {
+      tearR.current.position.y = -0.03 - (1 - drip) * 0.07;
+      (tearR.current.material as { opacity: number }).opacity = crying ? 0.25 + (1 - drip) * 0.6 : 0;
     }
     const blush = Math.min(1, 0.25 + face.cheek * 0.45);
     if (cheekL.current) (cheekL.current.material as { opacity: number }).opacity = blush;
@@ -112,7 +139,7 @@ export function ToodleCharacter({
     if (shades.current) {
       const bare = prop !== 'sunglasses' && prop !== 'glasses' && (BARE_FACE.has(frame.expression) || frame.state.animation === 'cry' || frame.state.animation === 'sleep');
       const glide = Math.min(1, dt * 8);
-      const y = bare ? -0.1 : 0.05;
+      const y = bare ? -0.14 : 0.09;
       const rx = bare ? 0.62 : 0.04 + (frame.state.animation === 'idle' ? Math.sin(performance.now() / 1300) * 0.05 : 0);
       shades.current.position.y += (y - shades.current.position.y) * glide;
       shades.current.rotation.x += (rx - shades.current.rotation.x) * glide;
@@ -195,7 +222,7 @@ export function ToodleCharacter({
               <sphereGeometry args={[0.34, 22, 18]} />
               <Skin />
             </mesh>
-            <mesh position={[0.02, 0.12, 0.26]} scale={[1.2, 0.22, 0.28]}>
+            <mesh position={[0.02, 0.2, 0.22]} scale={[1.05, 0.28, 0.32]}>
               <sphereGeometry args={[0.16, 10, 8]} />
               <Hair />
             </mesh>
@@ -203,22 +230,34 @@ export function ToodleCharacter({
               <sphereGeometry args={[0.028, 8, 8]} />
               <meshStandardMaterial color="#e2ad90" roughness={0.6} />
             </mesh>
-            <mesh ref={eyeL} position={[-0.12, 0.04, 0.28]}>
-              <sphereGeometry args={[0.07, 14, 12]} />
-              <meshStandardMaterial color="#1a120f" roughness={0.22} />
-              <mesh position={[-0.02, 0.02, 0.04]}>
-                <sphereGeometry args={[0.018, 8, 8]} />
+            <group ref={eyeL} position={[-0.12, 0.08, 0.3]}>
+              <mesh>
+                <sphereGeometry args={[0.078, 16, 12]} />
+                <meshStandardMaterial color="#fffaf6" roughness={0.25} />
+              </mesh>
+              <mesh ref={pupilL} position={[-0.012, 0.01, 0.045]}>
+                <sphereGeometry args={[0.038, 12, 10]} />
+                <meshStandardMaterial color="#1a120f" roughness={0.2} />
+              </mesh>
+              <mesh position={[0.02, 0.028, 0.06]}>
+                <sphereGeometry args={[0.014, 8, 8]} />
                 <meshBasicMaterial color="#ffffff" />
               </mesh>
-            </mesh>
-            <mesh ref={eyeR} position={[0.12, 0.04, 0.28]}>
-              <sphereGeometry args={[0.07, 14, 12]} />
-              <meshStandardMaterial color="#1a120f" roughness={0.22} />
-              <mesh position={[-0.02, 0.02, 0.04]}>
-                <sphereGeometry args={[0.018, 8, 8]} />
+            </group>
+            <group ref={eyeR} position={[0.12, 0.08, 0.3]}>
+              <mesh>
+                <sphereGeometry args={[0.078, 16, 12]} />
+                <meshStandardMaterial color="#fffaf6" roughness={0.25} />
+              </mesh>
+              <mesh ref={pupilR} position={[-0.012, 0.01, 0.045]}>
+                <sphereGeometry args={[0.038, 12, 10]} />
+                <meshStandardMaterial color="#1a120f" roughness={0.2} />
+              </mesh>
+              <mesh position={[0.02, 0.028, 0.06]}>
+                <sphereGeometry args={[0.014, 8, 8]} />
                 <meshBasicMaterial color="#ffffff" />
               </mesh>
-            </mesh>
+            </group>
             <mesh ref={browL} position={[-0.12, 0.2, 0.3]} rotation={[0, 0, 0.18]}>
               <capsuleGeometry args={[0.012, 0.08, 3, 6]} />
               <meshStandardMaterial color="#120e0c" transparent opacity={0.8} />
@@ -227,9 +266,27 @@ export function ToodleCharacter({
               <capsuleGeometry args={[0.012, 0.08, 3, 6]} />
               <meshStandardMaterial color="#120e0c" transparent opacity={0.8} />
             </mesh>
-            <mesh ref={mouth} position={[0, -0.12, 0.3]} rotation={[0.15, 0, Math.PI]}>
-              <torusGeometry args={[0.055, 0.016, 8, 14, Math.PI]} />
-              <meshStandardMaterial color="#8d4a48" roughness={0.45} />
+            <group position={[0, -0.12, 0.32]}>
+              <mesh ref={smile} rotation={[0.2, 0, Math.PI]}>
+                <torusGeometry args={[0.07, 0.018, 8, 16, Math.PI]} />
+                <meshStandardMaterial color="#e06a78" roughness={0.4} />
+              </mesh>
+              <mesh ref={frown} rotation={[0.2, 0, 0]} visible={false}>
+                <torusGeometry args={[0.055, 0.016, 8, 14, Math.PI]} />
+                <meshStandardMaterial color="#c45a68" roughness={0.4} />
+              </mesh>
+              <mesh ref={gasp} position={[0, -0.01, 0.01]} visible={false}>
+                <sphereGeometry args={[0.045, 12, 10]} />
+                <meshStandardMaterial color="#6e3040" roughness={0.45} />
+              </mesh>
+            </group>
+            <mesh ref={tearL} position={[-0.1, -0.02, 0.34]}>
+              <sphereGeometry args={[0.018, 8, 8]} />
+              <meshStandardMaterial color="#b9e6ff" transparent opacity={0} />
+            </mesh>
+            <mesh ref={tearR} position={[0.11, -0.04, 0.34]}>
+              <sphereGeometry args={[0.016, 8, 8]} />
+              <meshStandardMaterial color="#b9e6ff" transparent opacity={0} />
             </mesh>
             <mesh ref={cheekL} position={[-0.2, -0.04, 0.24]}>
               <sphereGeometry args={[0.045, 8, 8]} />
@@ -241,10 +298,10 @@ export function ToodleCharacter({
             </mesh>
             <group ref={shades} position={[0, 0.05, 0.36]}>
               <RoundedBox args={[0.16, 0.1, 0.03]} radius={0.03} smoothness={2} position={[-0.1, 0, 0]}>
-                <meshPhysicalMaterial color="#0a0a0a" roughness={0.08} metalness={0.2} transparent opacity={0.78} emissive="#3a1014" emissiveIntensity={0.18} />
+                <meshPhysicalMaterial color="#0a0a0a" roughness={0.12} metalness={0.15} transparent opacity={0.38} emissive="#3a1014" emissiveIntensity={0.08} />
               </RoundedBox>
               <RoundedBox args={[0.16, 0.1, 0.03]} radius={0.03} smoothness={2} position={[0.1, 0, 0]}>
-                <meshPhysicalMaterial color="#0a0a0a" roughness={0.08} metalness={0.2} transparent opacity={0.78} emissive="#3a1014" emissiveIntensity={0.18} />
+                <meshPhysicalMaterial color="#0a0a0a" roughness={0.12} metalness={0.15} transparent opacity={0.38} emissive="#3a1014" emissiveIntensity={0.08} />
               </RoundedBox>
               <mesh position={[0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
                 <cylinderGeometry args={[0.012, 0.012, 0.06, 8]} />
