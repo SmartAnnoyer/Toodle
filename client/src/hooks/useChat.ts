@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react';
 import { SocketEvents } from '../constants';
 import { api } from '../lib/http';
 import type { ChatMessage, ConversationDetail, ReplyPreview, SendResult } from '../types';
@@ -46,13 +46,16 @@ export function useChat(conversationId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [streakPop, setStreakPop] = useState(false);
+  const epoch = useRef(0);
 
   const load = useCallback(async () => {
+    const mine = ++epoch.current;
     try {
       const [detail, history] = await Promise.all([
         api<ConversationDetail>(`/api/conversations/${conversationId}`),
         api<{ messages: ChatMessage[] }>(`/api/conversations/${conversationId}/messages`),
       ]);
+      if (epoch.current !== mine) return;
       setConversation(detail);
       setMessages((current) => {
         const locals = current.filter((item) => item.localStatus);
@@ -72,9 +75,10 @@ export function useChat(conversationId: string) {
       });
       setError(null);
     } catch (err) {
+      if (epoch.current !== mine) return;
       setError(err instanceof Error ? err.message : 'Toodle tripped. Try again.');
     } finally {
-      setLoading(false);
+      if (epoch.current === mine) setLoading(false);
     }
   }, [conversationId]);
 
@@ -267,5 +271,10 @@ export function useChat(conversationId: string) {
     }
   }, []);
 
-  return { conversation, messages, typing, loading, error, streakPop, reload: load, send, signalTyping, react, discard, setConversation };
+  const updateConversation = useCallback((value: SetStateAction<ConversationDetail | null>) => {
+    epoch.current += 1;
+    setConversation(value);
+  }, []);
+
+  return { conversation, messages, typing, loading, error, streakPop, reload: load, send, signalTyping, react, discard, setConversation: updateConversation };
 }

@@ -84,7 +84,7 @@ export function ProfilePage() {
         <Field label="Username" value={username} onChange={(event) => setUsername(event.target.value)} />
         <Field label="Mood" value={moodText} onChange={(event) => setMoodText(event.target.value)} maxLength={48} />
       </div>
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         {MOODS.map((mood) => (
           <button key={mood.text} type="button" className="shrink-0 rounded-full border border-line px-3 py-2 text-sm" onClick={() => { setMoodEmoji(mood.emoji); setMoodText(mood.text); }}>{mood.emoji} {mood.text}</button>
         ))}

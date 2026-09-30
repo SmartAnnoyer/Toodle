@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, ty
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { EMOJIS, MOODS, REACTIONS, RENEW_OPTIONS } from '../constants';
 import { ChatRules } from '../components/RulesEditor';
-import { Button, EmptyState, useToast } from '../components/ui';
+import { Button, ConfirmBar, EmptyState, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
 import { useCountdown } from '../hooks/useCountdown';
@@ -30,7 +30,7 @@ export function ChatPage() {
   const toast = useToast();
   const { profile, refreshProfile } = useAuth();
   const { banner, status } = useSocket();
-  const { conversation, messages, typing, loading, error, streakPop, send, signalTyping, react, discard } = useChat(id);
+  const { conversation, messages, typing, loading, error, streakPop, send, signalTyping, react, discard, setConversation } = useChat(id);
   const countdown = useCountdown(conversation?.status === 'active' ? conversation.expiresAt : null);
   const [text, setText] = useState('');
   const [reply, setReply] = useState<ChatMessage | null>(null);
@@ -44,6 +44,12 @@ export function ChatPage() {
   const [reportDetails, setReportDetails] = useState('');
   const [ghostPull, setGhostPull] = useState(0);
   const [tick, setTick] = useState(0);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [ask, setAsk] = useState<null | { title: string; confirm: string; run: () => void }>(null);
+  useEffect(() => {
+    setPicked([]);
+    setAsk(null);
+  }, [id]);
   const scroller = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
@@ -182,6 +188,7 @@ export function ChatPage() {
   async function enterGhost() {
     if (!conversation || conversation.ghostMode || ghostLock.current) return;
     ghostLock.current = true;
+    setConversation((current) => current ? { ...current, ghostMode: true } : current);
     try {
       await api(`/api/conversations/${id}/rules`, {
         method: 'PUT',
@@ -189,6 +196,7 @@ export function ChatPage() {
       });
       toast('Ghost mode is on. This chat disappears when you both leave.');
     } catch (err) {
+      setConversation((current) => current ? { ...current, ghostMode: false } : current);
       toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.');
     } finally {
       ghostLock.current = false;
@@ -404,10 +412,24 @@ export function ChatPage() {
             seen={Boolean(message.senderId === profile?.id && conversation.otherLastReadAt && conversation.otherLastReadAt >= message.createdAt)}
             selected={selected === message.id}
             tick={tick}
+            choosing={picked.length > 0}
+            marked={picked.includes(message.id)}
             onSelect={() => setSelected((current) => current === message.id ? null : message.id)}
+            onMark={() => {
+              setSelected(null);
+              setPicked((current) => current.includes(message.id) ? current.filter((item) => item !== message.id) : [...current, message.id]);
+            }}
             onReply={() => { setReply(message); setSelected(null); }}
             onDelete={() => {
-              void discard(message.id).catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
+              if (message.localStatus === 'sending') return;
+              setAsk({
+                title: 'Delete this message?',
+                confirm: 'Delete',
+                run: () => {
+                  setPicked((current) => current.filter((item) => item !== message.id));
+                  void discard(message.id).catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
+                },
+              });
             }}
             onReact={(emoji) => {
               void react(message.id, emoji).catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
@@ -452,13 +474,35 @@ export function ChatPage() {
             <button type="button" className="chat-tool" onClick={() => setReply(null)} aria-label="Cancel reply">✕</button>
           </div>
         ) : null}
+        {picked.length > 0 ? (
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <button type="button" className="min-h-11 px-2" onClick={() => setPicked([])}>Cancel</button>
+            <span className="text-muted">{picked.length} selected</span>
+            <button type="button" className="min-h-11 px-2 font-semibold" onClick={() => {
+              const text = messages.filter((item) => picked.includes(item.id)).map((item) => item.body).filter(Boolean).join('\n');
+              void navigator.clipboard.writeText(text).then(() => toast('Copied')).catch(() => toast('Could not copy'));
+              setPicked([]);
+            }}>Copy</button>
+            <button type="button" className="min-h-11 px-2 font-semibold text-danger" onClick={() => setAsk({
+              title: picked.length === 1 ? 'Delete this message?' : `Delete ${picked.length} messages?`,
+              confirm: 'Delete',
+              run: () => {
+                const ids = picked;
+                setPicked([]);
+                for (const messageId of ids) {
+                  void discard(messageId).catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
+                }
+              },
+            })}>Delete</button>
+          </div>
+        ) : null}
         {drawer === 'renew' ? (
-          <div className="mb-2 flex gap-2 overflow-x-auto">
+          <div className="mb-2 flex flex-wrap gap-2">
             {RENEW_OPTIONS.map((option) => (
               <button
                 key={option.seconds}
                 type="button"
-                className="shrink-0 rounded-full bg-white/10 px-3 py-2 text-sm"
+                className="rounded-full bg-white/10 px-3 py-2 text-sm"
                 onClick={() => {
                   api(`/api/conversations/${id}/renew`, { method: 'POST', body: JSON.stringify({ durationSeconds: option.seconds }) })
                     .then(() => { setDrawer(null); toast('Renewal sent'); })
@@ -483,10 +527,10 @@ export function ChatPage() {
           setDrawer(null);
         }} /> : null}
         {drawer === 'more' ? (
-          <div className="mb-2 flex gap-2 overflow-x-auto">
-            <Button variant="soft" className="shrink-0 px-4 py-2" onClick={() => { setDrawer(null); setRulesOpen(true); }}>Rules</Button>
-            <Button variant="soft" className="shrink-0 px-4 py-2" onClick={() => setDrawer('renew')}>♻️ Renew</Button>
-            <Button variant="soft" className="shrink-0 px-4 py-2" onClick={() => navigate('/shortcuts')}>Shortcuts</Button>
+          <div className="mb-2 grid grid-cols-3 gap-2">
+            <Button variant="soft" className="px-3 py-2" onClick={() => { setDrawer(null); setRulesOpen(true); }}>Rules</Button>
+            <Button variant="soft" className="px-3 py-2" onClick={() => setDrawer('renew')}>♻️ Renew</Button>
+            <Button variant="soft" className="px-3 py-2" onClick={() => navigate('/shortcuts')}>Shortcuts</Button>
           </div>
         ) : null}
         <div className="flex items-end gap-1.5">
@@ -536,7 +580,11 @@ export function ChatPage() {
             exit={{ opacity: 0, y: 24 }}
             transition={{ duration: 0.22 }}
           >
-            <ChatRules conversationId={id} onClose={() => setRulesOpen(false)} />
+            <ChatRules
+              conversationId={id}
+              onClose={() => setRulesOpen(false)}
+              onGhost={(enabled) => setConversation((current) => current ? { ...current, ghostMode: enabled } : current)}
+            />
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -570,6 +618,18 @@ export function ChatPage() {
           </div>
         </div>
       </Sheet>
+      {ask ? (
+        <ConfirmBar
+          title={ask.title}
+          confirm={ask.confirm}
+          onCancel={() => setAsk(null)}
+          onConfirm={() => {
+            const run = ask.run;
+            setAsk(null);
+            run();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -615,8 +675,11 @@ function MessageBubble({
   mine,
   seen,
   selected,
+  choosing,
+  marked,
   tick,
   onSelect,
+  onMark,
   onReply,
   onDelete,
   onReact,
@@ -626,8 +689,11 @@ function MessageBubble({
   mine: boolean;
   seen: boolean;
   selected: boolean;
+  choosing: boolean;
+  marked: boolean;
   tick: number;
   onSelect: () => void;
+  onMark: () => void;
   onReply: () => void;
   onDelete: () => void;
   onReact: (emoji: string) => void;
@@ -636,11 +702,14 @@ function MessageBubble({
   const drag = useRef({ x: 0, y: 0, active: false, axis: '' as '' | 'x' | 'y' });
   const lastTap = useRef(0);
   const openTimer = useRef<number | null>(null);
+  const holdTimer = useRef<number | null>(null);
+  const held = useRef(false);
   const [shift, setShift] = useState(0);
   const [pop, setPop] = useState<string | null>(null);
   const [moreEmoji, setMoreEmoji] = useState(false);
   useEffect(() => () => {
     if (openTimer.current) window.clearTimeout(openTimer.current);
+    if (holdTimer.current) window.clearTimeout(holdTimer.current);
   }, []);
   if (message.kind === 'system') {
     return <p className="py-2 text-center text-sm text-muted">{message.body}</p>;
@@ -657,9 +726,24 @@ function MessageBubble({
     onReact(emoji);
   }
 
+  const canDelete = message.localStatus !== 'sending';
+
+  function clearHold() {
+    if (holdTimer.current) window.clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+  }
+
   function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
     drag.current = { x: event.clientX, y: event.clientY, active: true, axis: '' };
+    held.current = false;
+    clearHold();
+    holdTimer.current = window.setTimeout(() => {
+      holdTimer.current = null;
+      held.current = true;
+      nudge(12);
+      onMark();
+    }, 420);
   }
 
   function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
@@ -668,11 +752,12 @@ function MessageBubble({
     const dy = event.clientY - drag.current.y;
     if (!drag.current.axis) {
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      clearHold();
       drag.current.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
       if (drag.current.axis === 'x') event.currentTarget.setPointerCapture(event.pointerId);
     }
     if (drag.current.axis !== 'x') return;
-    const next = Math.max(mine ? -112 : -24, Math.min(112, dx * 0.72));
+    const next = Math.max(canDelete ? -112 : -24, Math.min(112, dx * 0.72));
     setShift(next);
   }
 
@@ -681,18 +766,27 @@ function MessageBubble({
     const dx = event.clientX - drag.current.x;
     const axis = drag.current.axis;
     drag.current.active = false;
+    clearHold();
     setShift(0);
+    if (held.current) {
+      held.current = false;
+      return;
+    }
     if (axis === 'x') {
       if (dx > 64) {
         nudge(8);
         onReply();
-      } else if (dx < -64 && mine && message.localStatus !== 'sending') {
+      } else if (dx < -64 && canDelete) {
         nudge([6, 16]);
         onDelete();
       }
       return;
     }
     if (Math.abs(dx) > 8) return;
+    if (choosing) {
+      onMark();
+      return;
+    }
     const now = Date.now();
     if (now - lastTap.current < 280) {
       lastTap.current = 0;
@@ -706,10 +800,13 @@ function MessageBubble({
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.08 }} className={`relative flex ${mine ? 'justify-end' : 'justify-start'} ${selected ? 'z-30' : ''}`}>
+    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.08 }} className={`relative flex items-center ${mine ? 'justify-end' : 'justify-start'} ${selected ? 'z-30' : ''}`}>
+      {choosing ? (
+        <span className={`mr-2 grid h-6 w-6 shrink-0 place-items-center rounded-full border text-xs ${marked ? 'border-primary bg-primary text-slate-950' : 'border-white/40'}`}>{marked ? '✓' : ''}</span>
+      ) : null}
       <div className="relative flex max-w-[min(86%,22rem)] flex-col">
         {shift > 18 ? <span className="absolute inset-y-0 left-2 grid place-items-center text-xs font-semibold text-primary">Reply</span> : null}
-        {shift < -18 && mine ? <span className="absolute inset-y-0 right-2 grid place-items-center text-xs font-semibold text-danger">Delete</span> : null}
+        {shift < -18 && canDelete ? <span className="absolute inset-y-0 right-2 grid place-items-center text-xs font-semibold text-danger">Delete</span> : null}
         <div
           role="button"
           tabIndex={0}
@@ -720,7 +817,7 @@ function MessageBubble({
           onKeyDown={(event) => {
             if (event.key === 'Enter') onSelect();
           }}
-          className={`relative touch-pan-y select-none rounded-[1.4rem] px-3 py-2 text-left ${mine ? 'bubble-mine' : 'bubble-theirs'} ${pop ? 'msg-pop' : ''}`}
+          className={`relative touch-pan-y select-none rounded-[1.4rem] px-3 py-2 text-left ${mine ? 'bubble-mine' : 'bubble-theirs'} ${pop ? 'msg-pop' : ''} ${marked ? 'ring-2 ring-primary' : ''}`}
           style={{ transform: pop ? undefined : `translateX(${shift}px)`, ['--msg-shift' as string]: `${shift}px` }}
         >
           {pop ? <span className="react-float">{pop}</span> : null}
@@ -763,7 +860,8 @@ function MessageBubble({
               <button type="button" className="grid h-11 w-11 place-items-center rounded-full bg-ink/10 text-lg" aria-label="Add emoji" onClick={() => setMoreEmoji((open) => !open)}>+</button>
               <button type="button" className="min-h-11 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={onReply}>Reply</button>
               <button type="button" className="min-h-11 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={() => void navigator.clipboard.writeText(message.body)}>Copy</button>
-              {mine ? <button type="button" className="min-h-11 rounded-full bg-danger/15 px-3 text-xs font-semibold text-danger" onClick={onDelete}>Delete</button> : null}
+              <button type="button" className="min-h-11 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={onMark}>Select</button>
+              {canDelete ? <button type="button" className="min-h-11 rounded-full bg-danger/15 px-3 text-xs font-semibold text-danger" onClick={onDelete}>Delete</button> : null}
             </div>
             {moreEmoji ? (
               <div className="mt-2 grid grid-cols-6 gap-1">

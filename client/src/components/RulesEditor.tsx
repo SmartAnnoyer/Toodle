@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CONVERSATION_EXPIRY, MESSAGE_COUNTS, MESSAGE_EXPIRY } from '../constants';
-import { useToast } from './ui';
+import { Toggle, useToast } from './ui';
 import { api } from '../lib/http';
 import type { ConversationDetail, RuleView } from '../types';
 
@@ -26,28 +26,38 @@ function summary(rule: RuleView): string {
   return 'On';
 }
 
-export function ChatRules({ conversationId, onClose }: { conversationId: string; onClose?: () => void }) {
+export function ChatRules({ conversationId, onClose, onGhost }: { conversationId: string; onClose?: () => void; onGhost?: (enabled: boolean) => void }) {
   const toast = useToast();
   const [rules, setRules] = useState<RuleView[]>([]);
   const [open, setOpen] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const epoch = useRef(0);
 
   useEffect(() => {
     if (!conversationId) return;
+    let cancel = false;
+    const started = epoch.current;
     api<ConversationDetail>(`/api/conversations/${conversationId}`)
-      .then((detail) => setRules(detail.rules.filter((rule) => !HIDDEN.has(rule.ruleType))))
-      .catch((error) => toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.'));
+      .then((detail) => {
+        if (cancel || epoch.current !== started) return;
+        setRules(detail.rules.filter((rule) => !HIDDEN.has(rule.ruleType)));
+      })
+      .catch((error) => {
+        if (!cancel) toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.');
+      });
+    return () => {
+      cancel = true;
+    };
   }, [conversationId, toast]);
 
   async function apply(rule: RuleView, patch: Partial<RuleView>) {
-    if (busy) return;
     const next: RuleView = {
       ...rule,
       ...patch,
       configuration: { ...rule.configuration, ...(patch.configuration ?? {}) },
     };
+    const mine = ++epoch.current;
     setRules((current) => current.map((item) => item.ruleType === rule.ruleType ? next : item));
-    setBusy(true);
+    if (next.ruleType === 'ghost_mode') onGhost?.(next.enabled);
     try {
       const detail = await api<ConversationDetail>(`/api/conversations/${conversationId}/rules`, {
         method: 'PUT',
@@ -57,12 +67,13 @@ export function ChatRules({ conversationId, onClose }: { conversationId: string;
           configuration: next.configuration,
         }),
       });
+      if (epoch.current !== mine) return;
       setRules(detail.rules.filter((item) => !HIDDEN.has(item.ruleType)));
     } catch (error) {
+      if (epoch.current !== mine) return;
       setRules((current) => current.map((item) => item.ruleType === rule.ruleType ? rule : item));
+      if (rule.ruleType === 'ghost_mode') onGhost?.(rule.enabled);
       toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.');
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -83,22 +94,28 @@ export function ChatRules({ conversationId, onClose }: { conversationId: string;
           const expanded = open === rule.ruleType;
           return (
             <article key={rule.ruleType} className={`${expanded ? 'col-span-2' : ''} rounded-[1.6rem] border p-4 ${rule.enabled ? 'border-primary bg-white/10' : 'border-line bg-white/5'}`}>
+              {rule.ruleType === 'ghost_mode' ? (
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="text-3xl">{look.mark}</span>
+                    <p className="mt-3 text-base font-semibold">{rule.title}</p>
+                    <p className="mt-1 text-sm text-muted">{look.line}</p>
+                    <p className="mt-3 text-sm font-semibold">{summary(rule)}</p>
+                  </div>
+                  <Toggle checked={rule.enabled} label="Ghost mode" onChange={(enabled) => void apply(rule, { enabled })} />
+                </div>
+              ) : (
               <button
                 type="button"
                 className="w-full text-left"
-                onClick={() => {
-                  if (rule.ruleType === 'ghost_mode') {
-                    void apply(rule, { enabled: !rule.enabled });
-                    return;
-                  }
-                  setOpen((current) => current === rule.ruleType ? null : rule.ruleType);
-                }}
+                onClick={() => setOpen((current) => current === rule.ruleType ? null : rule.ruleType)}
               >
                 <span className="text-3xl">{look.mark}</span>
                 <p className="mt-3 text-base font-semibold">{rule.title}</p>
                 <p className="mt-1 text-sm text-muted">{look.line}</p>
                 <p className="mt-3 text-sm font-semibold">{summary(rule)}</p>
               </button>
+              )}
               {expanded && rule.ruleType === 'message_expiration' ? (
                 <ChoiceRow
                   current={rule.enabled ? String(Number(rule.configuration.durationSeconds ?? 30)) : 'off'}
@@ -149,13 +166,13 @@ function ChoiceRow({
   onPick: (value: string) => void;
 }) {
   return (
-    <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+    <div className="mt-4 flex flex-wrap gap-2">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => onPick(option.value)}
-          className={`shrink-0 rounded-full px-3 py-2 text-sm ${option.value === current ? 'bg-primary text-slate-950' : 'bg-white/10'}`}
+          className={`rounded-full px-3 py-2 text-sm ${option.value === current ? 'bg-primary text-slate-950' : 'bg-white/10'}`}
         >
           {option.label}
         </button>

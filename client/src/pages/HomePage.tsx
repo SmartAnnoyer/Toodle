@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Avatar, Button, EmptyState, Wordmark } from '../components/ui';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Avatar, Button, ConfirmBar, EmptyState, Wordmark, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { SocketEvents } from '../constants';
 import { useCountdown } from '../hooks/useCountdown';
@@ -9,13 +9,47 @@ import { api } from '../lib/http';
 import { formatAgo } from '../lib/time';
 import type { ConversationSummary } from '../types';
 
+const HIDDEN_KEY = 'toodle-hidden-chats';
+
+function readHidden(): Record<string, string> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HIDDEN_KEY) || '{}') as unknown;
+    if (!raw || typeof raw !== 'object') return {};
+    return raw as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+function hideChat(id: string, updatedAt: string) {
+  const map = readHidden();
+  map[id] = updatedAt;
+  localStorage.setItem(HIDDEN_KEY, JSON.stringify(map));
+}
+
+function unhideChat(id: string) {
+  const map = readHidden();
+  delete map[id];
+  localStorage.setItem(HIDDEN_KEY, JSON.stringify(map));
+}
+
+function visibleChats(chats: ConversationSummary[]) {
+  const hidden = readHidden();
+  return chats.filter((chat) => {
+    const at = hidden[chat.id];
+    return !at || chat.updatedAt > at;
+  });
+}
+
 export function HomePage() {
   const { socket } = useSocket();
   const { signOut } = useAuth();
+  const toast = useToast();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [pending, setPending] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [ask, setAsk] = useState<null | { title: string; confirm: string; run: () => void }>(null);
 
   async function load() {
     try {
@@ -23,7 +57,7 @@ export function HomePage() {
         api<{ conversations: ConversationSummary[] }>('/api/conversations'),
         api<{ incoming: { id: string }[] }>('/api/requests'),
       ]);
-      setConversations(inbox.conversations);
+      setConversations(visibleChats(inbox.conversations));
       setPending(requests.incoming.length);
       setError(null);
     } catch (err) {
@@ -31,6 +65,17 @@ export function HomePage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function forget(chat: ConversationSummary) {
+    hideChat(chat.id, chat.updatedAt);
+    setConversations((current) => current.filter((item) => item.id !== chat.id));
+  }
+
+  function restore(chat: ConversationSummary) {
+    unhideChat(chat.id);
+    void load();
+    toast('Toodle tripped. Try again.');
   }
 
   useEffect(() => {
@@ -75,41 +120,159 @@ export function HomePage() {
         <EmptyState emoji="👀" title="It's suspiciously quiet here" body="Find someone and send a ping." action={<Link to="/find" className="text-primary">Find someone</Link>} />
       ) : null}
       <div className="mt-5 space-y-3">
-        {active.map((chat) => <ChatCard key={chat.id} chat={chat} />)}
+        {active.map((chat) => (
+          <ChatCard
+            key={chat.id}
+            chat={chat}
+            onDelete={() => setAsk({
+              title: 'Delete this chat?',
+              confirm: 'Delete',
+              run: () => {
+                forget(chat);
+                void api(`/api/conversations/${chat.id}/leave`, { method: 'POST' }).catch(() => restore(chat));
+              },
+            })}
+            onBlock={() => setAsk({
+              title: `Block ${chat.otherUser.displayName}?`,
+              confirm: 'Block',
+              run: () => {
+                forget(chat);
+                void api('/api/safety/block', { method: 'POST', body: JSON.stringify({ userId: chat.otherUser.id }) })
+                  .then(() => api(`/api/conversations/${chat.id}/leave`, { method: 'POST' }).catch(() => undefined))
+                  .catch(() => restore(chat));
+              },
+            })}
+          />
+        ))}
       </div>
       {gone.length > 0 ? (
         <div className="mt-8">
           <p className="mb-3 text-sm text-muted">Gone</p>
-          {gone.map((chat) => <ChatCard key={chat.id} chat={chat} />)}
+          {gone.map((chat) => (
+            <ChatCard
+              key={chat.id}
+              chat={chat}
+              onDelete={() => setAsk({
+                title: 'Delete this chat?',
+                confirm: 'Delete',
+                run: () => {
+                  forget(chat);
+                  void api(`/api/conversations/${chat.id}/leave`, { method: 'POST' }).catch(() => restore(chat));
+                },
+              })}
+              onBlock={() => setAsk({
+                title: `Block ${chat.otherUser.displayName}?`,
+                confirm: 'Block',
+                run: () => {
+                  forget(chat);
+                  void api('/api/safety/block', { method: 'POST', body: JSON.stringify({ userId: chat.otherUser.id }) })
+                    .then(() => api(`/api/conversations/${chat.id}/leave`, { method: 'POST' }).catch(() => undefined))
+                    .catch(() => restore(chat));
+                },
+              })}
+            />
+          ))}
         </div>
+      ) : null}
+      {ask ? (
+        <ConfirmBar
+          title={ask.title}
+          confirm={ask.confirm}
+          onCancel={() => setAsk(null)}
+          onConfirm={() => {
+            const run = ask.run;
+            setAsk(null);
+            run();
+          }}
+        />
       ) : null}
     </div>
   );
 }
 
-function ChatCard({ chat }: { chat: ConversationSummary }) {
+function ChatCard({ chat, onDelete, onBlock }: { chat: ConversationSummary; onDelete: () => void; onBlock: () => void }) {
+  const navigate = useNavigate();
   const countdown = useCountdown(chat.status === 'active' ? chat.expiresAt : null);
+  const drag = useRef({ x: 0, y: 0, origin: 0, active: false, axis: '' as '' | 'x' | 'y' });
+  const [shift, setShift] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const preview = chat.lastMessage
     ? chat.lastMessage.kind === 'gif' ? 'GIF' : chat.lastMessage.kind === 'sticker' ? 'Sticker' : chat.lastMessage.body
     : 'No messages yet';
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    drag.current = { x: event.clientX, y: event.clientY, origin: shift, active: true, axis: '' };
+    setDragging(true);
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!drag.current.active) return;
+    const dx = event.clientX - drag.current.x;
+    const dy = event.clientY - drag.current.y;
+    if (!drag.current.axis) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      drag.current.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (drag.current.axis === 'y') {
+        drag.current.active = false;
+        setDragging(false);
+        return;
+      }
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    setShift(Math.max(-156, Math.min(0, drag.current.origin + dx)));
+  }
+
+  function onPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!drag.current.active && drag.current.axis === 'y') return;
+    const dx = event.clientX - drag.current.x;
+    const axis = drag.current.axis;
+    const origin = drag.current.origin;
+    drag.current.active = false;
+    setDragging(false);
+    if (axis === 'y') return;
+    if (axis === 'x') {
+      setShift(origin + dx < -72 ? -156 : 0);
+      return;
+    }
+    if (origin < -40) {
+      setShift(0);
+      return;
+    }
+    navigate(`/chat/${chat.id}`);
+  }
+
   return (
-    <Link to={`/chat/${chat.id}`} className="glass mb-3 flex items-center gap-3 rounded-[1.6rem] p-3">
-      <Avatar emoji={chat.otherUser.avatarEmoji} online={chat.otherUser.online} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="truncate font-semibold">{chat.otherUser.displayName}</p>
-          {chat.lastMessage ? <span className="text-xs text-muted">{formatAgo(chat.lastMessage.createdAt)}</span> : null}
-        </div>
-        <p className="truncate text-sm text-muted">{chat.otherUser.moodEmoji} {chat.otherUser.moodText}</p>
-        <p className="truncate text-sm">{preview}</p>
-        <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted">
-          {chat.streakCount > 0 ? <span>🔥 {chat.streakCount}</span> : null}
-          {chat.streakAtRisk && chat.streakExpiresInSeconds != null ? <span>🔥 streak fading</span> : null}
-          {countdown ? <span>⏳ {countdown}</span> : null}
-          {chat.remainingMessages != null ? <span>💬 {chat.remainingMessages}</span> : null}
-        </div>
+    <div className="relative mb-3 overflow-hidden rounded-[1.6rem]">
+      <div className="absolute inset-y-0 right-0 flex w-[156px]">
+        <button type="button" className="flex-1 bg-ink/80 text-sm font-semibold" onClick={onBlock}>Block</button>
+        <button type="button" className="flex-1 bg-danger text-sm font-semibold text-white" onClick={onDelete}>Delete</button>
       </div>
-      {chat.unreadCount > 0 ? <span className="grid h-6 min-w-6 place-items-center rounded-full bg-accent px-1 text-xs text-white">{chat.unreadCount}</span> : null}
-    </Link>
+      <div
+        className="glass relative flex touch-pan-y select-none items-center gap-3 p-3"
+        style={{ transform: `translateX(${shift}px)`, transition: dragging ? 'none' : 'transform 160ms ease' }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => { drag.current.active = false; setDragging(false); setShift(0); }}
+      >
+        <Avatar emoji={chat.otherUser.avatarEmoji} online={chat.otherUser.online} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="truncate font-semibold">{chat.otherUser.displayName}</p>
+            {chat.lastMessage ? <span className="text-xs text-muted">{formatAgo(chat.lastMessage.createdAt)}</span> : null}
+          </div>
+          <p className="truncate text-sm text-muted">{chat.otherUser.moodEmoji} {chat.otherUser.moodText}</p>
+          <p className="truncate text-sm">{preview}</p>
+          <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted">
+            {chat.streakCount > 0 ? <span>🔥 {chat.streakCount}</span> : null}
+            {chat.streakAtRisk && chat.streakExpiresInSeconds != null ? <span>🔥 streak fading</span> : null}
+            {countdown ? <span>⏳ {countdown}</span> : null}
+            {chat.remainingMessages != null ? <span>💬 {chat.remainingMessages}</span> : null}
+          </div>
+        </div>
+        {chat.unreadCount > 0 ? <span className="grid h-6 min-w-6 place-items-center rounded-full bg-accent px-1 text-xs text-white">{chat.unreadCount}</span> : null}
+      </div>
+    </div>
   );
 }

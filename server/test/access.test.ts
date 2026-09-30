@@ -35,8 +35,8 @@ test('message send authorization follows membership and chat status', () => {
   assert.equal(authorizeSend({ isMember: true, hasLeft: false, status: 'expired' }).ok, false);
 });
 
-test('only the sender can delete a message', () => {
+test('either person in the chat can delete a message', () => {
   assert.equal(canDeleteMessage('a', 'a'), true);
-  assert.equal(canDeleteMessage('a', 'b'), false);
+  assert.equal(canDeleteMessage('a', 'b'), true);
   assert.equal(canDeleteMessage(null, 'a'), false);
 });

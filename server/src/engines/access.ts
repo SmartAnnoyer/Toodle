@@ -25,7 +25,7 @@ export function authorizeSend(input: {
 }
 
 export function canDeleteMessage(senderId: string | null, userId: string): boolean {
-  return senderId != null && senderId === userId;
+  return senderId != null && userId.length > 0;
 }
 
 export function canResolveRenewal(input: {

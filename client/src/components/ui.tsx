@@ -165,6 +165,30 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
+export function ConfirmBar({
+  title,
+  confirm,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  confirm: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45" onClick={onCancel}>
+      <div className="w-full max-w-[820px] rounded-t-3xl border border-line bg-bg px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4" onClick={(event) => event.stopPropagation()}>
+        <p className="text-lg font-semibold">{title}</p>
+        <div className="mt-4 flex gap-2">
+          <Button variant="ghost" className="flex-1" onClick={onCancel}>Cancel</Button>
+          <Button variant="danger" className="flex-1" onClick={onConfirm}>{confirm}</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Screen({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <div className={`mx-auto min-h-dvh w-full max-w-[820px] ${className}`}>{children}</div>;
 }
