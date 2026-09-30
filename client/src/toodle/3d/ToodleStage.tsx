@@ -8,9 +8,9 @@ const ToodleScene = lazy(() => import('./ToodleScene'));
 const ROOMY = new Set(['walk', 'run', 'dance', 'hide', 'peek', 'walkAway', 'fall', 'jump', 'spin', 'celebrate', 'dramatic', 'sword', 'sword_fight']);
 
 function stageHeight(animation?: string | null) {
-  if (animation === 'sword_fight') return 'clamp(16rem, 42dvh, 20rem)';
-  if (animation && ROOMY.has(animation)) return 'clamp(14rem, 38dvh, 18rem)';
-  return 'clamp(13rem, 34dvh, 16.5rem)';
+  if (animation === 'sword_fight') return 'clamp(14rem, 38dvh, 18rem)';
+  if (animation && ROOMY.has(animation)) return 'clamp(12.5rem, 34dvh, 16rem)';
+  return 'clamp(12rem, 30dvh, 15rem)';
 }
 
 export function ToodleStage({
@@ -98,7 +98,7 @@ export function ToodleStage({
           type="button"
           aria-label="Toodle"
           onClick={onTap}
-          className="pointer-events-auto absolute bottom-1 left-[26%] h-[86%] w-32 -translate-x-1/2 cursor-pointer bg-transparent"
+          className="pointer-events-auto absolute bottom-1 left-[32%] h-[82%] w-28 -translate-x-1/2 cursor-pointer bg-transparent"
         />
       </div>
       {bubble ? (

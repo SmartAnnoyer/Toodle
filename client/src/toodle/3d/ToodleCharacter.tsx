@@ -31,23 +31,6 @@ function Leather() {
   return <meshStandardMaterial color="#0e0e0e" roughness={0.38} metalness={0.18} />;
 }
 
-function Clump({
-  position,
-  rotation = [0, 0, 0],
-  scale,
-}: {
-  position: [number, number, number];
-  rotation?: [number, number, number];
-  scale: [number, number, number];
-}) {
-  return (
-    <mesh position={position} rotation={rotation} scale={scale} castShadow>
-      <sphereGeometry args={[1, 22, 16]} />
-      <HairMat />
-    </mesh>
-  );
-}
-
 const BARE_FACE = new Set<ToodleExpression>(['embarrassed', 'shy', 'sad']);
 
 export function ToodleCharacter({
@@ -267,34 +250,34 @@ export function ToodleCharacter({
         <RoundedBox args={[0.46, 0.22, 0.3]} radius={0.08} smoothness={3} position={[0, 0.02, 0.02]}>
           <Cloth color="#121212" rough={0.66} />
         </RoundedBox>
-        <mesh position={[0, 0.08, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[0.2, 0.028, 8, 18]} />
+        <mesh position={[0, 0.06, 0.02]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.16, 0.022, 8, 16]} />
           <Leather />
         </mesh>
-        <mesh position={[0, 0.08, 0.16]}>
-          <cylinderGeometry args={[0.045, 0.045, 0.02, 16]} />
+        <mesh position={[0, 0.06, 0.14]}>
+          <cylinderGeometry args={[0.034, 0.034, 0.016, 16]} />
           <Gold />
         </mesh>
-        <mesh position={[0, 0.08, 0.175]}>
-          <torusGeometry args={[0.028, 0.006, 6, 12]} />
+        <mesh position={[0, 0.06, 0.152]}>
+          <torusGeometry args={[0.02, 0.004, 6, 12]} />
           <Gold />
         </mesh>
 
         <group ref={legL} position={[-0.14, -0.06, 0]}>
           <mesh position={[0, -0.12, 0]}>
-            <capsuleGeometry args={[0.09, 0.12, 6, 10]} />
+            <capsuleGeometry args={[0.072, 0.1, 6, 10]} />
             <Cloth color="#161616" rough={0.7} />
           </mesh>
-          <group ref={shinL} position={[0, -0.26, 0]}>
-            <mesh position={[0, -0.08, 0.01]}>
-              <capsuleGeometry args={[0.075, 0.08, 6, 10]} />
+          <group ref={shinL} position={[0, -0.22, 0]}>
+            <mesh position={[0, -0.07, 0.01]}>
+              <capsuleGeometry args={[0.06, 0.07, 6, 10]} />
               <Cloth color="#121212" />
             </mesh>
             <group position={[0, -0.2, 0.04]}>
-              <RoundedBox args={[0.18, 0.12, 0.16]} radius={0.04} smoothness={3} position={[0, 0.02, 0]}>
+              <RoundedBox args={[0.15, 0.1, 0.14]} radius={0.035} smoothness={3} position={[0, 0.01, 0]}>
                 <Leather />
               </RoundedBox>
-              <RoundedBox args={[0.2, 0.05, 0.26]} radius={0.02} smoothness={2} position={[0, -0.05, 0.04]}>
+              <RoundedBox args={[0.16, 0.04, 0.2]} radius={0.016} smoothness={2} position={[0, -0.045, 0.03]}>
                 <meshStandardMaterial color="#070707" roughness={0.55} />
               </RoundedBox>
               <mesh position={[0, 0.02, 0.09]}>
@@ -306,19 +289,19 @@ export function ToodleCharacter({
         </group>
         <group ref={legR} position={[0.14, -0.06, 0]}>
           <mesh position={[0, -0.12, 0]}>
-            <capsuleGeometry args={[0.09, 0.12, 6, 10]} />
+            <capsuleGeometry args={[0.072, 0.1, 6, 10]} />
             <Cloth color="#161616" rough={0.7} />
           </mesh>
-          <group ref={shinR} position={[0, -0.26, 0]}>
-            <mesh position={[0, -0.08, 0.01]}>
-              <capsuleGeometry args={[0.075, 0.08, 6, 10]} />
+          <group ref={shinR} position={[0, -0.22, 0]}>
+            <mesh position={[0, -0.07, 0.01]}>
+              <capsuleGeometry args={[0.06, 0.07, 6, 10]} />
               <Cloth color="#121212" />
             </mesh>
             <group position={[0, -0.2, 0.04]}>
-              <RoundedBox args={[0.18, 0.12, 0.16]} radius={0.04} smoothness={3} position={[0, 0.02, 0]}>
+              <RoundedBox args={[0.15, 0.1, 0.14]} radius={0.035} smoothness={3} position={[0, 0.01, 0]}>
                 <Leather />
               </RoundedBox>
-              <RoundedBox args={[0.2, 0.05, 0.26]} radius={0.02} smoothness={2} position={[0, -0.05, 0.04]}>
+              <RoundedBox args={[0.16, 0.04, 0.2]} radius={0.016} smoothness={2} position={[0, -0.045, 0.03]}>
                 <meshStandardMaterial color="#070707" roughness={0.55} />
               </RoundedBox>
               <mesh position={[0, 0.02, 0.09]}>
@@ -330,171 +313,154 @@ export function ToodleCharacter({
         </group>
 
         <group ref={spine}>
-          <RoundedBox args={[0.72, 0.52, 0.42]} radius={0.16} smoothness={4} position={[0, 0.3, 0]}>
-            <Cloth color="#171717" rough={0.7} />
+          <RoundedBox args={[0.56, 0.46, 0.34]} radius={0.14} smoothness={4} position={[0, 0.28, 0]}>
+            <Cloth color="#161616" rough={0.68} />
           </RoundedBox>
-          <RoundedBox args={[0.3, 0.44, 0.1]} radius={0.06} smoothness={3} position={[-0.16, 0.28, 0.16]}>
-            <Cloth color="#101010" rough={0.62} />
-          </RoundedBox>
-          <RoundedBox args={[0.3, 0.44, 0.1]} radius={0.06} smoothness={3} position={[0.16, 0.28, 0.16]}>
-            <Cloth color="#101010" rough={0.62} />
-          </RoundedBox>
-          <RoundedBox args={[0.07, 0.38, 0.02]} radius={0.015} smoothness={2} position={[0, 0.28, 0.21]}>
+          <RoundedBox args={[0.045, 0.28, 0.012]} radius={0.008} smoothness={2} position={[0, 0.26, 0.17]}>
             <meshStandardMaterial color="#8d151c" roughness={0.5} />
           </RoundedBox>
-          <mesh position={[-0.14, 0.52, 0.1]} rotation={[0.35, 0.15, 0.55]}>
-            <capsuleGeometry args={[0.045, 0.1, 5, 8]} />
-            <Cloth color="#1c1c1c" rough={0.6} />
+          <mesh position={[-0.28, 0.42, 0]} scale={[1.1, 0.7, 0.9]}>
+            <sphereGeometry args={[0.09, 16, 12]} />
+            <Cloth color="#141414" rough={0.66} />
           </mesh>
-          <mesh position={[0.14, 0.52, 0.1]} rotation={[0.35, -0.15, -0.55]}>
-            <capsuleGeometry args={[0.045, 0.1, 5, 8]} />
-            <Cloth color="#1c1c1c" rough={0.6} />
+          <mesh position={[0.28, 0.42, 0]} scale={[1.1, 0.7, 0.9]}>
+            <sphereGeometry args={[0.09, 16, 12]} />
+            <Cloth color="#141414" rough={0.66} />
           </mesh>
-          <mesh position={[-0.38, 0.44, 0]}>
-            <sphereGeometry args={[0.12, 18, 14]} />
-            <Cloth color="#121212" rough={0.66} />
-          </mesh>
-          <mesh position={[0.38, 0.44, 0]}>
-            <sphereGeometry args={[0.12, 18, 14]} />
-            <Cloth color="#121212" rough={0.66} />
-          </mesh>
-          <group ref={scarf} position={[0, 0.5, 0.08]}>
-            <mesh rotation={[1.1, 0, 0]}>
-              <torusGeometry args={[0.13, 0.04, 8, 16, Math.PI * 1.15]} />
-              <meshStandardMaterial color="#9c1c24" roughness={0.46} />
+          <group ref={scarf} position={[0, 0.46, 0.04]}>
+            <mesh position={[-0.08, -0.12, 0.1]} rotation={[0.15, 0, 0.25]}>
+              <capsuleGeometry args={[0.028, 0.16, 5, 8]} />
+              <meshStandardMaterial color="#b3131b" roughness={0.5} />
             </mesh>
-            <mesh position={[-0.12, -0.18, 0.12]} rotation={[0.25, 0.1, 0.4]}>
-              <capsuleGeometry args={[0.04, 0.24, 6, 8]} />
-              <meshStandardMaterial color="#b3131b" roughness={0.48} />
-            </mesh>
-            <mesh position={[0.14, -0.22, 0.14]} rotation={[0.2, -0.05, -0.45]}>
-              <capsuleGeometry args={[0.036, 0.3, 6, 8]} />
-              <meshStandardMaterial color="#86141a" roughness={0.5} />
+            <mesh position={[0.1, -0.16, 0.12]} rotation={[0.1, 0, -0.35]}>
+              <capsuleGeometry args={[0.026, 0.22, 5, 8]} />
+              <meshStandardMaterial color="#8f1418" roughness={0.5} />
             </mesh>
           </group>
 
-          <group ref={head} position={[0, 0.86, 0.03]}>
-            <Clump position={[0, 0.08, -0.18]} scale={[0.52, 0.44, 0.38]} />
-            <Clump position={[0, 0.32, -0.04]} scale={[0.5, 0.28, 0.42]} />
-            <Clump position={[-0.3, 0.12, -0.02]} scale={[0.24, 0.32, 0.28]} />
-            <Clump position={[0.28, 0.14, 0]} scale={[0.22, 0.3, 0.26]} />
-            <mesh scale={[1.14, 0.96, 1.05]}>
-              <sphereGeometry args={[0.42, 32, 24]} />
-              <Skin />
-            </mesh>
-            <Clump position={[0.02, 0.24, 0.32]} rotation={[0.45, 0, -0.3]} scale={[0.34, 0.12, 0.14]} />
-            <Clump position={[-0.18, 0.16, 0.34]} rotation={[0.5, 0.15, 0.45]} scale={[0.16, 0.13, 0.12]} />
-            <Clump position={[0.2, 0.18, 0.32]} rotation={[0.4, -0.1, -0.4]} scale={[0.14, 0.11, 0.1]} />
-            <mesh position={[-0.42, -0.04, 0.08]} rotation={[0.12, 0.05, 0.18]}>
-              <capsuleGeometry args={[0.065, 0.32, 6, 10]} />
+          <group ref={head} position={[0, 0.66, 0.02]}>
+            <mesh position={[0, 0.1, -0.05]} scale={[1.05, 0.62, 0.92]}>
+              <sphereGeometry args={[0.38, 28, 20]} />
               <HairMat />
             </mesh>
-            <mesh position={[0.4, 0, 0.1]} rotation={[0.08, -0.04, -0.14]}>
-              <capsuleGeometry args={[0.058, 0.24, 6, 10]} />
-              <HairMat />
-            </mesh>
-            <mesh position={[0, -0.02, 0.42]}>
-              <sphereGeometry args={[0.03, 12, 10]} />
+            <mesh scale={[1.05, 0.98, 1.02]}>
+              <sphereGeometry args={[0.34, 32, 24]} />
               <Skin />
             </mesh>
-            <group ref={eyeL} position={[-0.14, 0.03, 0.38]}>
+            <mesh position={[0.01, 0.16, 0.26]} rotation={[0.35, 0, -0.2]} scale={[1.2, 0.42, 0.55]}>
+              <sphereGeometry args={[0.14, 16, 12]} />
+              <HairMat />
+            </mesh>
+            <mesh position={[-0.28, -0.02, 0.06]} rotation={[0.1, 0, 0.15]}>
+              <capsuleGeometry args={[0.038, 0.16, 5, 8]} />
+              <HairMat />
+            </mesh>
+            <mesh position={[0.27, 0.01, 0.08]} rotation={[0.08, 0, -0.12]}>
+              <capsuleGeometry args={[0.034, 0.12, 5, 8]} />
+              <HairMat />
+            </mesh>
+            <mesh position={[0, -0.02, 0.33]}>
+              <sphereGeometry args={[0.022, 10, 8]} />
+              <Skin />
+            </mesh>
+            <group ref={eyeL} position={[-0.11, 0.02, 0.3]}>
               <mesh>
-                <sphereGeometry args={[0.07, 18, 14]} />
-                <meshStandardMaterial color="#fffaf6" roughness={0.22} />
+                <sphereGeometry args={[0.05, 16, 12]} />
+                <meshStandardMaterial color="#fffaf6" roughness={0.25} />
               </mesh>
-              <mesh ref={pupilL} position={[0, 0.004, 0.045]}>
-                <sphereGeometry args={[0.036, 14, 12]} />
+              <mesh ref={pupilL} position={[0, 0.002, 0.032]}>
+                <sphereGeometry args={[0.026, 12, 10]} />
                 <meshStandardMaterial color="#1c100e" roughness={0.2} />
               </mesh>
-              <mesh position={[0.016, 0.018, 0.06]}>
-                <sphereGeometry args={[0.012, 8, 8]} />
+              <mesh position={[0.012, 0.012, 0.044]}>
+                <sphereGeometry args={[0.008, 8, 8]} />
                 <meshBasicMaterial color="#ffffff" />
               </mesh>
             </group>
-            <group ref={eyeR} position={[0.14, 0.03, 0.38]}>
+            <group ref={eyeR} position={[0.11, 0.02, 0.3]}>
               <mesh>
-                <sphereGeometry args={[0.07, 18, 14]} />
-                <meshStandardMaterial color="#fffaf6" roughness={0.22} />
+                <sphereGeometry args={[0.05, 16, 12]} />
+                <meshStandardMaterial color="#fffaf6" roughness={0.25} />
               </mesh>
-              <mesh ref={pupilR} position={[0, 0.004, 0.045]}>
-                <sphereGeometry args={[0.036, 14, 12]} />
+              <mesh ref={pupilR} position={[0, 0.002, 0.032]}>
+                <sphereGeometry args={[0.026, 12, 10]} />
                 <meshStandardMaterial color="#1c100e" roughness={0.2} />
               </mesh>
-              <mesh position={[0.016, 0.018, 0.06]}>
-                <sphereGeometry args={[0.012, 8, 8]} />
+              <mesh position={[0.012, 0.012, 0.044]}>
+                <sphereGeometry args={[0.008, 8, 8]} />
                 <meshBasicMaterial color="#ffffff" />
               </mesh>
             </group>
-            <mesh ref={browL} position={[-0.14, 0.15, 0.36]} rotation={[0, 0, 0.12]}>
-              <capsuleGeometry args={[0.016, 0.12, 4, 8]} />
-              <meshStandardMaterial color="#120e0c" roughness={0.45} />
+            <mesh ref={browL} position={[-0.11, 0.15, 0.3]} rotation={[0, 0, 0.1]}>
+              <capsuleGeometry args={[0.012, 0.08, 4, 6]} />
+              <meshStandardMaterial color="#120e0c" roughness={0.5} />
             </mesh>
-            <mesh ref={browR} position={[0.14, 0.15, 0.36]} rotation={[0, 0, -0.12]}>
-              <capsuleGeometry args={[0.016, 0.12, 4, 8]} />
-              <meshStandardMaterial color="#120e0c" roughness={0.45} />
+            <mesh ref={browR} position={[0.11, 0.15, 0.3]} rotation={[0, 0, -0.1]}>
+              <capsuleGeometry args={[0.012, 0.08, 4, 6]} />
+              <meshStandardMaterial color="#120e0c" roughness={0.5} />
             </mesh>
-            <group position={[0, -0.16, 0.4]}>
-              <mesh ref={smile} rotation={[0.2, 0, Math.PI]}>
-                <torusGeometry args={[0.07, 0.016, 8, 16, Math.PI]} />
-                <meshStandardMaterial color="#c45a66" roughness={0.42} />
+            <group position={[0, -0.12, 0.32]}>
+              <mesh ref={smile} rotation={[0.15, 0, Math.PI]}>
+                <torusGeometry args={[0.048, 0.012, 8, 14, Math.PI]} />
+                <meshStandardMaterial color="#c46a72" roughness={0.45} />
               </mesh>
-              <mesh ref={frown} rotation={[0.2, 0, 0]} visible={false}>
-                <torusGeometry args={[0.062, 0.014, 8, 14, Math.PI]} />
-                <meshStandardMaterial color="#b85d68" roughness={0.42} />
+              <mesh ref={frown} rotation={[0.15, 0, 0]} visible={false}>
+                <torusGeometry args={[0.042, 0.01, 8, 12, Math.PI]} />
+                <meshStandardMaterial color="#b85d68" roughness={0.45} />
               </mesh>
-              <mesh ref={gasp} position={[0, -0.01, 0.01]} visible={false}>
-                <sphereGeometry args={[0.04, 14, 12]} />
+              <mesh ref={gasp} position={[0, -0.006, 0.008]} visible={false}>
+                <sphereGeometry args={[0.03, 12, 10]} />
                 <meshStandardMaterial color="#6a3040" roughness={0.5} />
               </mesh>
             </group>
-            <mesh ref={tearL} position={[-0.14, -0.04, 0.4]}>
+            <mesh ref={tearL} position={[-0.11, -0.02, 0.34]}>
               <sphereGeometry args={[0.012, 8, 8]} />
               <meshStandardMaterial color="#d7f1ff" transparent opacity={0} />
             </mesh>
-            <mesh ref={tearR} position={[0.14, -0.05, 0.4]}>
+            <mesh ref={tearR} position={[0.11, -0.03, 0.34]}>
               <sphereGeometry args={[0.011, 8, 8]} />
               <meshStandardMaterial color="#d7f1ff" transparent opacity={0} />
             </mesh>
-            <mesh ref={cheekL} position={[-0.22, -0.06, 0.32]}>
-              <sphereGeometry args={[0.05, 10, 8]} />
+            <mesh ref={cheekL} position={[-0.16, -0.04, 0.28]}>
+              <sphereGeometry args={[0.036, 10, 8]} />
               <meshStandardMaterial color="#e7a0a6" transparent opacity={0} />
             </mesh>
-            <mesh ref={cheekR} position={[0.22, -0.06, 0.32]}>
-              <sphereGeometry args={[0.05, 10, 8]} />
+            <mesh ref={cheekR} position={[0.16, -0.04, 0.28]}>
+              <sphereGeometry args={[0.036, 10, 8]} />
               <meshStandardMaterial color="#e7a0a6" transparent opacity={0} />
             </mesh>
-            <group ref={shades} position={[0, 0.055, 0.46]}>
-              <RoundedBox args={[0.28, 0.16, 0.05]} radius={0.06} smoothness={3} position={[-0.15, 0, 0]}>
-                <meshPhysicalMaterial color="#050505" roughness={0.06} metalness={0.45} transparent opacity={0.88} clearcoat={1} clearcoatRoughness={0.08} />
+            <group ref={shades} position={[0, 0.055, 0.36]}>
+              <RoundedBox args={[0.2, 0.11, 0.04]} radius={0.045} smoothness={3} position={[-0.11, 0, 0]}>
+                <meshPhysicalMaterial color="#070707" roughness={0.08} metalness={0.4} transparent opacity={0.86} clearcoat={0.8} clearcoatRoughness={0.12} />
               </RoundedBox>
-              <RoundedBox args={[0.28, 0.16, 0.05]} radius={0.06} smoothness={3} position={[0.15, 0, 0]}>
-                <meshPhysicalMaterial color="#050505" roughness={0.06} metalness={0.45} transparent opacity={0.88} clearcoat={1} clearcoatRoughness={0.08} />
+              <RoundedBox args={[0.2, 0.11, 0.04]} radius={0.045} smoothness={3} position={[0.11, 0, 0]}>
+                <meshPhysicalMaterial color="#070707" roughness={0.08} metalness={0.4} transparent opacity={0.86} clearcoat={0.8} clearcoatRoughness={0.12} />
               </RoundedBox>
-              <mesh position={[0, 0.01, 0.01]} rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.016, 0.016, 0.06, 8]} />
-                <meshStandardMaterial color="#111111" metalness={0.5} roughness={0.22} />
+              <mesh position={[0, 0.008, 0.008]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.012, 0.012, 0.04, 8]} />
+                <meshStandardMaterial color="#111111" metalness={0.45} roughness={0.25} />
               </mesh>
-              <mesh position={[-0.32, 0.02, -0.06]} rotation={[0.1, 0.55, 0]}>
-                <boxGeometry args={[0.16, 0.016, 0.016]} />
-                <meshStandardMaterial color="#111111" metalness={0.45} roughness={0.28} />
+              <mesh position={[-0.22, 0.012, -0.04]} rotation={[0, 0.45, 0]}>
+                <boxGeometry args={[0.1, 0.012, 0.012]} />
+                <meshStandardMaterial color="#111111" metalness={0.4} roughness={0.3} />
               </mesh>
-              <mesh position={[0.32, 0.02, -0.06]} rotation={[0.1, -0.55, 0]}>
-                <boxGeometry args={[0.16, 0.016, 0.016]} />
-                <meshStandardMaterial color="#111111" metalness={0.45} roughness={0.28} />
+              <mesh position={[0.22, 0.012, -0.04]} rotation={[0, -0.45, 0]}>
+                <boxGeometry args={[0.1, 0.012, 0.012]} />
+                <meshStandardMaterial color="#111111" metalness={0.4} roughness={0.3} />
               </mesh>
             </group>
             {slot === 'face' && prop && prop !== 'sunglasses' && prop !== 'glasses' ? <ToodlePropMesh prop={prop} /> : null}
             {slot === 'head' && prop ? <ToodlePropMesh prop={prop} /> : null}
           </group>
 
-          <group ref={armL} position={[-0.42, 0.42, 0]}>
-            <mesh position={[0, -0.12, 0]}>
-              <capsuleGeometry args={[0.075, 0.12, 6, 10]} />
+          <group ref={armL} position={[-0.32, 0.38, 0]}>
+            <mesh position={[0, -0.11, 0]}>
+              <capsuleGeometry args={[0.06, 0.1, 6, 10]} />
               <Cloth color="#1a1a1a" rough={0.66} />
             </mesh>
-            <group ref={foreL} position={[0, -0.26, 0]}>
-              <mesh position={[0, -0.1, 0]}>
-                <capsuleGeometry args={[0.062, 0.1, 6, 10]} />
+            <group ref={foreL} position={[0, -0.22, 0]}>
+              <mesh position={[0, -0.09, 0]}>
+                <capsuleGeometry args={[0.05, 0.08, 6, 10]} />
                 <Cloth color="#121212" rough={0.6} />
               </mesh>
               <group position={[0, -0.2, 0.02]}>
@@ -508,14 +474,14 @@ export function ToodleCharacter({
               </group>
             </group>
           </group>
-          <group ref={armR} position={[0.42, 0.42, 0]}>
-            <mesh position={[0, -0.12, 0]}>
-              <capsuleGeometry args={[0.075, 0.12, 6, 10]} />
+          <group ref={armR} position={[0.32, 0.38, 0]}>
+            <mesh position={[0, -0.11, 0]}>
+              <capsuleGeometry args={[0.06, 0.1, 6, 10]} />
               <Cloth color="#1a1a1a" rough={0.66} />
             </mesh>
-            <group ref={foreR} position={[0, -0.26, 0]}>
-              <mesh position={[0, -0.1, 0]}>
-                <capsuleGeometry args={[0.062, 0.1, 6, 10]} />
+            <group ref={foreR} position={[0, -0.22, 0]}>
+              <mesh position={[0, -0.09, 0]}>
+                <capsuleGeometry args={[0.05, 0.08, 6, 10]} />
                 <Cloth color="#121212" rough={0.6} />
               </mesh>
               <group position={[0, -0.2, 0.02]}>
