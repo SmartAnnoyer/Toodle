@@ -70,6 +70,9 @@ export function ToodleCharacter({
   const shades = useRef<Group>(null);
   const scarf = useRef<Mesh>(null);
   const sheath = useRef<Group>(null);
+  const arc = useRef<Mesh>(null);
+  const swordClock = useRef(0);
+  const swordOn = useRef(false);
   const bones: Record<BoneName, RefObject<Group>> = {
     root, hips, spine, head, armL, armR, foreL, foreR, legL, legR, shinL, shinR,
   };
@@ -146,6 +149,24 @@ export function ToodleCharacter({
     }
     if (scarf.current && !reduced) scarf.current.rotation.z = 0.55 + Math.sin(performance.now() / 680) * 0.12;
     if (sheath.current) sheath.current.visible = prop !== 'katana';
+    if (frame.state.animation === 'sword') {
+      if (!swordOn.current) swordClock.current = 0;
+      swordOn.current = true;
+      swordClock.current += dt;
+    } else {
+      swordOn.current = false;
+      swordClock.current = 0;
+    }
+    if (arc.current) {
+      const t = swordClock.current;
+      const slash = Math.sin(Math.min(1, Math.max(0, (t - 0.5) / 0.42)) * Math.PI);
+      const back = Math.sin(Math.min(1, Math.max(0, (t - 0.98) / 0.4)) * Math.PI);
+      const flash = Math.max(slash, back);
+      arc.current.visible = flash > 0.08;
+      arc.current.rotation.z = slash >= back ? -1.15 + slash * 2.2 : 1.2 - back * 2.2;
+      arc.current.scale.setScalar(0.8 + flash * 0.55);
+      (arc.current.material as { opacity: number }).opacity = flash * 0.95;
+    }
   });
 
   const slot = propAnchor(prop);
@@ -354,6 +375,10 @@ export function ToodleCharacter({
             </group>
           </group>
 
+          <mesh ref={arc} position={[0.02, 0.34, 0.24]} visible={false}>
+            <torusGeometry args={[0.4, 0.016, 6, 22, Math.PI * 0.95]} />
+            <meshStandardMaterial color="#ff3b3b" emissive="#ff1f1f" emissiveIntensity={2.2} transparent opacity={0} depthWrite={false} />
+          </mesh>
           {slot === 'back' && prop ? <ToodlePropMesh prop={prop} /> : null}
           <group ref={sheath} position={[0.16, 0.22, -0.18]} rotation={[0.25, 0.1, -0.8]}>
             <mesh position={[0, -0.16, 0]}>

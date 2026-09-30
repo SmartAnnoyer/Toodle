@@ -520,23 +520,35 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     },
   },
   sword: {
-    duration: 1.15,
+    duration: 2.45,
     loop: false,
     sample: (t) => {
-      const draw = smooth(Math.min(1, t / 0.22));
-      const slash = Math.sin(Math.min(1, Math.max(0, (t - 0.22) / 0.32)) * Math.PI);
-      const hold = smooth(Math.min(1, Math.max(0, (t - 0.54) / 0.18)));
-      const away = smooth(Math.min(1, Math.max(0, (t - 0.78) / 0.32)));
+      const reach = smooth(Math.min(1, t / 0.22));
+      const draw = smooth(Math.min(1, Math.max(0, (t - 0.2) / 0.28)));
+      const slash = Math.sin(Math.min(1, Math.max(0, (t - 0.5) / 0.42)) * Math.PI);
+      const back = Math.sin(Math.min(1, Math.max(0, (t - 0.98) / 0.4)) * Math.PI);
+      const hero = smooth(Math.min(1, Math.max(0, (t - 1.38) / 0.2))) * (1 - smooth(Math.min(1, Math.max(0, (t - 1.9) / 0.18))));
+      const sheath = smooth(Math.min(1, Math.max(0, (t - 1.95) / 0.45)));
+      const live = 1 - sheath;
       return pose({
-        root: { y: slash * 0.08, ry: draw * -0.25 + slash * 0.7 * (1 - away) },
-        spine: { rx: -0.08 - slash * 0.18, ry: slash * 0.35 },
-        head: { rx: -0.1, ry: 0.12 },
-        armR: { rx: -0.35 - draw * 2.3 * (1 - away * 0.65) - slash * 0.4, rz: -0.25 - slash * 0.55 },
-        foreR: { rx: -0.25 - draw * 0.55 },
-        armL: { rx: -0.25 - hold * 0.5, rz: 0.35 + hold * 0.35 },
-        legL: { rx: -0.2 * slash },
-        legR: { rx: 0.28 * hold },
-        shinR: { rx: 0.2 * hold },
+        root: {
+          y: (draw * 0.07 + slash * 0.12 + back * 0.08) * live,
+          ry: (reach * -0.4 + slash * 1.15 - back * 0.95 + hero * 0.2) * live,
+          rz: (slash * 0.1 - back * 0.08) * live,
+        },
+        hips: { ry: (slash * 0.3 - back * 0.22) * live },
+        spine: { rx: (-0.14 * draw - slash * 0.22) * live, ry: (slash * 0.45 - back * 0.4) * live },
+        head: { rx: -0.1, ry: 0.16 * live },
+        armR: {
+          rx: (-0.35 - reach * 1.15 - draw * 1.55 - hero * 0.35) * (0.15 + 0.85 * live),
+          rz: (0.7 * reach - slash * 1.45 + back * 1.25 - hero * 0.8) * live,
+        },
+        foreR: { rx: (-0.25 - draw * 0.75) * live },
+        armL: { rx: (-0.25 - slash * 0.45 - hero * 1.05) * live, rz: (0.25 + back * 0.45 + hero * 0.8) * live },
+        legL: { rx: (-0.2 * slash - hero * 0.3) * live, rz: hero * 0.18 * live },
+        legR: { rx: (slash * 0.2 + hero * 0.45) * live },
+        shinL: { rx: hero * 0.2 * live },
+        shinR: { rx: hero * 0.3 * live },
       });
     },
   },

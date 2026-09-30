@@ -95,7 +95,7 @@ export function ogFlourish(reactionId: string | undefined, now: number, cooledUn
       animation: 'sword',
       pose: 'dramatic',
       prop: 'katana',
-      ms: 1150,
+      ms: 2500,
       priority: 64,
       sound: 'shing',
       reactionId: 'og_sword_draw',
@@ -108,7 +108,7 @@ export function ogTapBeats(count: number): ToodleBeat[] {
   if (count <= 1) return [{ ...base, animation: 'listen', pose: 'suspicious', ms: 700 }];
   if (count === 2) return [{ ...base, animation: 'confused', pose: 'confused', line: '...', ms: 800 }];
   if (count === 3) return [{ ...base, animation: 'dramatic', pose: 'dramatic', prop: 'sunglasses', ms: 900 }];
-  if (count === 4) return [{ ...base, animation: 'sword', pose: 'dramatic', prop: 'katana', ms: 1150, sound: 'shing', reactionId: 'og_sword_draw' }];
+  if (count === 4) return [{ ...base, animation: 'sword', pose: 'dramatic', prop: 'katana', ms: 2500, sound: 'shing', reactionId: 'og_sword_draw' }];
   return [
     { ...base, animation: 'angry', pose: 'chaotic', line: 'Enough.', ms: 900, priority: 98 },
     { ...base, animation: 'walkAway', pose: 'dramatic', ms: 900, priority: 98, sound: 'whoosh' },
