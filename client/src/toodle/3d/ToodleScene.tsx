@@ -57,7 +57,7 @@ export default function ToodleScene({
       dpr={[1, 1.5]}
       frameloop={paused ? 'demand' : 'always'}
       gl={{ alpha: true, antialias: true, premultipliedAlpha: false, powerPreference: 'high-performance' }}
-      camera={{ position: [0, 0.72, 4.15], fov: 30, near: 0.1, far: 30 }}
+      camera={{ position: [0, 0.82, 4.35], fov: 28, near: 0.1, far: 30 }}
       style={{ width: '100%', height: '100%', background: 'transparent', pointerEvents: 'none', touchAction: 'auto' }}
       onCreated={({ gl, scene }) => {
         scene.background = null;

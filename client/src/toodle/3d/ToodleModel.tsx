@@ -4,9 +4,9 @@ import { ToodleCharacter } from './ToodleCharacter';
 import type { ToodleCharacterState } from './state';
 
 /**
- * Drop a rigged replacement at client/public/toodle/toodle.glb.
- * The live character is this procedural full-body rig until that file is authored.
- * Do not point this at a PNG, GIF, or sprite sheet.
+ * The live Toodle is the procedural OG full-body mascot in ToodleCharacter.
+ * A rigged GLB can replace that mesh later at client/public/toodle/toodle.glb.
+ * Do not point the character at a PNG, GIF, or sprite sheet.
  */
 export const TOODLE_GLB_URL = '/toodle/toodle.glb';
 

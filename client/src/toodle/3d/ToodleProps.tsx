@@ -155,18 +155,22 @@ export function ToodlePropMesh({ prop }: { prop: ToodleProp }) {
   }
   if (prop === 'katana') {
     return (
-      <group position={[0.02, -0.02, 0.02]} rotation={[0.3, 0, -0.9]}>
+      <group position={[0.02, -0.08, 0.04]} rotation={[0.2, 0, -0.7]}>
         <mesh position={[0, 0.16, 0]}>
-          <boxGeometry args={[0.012, 0.34, 0.004]} />
-          <meshStandardMaterial color="#d7d2cb" metalness={0.65} roughness={0.28} />
+          <boxGeometry args={[0.012, 0.28, 0.004]} />
+          <meshStandardMaterial color="#d5d0c8" metalness={0.55} roughness={0.32} />
+        </mesh>
+        <mesh position={[0, 0.0, 0]}>
+          <boxGeometry args={[0.055, 0.012, 0.014]} />
+          <meshStandardMaterial color="#D4A85A" metalness={0.5} roughness={0.35} />
+        </mesh>
+        <mesh position={[0, -0.08, 0]}>
+          <cylinderGeometry args={[0.012, 0.014, 0.1, 8]} />
+          <meshStandardMaterial color="#2a1214" roughness={0.5} />
         </mesh>
         <mesh position={[0, -0.02, 0]}>
-          <boxGeometry args={[0.05, 0.014, 0.012]} />
-          <meshStandardMaterial color="#c9a45c" metalness={0.4} roughness={0.4} />
-        </mesh>
-        <mesh position={[0, -0.1, 0]}>
-          <cylinderGeometry args={[0.012, 0.012, 0.1, 8]} />
-          <meshStandardMaterial color="#7f1d1d" roughness={0.55} />
+          <torusGeometry args={[0.016, 0.004, 6, 8]} />
+          <meshStandardMaterial color="#E32626" roughness={0.4} />
         </mesh>
       </group>
     );
@@ -174,17 +178,17 @@ export function ToodlePropMesh({ prop }: { prop: ToodleProp }) {
   if (prop === 'headphones') {
     return (
       <group>
-        <mesh position={[-0.52, 0.05, 0]} rotation={[0, Math.PI / 2, 0]}>
-          <torusGeometry args={[0.08, 0.016, 8, 14]} />
-          <meshStandardMaterial color="#c4b5fd" roughness={0.3} metalness={0.2} />
+        <mesh position={[-0.36, 0.02, 0]} rotation={[0, Math.PI / 2, 0]}>
+          <torusGeometry args={[0.07, 0.016, 8, 12]} />
+          <meshStandardMaterial color="#1a1a1a" roughness={0.35} metalness={0.25} />
         </mesh>
-        <mesh position={[0.52, 0.05, 0]} rotation={[0, Math.PI / 2, 0]}>
-          <torusGeometry args={[0.08, 0.016, 8, 14]} />
-          <meshStandardMaterial color="#c4b5fd" roughness={0.3} metalness={0.2} />
+        <mesh position={[0.36, 0.02, 0]} rotation={[0, Math.PI / 2, 0]}>
+          <torusGeometry args={[0.07, 0.016, 8, 12]} />
+          <meshStandardMaterial color="#1a1a1a" roughness={0.35} metalness={0.25} />
         </mesh>
-        <mesh position={[0, 0.16, -0.02]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.012, 0.012, 0.95, 8]} />
-          <meshStandardMaterial color="#a78bfa" roughness={0.35} />
+        <mesh position={[0, 0.12, -0.02]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.01, 0.01, 0.68, 8]} />
+          <meshStandardMaterial color="#111111" roughness={0.4} />
         </mesh>
       </group>
     );
