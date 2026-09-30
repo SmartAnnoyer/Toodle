@@ -11,6 +11,9 @@ import { nudge } from '../lib/feedback';
 import { api } from '../lib/http';
 import { formatClock, formatRemaining, humanDuration, serverNowMs } from '../lib/time';
 import type { ChatMessage, GifResult } from '../types';
+import { VibePanel } from '../music/VibePanel';
+import { useVibe } from '../music/useVibe';
+import type { MusicSnapshot, ToodleMusicEvent } from '../music/MusicTypes';
 import { readChaos } from '../toodle/settings';
 import { ToodlePresence } from '../toodle/ToodlePresence';
 import { useToodleChat } from '../toodle/useToodleChat';
@@ -20,7 +23,7 @@ export function ChatPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { profile } = useAuth();
-  const { banner } = useSocket();
+  const { banner, status } = useSocket();
   const { conversation, messages, typing, loading, error, streakPop, send, signalTyping } = useChat(id);
   const countdown = useCountdown(conversation?.status === 'active' ? conversation.expiresAt : null);
   const [text, setText] = useState('');
@@ -38,6 +41,14 @@ export function ChatPage() {
   const scroller = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const typingTimer = useRef<number | null>(null);
+  const musicRef = useRef<MusicSnapshot | null>(null);
+  const noteMusic = useRef<(event: ToodleMusicEvent) => void>(() => {});
+  const vibe = useVibe({
+    conversationId: id,
+    myId: profile?.id,
+    onEvent: (event) => noteMusic.current(event),
+  });
+  musicRef.current = vibe.snapshot;
   const toodle = useToodleChat({
     conversation,
     messages,
@@ -47,7 +58,10 @@ export function ChatPage() {
     partnerTyping: typing,
     streakPop,
     paused: Boolean(error) || renewOpen,
+    musicRef,
+    musicTick: vibe.tick,
   });
+  noteMusic.current = toodle.noteMusic;
 
   useEffect(() => {
     const handle = window.setInterval(() => setTick((value) => value + 1), 1000);
@@ -126,7 +140,9 @@ export function ChatPage() {
   const pending = conversation.pendingRenewal;
   const minePending = pending?.requestedBy === profile?.id;
   const lastVoice = [...messages].reverse().find((message) => message.kind !== 'system');
-  const glance: 'left' | 'right' | 'center' = typing
+  const glance: 'left' | 'right' | 'center' = vibe.expanded && !text.trim() && !typing
+    ? 'center'
+    : typing
     ? 'left'
     : text.trim()
       ? 'right'
@@ -158,8 +174,9 @@ export function ChatPage() {
           </div>
           <Link to={`/chat/${id}/rules`} className="text-lg">⚙️</Link>
         </div>
-        <div className="mt-2 flex gap-3 text-xs">
+        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-3 text-xs">
           <button type="button" className="text-muted" onClick={() => setSafetyOpen((open) => !open)}>Report or block</button>
+          <VibePanel vibe={{ ...vibe, reconnecting: status === 'disconnected' || vibe.reconnecting }} friendName={conversation.otherUser.displayName} myId={profile?.id} />
         </div>
         {safetyOpen ? (
           <div className="mt-3 rounded-2xl bg-white/10 p-3 text-sm">

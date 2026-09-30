@@ -13,6 +13,7 @@
     "dev:server": "npm run dev -w server",
     "build": "npm run build -w server && npm run build -w client",
     "test": "npm run test -w server",
+    "android:bundle": "npm run android:bundle -w client",
     "seed": "npm run seed -w server"
   },
   "devDependencies": {

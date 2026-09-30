@@ -54,4 +54,5 @@ export type ToodleProp =
   | 'book'
   | 'backpack'
   | 'medicine'
-  | 'party';
+  | 'party'
+  | 'headphones';

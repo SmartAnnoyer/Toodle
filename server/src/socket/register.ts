@@ -7,6 +7,7 @@ import { markRead, sendMessage } from '../services/messages.js';
 import { partnerIds, setPresence } from '../services/profiles.js';
 import { loadMembers } from '../services/conversationStore.js';
 import { emitToUsers, userSocketCount } from './hub.js';
+import { attachMusic } from './music.js';
 
 const sendSchema = z.object({
   conversationId: z.string().uuid(),
@@ -94,6 +95,8 @@ export function registerSocket(io: Server) {
         console.error('read', error);
       }
     });
+
+    attachMusic(socket, userId);
 
     socket.on('disconnect', async () => {
       if (userSocketCount(userId) > 0) return;

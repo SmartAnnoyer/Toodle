@@ -35,6 +35,10 @@ class ToodleAudioEngine {
     toodleSound.unlock();
   }
 
+  setMusicActive(active: boolean) {
+    toodleSound.setMusicActive(active);
+  }
+
   playBeat(beat: ToodleBeat | null) {
     this.clearTimers();
     if (!beat || readChaos() === 'off') return;

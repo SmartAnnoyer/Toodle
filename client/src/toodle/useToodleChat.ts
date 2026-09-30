@@ -4,8 +4,10 @@ import { ToodleEngine } from './engine';
 import { reactionForText } from './3d/intent';
 import { explainToodleReaction, feelTap, freshMemory, hearMessage, keywordHit } from './life';
 import { looksSerious, mentionsFiveMinutes, mentionsGoodnight, notableWord, poseForEmoji } from './lines';
+import type { MusicSnapshot, ToodleMusicEvent } from '../music/MusicTypes';
 import { toodleAudio } from './audio/ToodleAudioEngine';
 import { shouldPopIncoming } from './audio/ToodleAudioState';
+import { ambientVibeBeat, decideMusicReaction, musicComboBeat } from './music/reactions';
 import { readChaos } from './settings';
 import type { ToodleBeat, ToodleContext, ToodleEvent } from './types';
 
@@ -18,6 +20,8 @@ export function useToodleChat({
   partnerTyping,
   streakPop,
   paused,
+  musicRef,
+  musicTick,
 }: {
   conversation: ConversationDetail | null;
   messages: ChatMessage[];
@@ -27,6 +31,8 @@ export function useToodleChat({
   partnerTyping: boolean;
   streakPop: boolean;
   paused: boolean;
+  musicRef: { current: MusicSnapshot | null };
+  musicTick: number;
 }) {
   const engine = useRef(new ToodleEngine());
   const memory = useRef(freshMemory());
@@ -47,7 +53,19 @@ export function useToodleChat({
   const milestone = useRef(false);
   const ackedAt = useRef(0);
   const longChat = useRef(false);
+  const musicCool = useRef(new Map<string, number>());
   const conversationId = conversation?.id;
+
+  function decorate(cues: ToodleBeat[]) {
+    const extra = musicComboBeat(cues[0]?.reactionId, musicRef.current, Math.random());
+    return extra ? [...cues, extra] : cues;
+  }
+
+  function vibeAfter() {
+    const music = musicRef.current;
+    if (!music || music.status !== 'playing' || readChaos() === 'off') return null;
+    return ambientVibeBeat(music);
+  }
 
   function present(next: ToodleBeat | null) {
     beatRef.current = next;
@@ -88,12 +106,8 @@ export function useToodleChat({
   useEffect(() => {
     if (!beat) return;
     const handle = window.setTimeout(() => {
-      const next = script.current.shift();
-      if (next) {
-        present(next);
-        return;
-      }
-      present(null);
+      const next = script.current.shift() ?? vibeAfter();
+      present(next);
     }, beat.ms);
     return () => window.clearTimeout(handle);
   }, [beat]);
@@ -106,6 +120,7 @@ export function useToodleChat({
     longChat.current = false;
     engine.current = new ToodleEngine();
     memory.current = freshMemory();
+    musicCool.current = new Map();
     script.current = [];
     present(null);
     setWaiting(false);
@@ -149,7 +164,7 @@ export function useToodleChat({
         recent,
       });
       if (heard?.length) {
-        offer(heard);
+        offer(decorate(heard));
         continue;
       }
       if (message.senderId === myId) {
@@ -165,6 +180,9 @@ export function useToodleChat({
       else if (rapid) show('USER_SENT_MANY_MESSAGES');
       else if (message.body.length > 280) show('LONG_MESSAGE');
       else if (emojiOnly) show('EMOJI_REACT', { emoji: message.body });
+      else if (musicRef.current?.status === 'playing') {
+        continue;
+      }
       else if (message.senderId !== myId && !looksSerious(message.body) && !keywordHit(message.body)) {
         const pick = reactionForText(message.body);
         offer([{
@@ -240,6 +258,25 @@ export function useToodleChat({
   }, [conversationId, paused]);
 
   useEffect(() => {
+    toodleAudio.setMusicActive(musicRef.current?.status === 'playing');
+    if (musicRef.current?.status !== 'playing') return;
+    const handle = window.setInterval(() => {
+      if ((beatRef.current?.priority ?? 0) > 30) return;
+      const beats = decideMusicReaction({
+        event: 'music_idle',
+        energy: musicRef.current?.energy ?? 'normal',
+        mood: musicRef.current?.mood,
+        now: Date.now(),
+        random: Math.random(),
+        cooldowns: musicCool.current,
+        performing: beatRef.current?.priority ?? 0,
+      });
+      if (beats?.length) offer(beats);
+    }, 45_000);
+    return () => window.clearInterval(handle);
+  }, [musicTick, paused]);
+
+  useEffect(() => {
     if (!streakPop || !conversation) return;
     show('STREAK_INCREASED', { streak: conversation.streakCount });
   }, [streakPop, conversation?.streakCount]);
@@ -274,10 +311,11 @@ export function useToodleChat({
       setWaiting(true);
       const decision = explainToodleReaction(trimmed, memory.current, Date.now(), readChaos(), Math.random, { userId: myId });
       if (decision.beats?.length) {
-        offer(decision.beats);
+        offer(decorate(decision.beats));
         return;
       }
       if (decision.detected.length || keywordHit(trimmed)) return;
+      if (musicRef.current?.status === 'playing') return;
       const pick = reactionForText(trimmed);
       play([
         {
@@ -291,6 +329,20 @@ export function useToodleChat({
         },
       ]);
     },
+    noteMusic(event: ToodleMusicEvent) {
+      if (paused || readChaos() === 'off') return;
+      const music = musicRef.current;
+      const beats = decideMusicReaction({
+        event,
+        energy: music?.energy ?? 'normal',
+        mood: music?.mood,
+        now: Date.now(),
+        random: Math.random(),
+        cooldowns: musicCool.current,
+        performing: beatRef.current?.priority ?? 0,
+      });
+      if (beats?.length) offer(beats);
+    },
     poke() {
       if (paused || readChaos() === 'off' || Date.now() < memory.current.chaosUntil) return;
       toodleAudio.unlock();
@@ -299,7 +351,7 @@ export function useToodleChat({
     },
     dismiss() {
       script.current = [];
-      present(null);
+      present(vibeAfter());
     },
   };
 }

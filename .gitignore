@@ -6,6 +6,9 @@ dist
 server/.env
 client/.env
 *.log
+*.jks
+*.keystore
+keystore.properties
 .DS_Store
 coverage
 supabase/.temp

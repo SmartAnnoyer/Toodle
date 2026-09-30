@@ -53,6 +53,7 @@ function audioContext(): AudioContext | null {
 }
 
 class ToodleSoundManager {
+  private musicDuck = 1;
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private groups: Partial<Record<'ui' | 'toodle' | 'effects', GainNode>> = {};
@@ -79,6 +80,10 @@ class ToodleSoundManager {
     void this.loadManifest();
   }
 
+  setMusicActive(active: boolean) {
+    this.musicDuck = active ? 0.25 : 1;
+  }
+
   play(id: ToodleSoundId, options: { priority?: number; reason?: string; animation?: string; pan?: number; level?: number; variants?: ToodleSoundId[] } = {}) {
     try {
       const prefs = readSoundPrefs();
@@ -102,7 +107,7 @@ class ToodleSoundManager {
         this.debug(chosen, spec.channel, prefs.volume, 'blocked', options.reason ?? '—', options.animation ?? '—');
         return;
       }
-      const dest = this.output(spec.group, options.pan ?? 0, prefs.volume * spec.gain * (options.level ?? 1));
+      const dest = this.output(spec.group, options.pan ?? 0, prefs.volume * spec.gain * (options.level ?? 1) * this.musicDuck);
       if (!dest) return;
       this.live[spec.channel]?.stop();
       const file = this.files.has(spec.file) ? spec.file : null;

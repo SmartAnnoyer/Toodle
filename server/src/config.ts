@@ -11,10 +11,11 @@ function optional(name: string): string {
 }
 
 const clientOrigin = optional('CLIENT_ORIGIN') || 'http://localhost:5173,http://127.0.0.1:5173';
+const nativeAppOrigins = ['https://localhost'];
 
 export const config = {
   port: Number(process.env.PORT || 4000),
-  clientOrigins: clientOrigin.split(',').map((origin) => origin.trim()).filter(Boolean),
+  clientOrigins: [...new Set([...clientOrigin.split(',').map((origin) => origin.trim()).filter(Boolean), ...nativeAppOrigins])],
   supabaseUrl: optional('SUPABASE_URL'),
   supabaseAnonKey: optional('SUPABASE_ANON_KEY'),
   supabaseServiceRoleKey: optional('SUPABASE_SERVICE_ROLE_KEY'),

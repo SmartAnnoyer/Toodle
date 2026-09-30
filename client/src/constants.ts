@@ -75,4 +75,11 @@ export const SocketEvents = {
   ShortcutAccepted: 'shortcut:accepted',
   ShortcutRevoked: 'shortcut:revoked',
   NotificationNew: 'notification:new',
+  MusicPlay: 'music:play',
+  MusicPause: 'music:pause',
+  MusicSeek: 'music:seek',
+  MusicChange: 'music:change',
+  MusicSyncRequest: 'music:sync-request',
+  MusicSyncState: 'music:sync-state',
+  MusicStop: 'music:stop',
 } as const;
