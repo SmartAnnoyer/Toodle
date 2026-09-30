@@ -66,6 +66,15 @@ export function FindPage() {
               <p className="text-sm text-muted">@{user.username}</p>
               <p className="text-sm">{user.moodEmoji} {user.moodText}</p>
             </div>
+            <button
+              type="button"
+              className="text-xs text-muted"
+              onClick={() => {
+                api('/api/safety/block', { method: 'POST', body: JSON.stringify({ userId: user.id }) })
+                  .then(() => { toast('Blocked'); setUsers((current) => current.filter((item) => item.id !== user.id)); })
+                  .catch((error) => toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.'));
+              }}
+            >Block</button>
             <Button className="px-4 py-2" onClick={() => void ping(user)}>
               {user.conversationId ? 'Chat' : user.relationship === 'accepted' ? 'Chat' : user.relationship === 'outgoing' ? 'Pinged' : user.relationship === 'incoming' ? 'They pinged you' : 'Ping 👋'}
             </Button>

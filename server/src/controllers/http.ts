@@ -10,6 +10,8 @@ import * as messages from '../services/messages.js';
 import * as shortcuts from '../services/shortcuts.js';
 import * as notifications from '../services/notifications.js';
 import { searchGifs } from '../services/gifs.js';
+import { deleteAccount } from '../services/account.js';
+import { blockUser, isReportReason, reportUser } from '../services/safety.js';
 
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
@@ -224,6 +226,35 @@ export const http = {
   async readAllNotifications(req: Request, res: Response) {
     await notifications.markAllNotificationsRead(req.userId);
     res.json({ ok: true });
+  },
+
+  async deleteAccount(req: Request, res: Response) {
+    if (!rateLimit(`delete:${req.userId}`, 5, 60 * 60_000)) throw new AppError(429, 'Slow down a little.');
+    const body = parse(z.object({ password: z.string().min(8).max(72) }), req.body);
+    res.json(await deleteAccount(req.userId, body.password));
+  },
+
+  async blockUser(req: Request, res: Response) {
+    const body = parse(z.object({ userId: idSchema }), req.body);
+    res.json(await blockUser(req.userId, body.userId));
+  },
+
+  async reportUser(req: Request, res: Response) {
+    if (!rateLimit(`report:${req.userId}`, 10, 60 * 60_000)) throw new AppError(429, 'Slow down a little.');
+    const body = parse(z.object({
+      userId: idSchema,
+      conversationId: idSchema.optional(),
+      reason: z.string(),
+      details: z.string().max(500).optional(),
+    }), req.body);
+    if (!isReportReason(body.reason)) throw new AppError(400, 'Pick a reason.');
+    res.status(201).json(await reportUser({
+      reporterId: req.userId,
+      reportedId: body.userId,
+      conversationId: body.conversationId,
+      reason: body.reason,
+      details: body.details ?? '',
+    }));
   },
 
   async gifs(req: Request, res: Response) {

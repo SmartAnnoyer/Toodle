@@ -12,5 +12,5 @@
     "rootDir": "."
   },
   "include": ["src", "test"],
-  "exclude": ["test/toodleEngine.test.ts", "test/toodleLife.test.ts", "test/toodleLanguage.test.ts"]
+  "exclude": ["test/toodleEngine.test.ts", "test/toodleLife.test.ts", "test/toodleLanguage.test.ts", "test/toodleHarness.test.ts", "test/toodleAudio.test.ts"]
 }

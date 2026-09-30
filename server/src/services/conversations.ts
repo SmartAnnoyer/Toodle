@@ -34,6 +34,7 @@ import {
 import { humanDuration, toPublicProfile, type ProfileRow } from './mappers.js';
 import { notify } from './notifications.js';
 import { getProfiles, presenceMap } from './profiles.js';
+import { assertNotBlocked } from './safety.js';
 
 interface InboxRow {
   conversation_id: string;
@@ -254,6 +255,7 @@ export async function getConversation(userId: string, conversationId: string) {
 
 export async function createConversation(userId: string, otherUserId: string) {
   if (userId === otherUserId) throw new AppError(400, 'Pick someone else.');
+  await assertNotBlocked(userId, otherUserId);
   const connected = await hasAcceptedConnection(userId, otherUserId);
   if (!connected) throw new AppError(403, 'Accept a ping before starting a chat.');
   const existing = await findActiveConversation(userId, otherUserId);

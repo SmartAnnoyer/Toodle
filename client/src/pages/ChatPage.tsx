@@ -31,6 +31,9 @@ export function ChatPage() {
   const [plusOpen, setPlusOpen] = useState(false);
   const [renewOpen, setRenewOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [safetyOpen, setSafetyOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('harassment');
+  const [reportDetails, setReportDetails] = useState('');
   const [tick, setTick] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
@@ -155,6 +158,32 @@ export function ChatPage() {
           </div>
           <Link to={`/chat/${id}/rules`} className="text-lg">⚙️</Link>
         </div>
+        <div className="mt-2 flex gap-3 text-xs">
+          <button type="button" className="text-muted" onClick={() => setSafetyOpen((open) => !open)}>Report or block</button>
+        </div>
+        {safetyOpen ? (
+          <div className="mt-3 rounded-2xl bg-white/10 p-3 text-sm">
+            <p className="font-semibold">Safety</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {['spam', 'harassment', 'hate', 'sexual', 'other'].map((reason) => (
+                <button key={reason} type="button" className={`rounded-full px-3 py-1 text-xs ${reportReason === reason ? 'bg-white/20' : 'bg-white/5'}`} onClick={() => setReportReason(reason)}>{reason}</button>
+              ))}
+            </div>
+            <textarea value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} maxLength={500} placeholder="What happened? Optional." className="mt-3 w-full rounded-2xl border border-line bg-transparent px-3 py-2 text-sm outline-none" />
+            <div className="mt-3 flex gap-2">
+              <Button className="px-4 py-2" onClick={() => {
+                api('/api/safety/report', { method: 'POST', body: JSON.stringify({ userId: conversation.otherUser.id, conversationId: id, reason: reportReason, details: reportDetails }) })
+                  .then(() => { toast('Report sent. We will review it.'); setSafetyOpen(false); setReportDetails(''); })
+                  .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
+              }}>Report</Button>
+              <Button variant="danger" className="px-4 py-2" onClick={() => {
+                api('/api/safety/block', { method: 'POST', body: JSON.stringify({ userId: conversation.otherUser.id }) })
+                  .then(() => { toast('Blocked. They cannot ping you.'); setSafetyOpen(false); })
+                  .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
+              }}>Block</Button>
+            </div>
+          </div>
+        ) : null}
         <AnimatePresence>
           {streakPop ? (
             <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} className="mt-2 text-center text-sm">🔥 Streak up</motion.div>

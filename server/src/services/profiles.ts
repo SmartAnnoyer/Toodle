@@ -1,6 +1,7 @@
 import { AVATARS, DEFAULT_SHORTCUTS, MOODS } from '../constants/catalog.js';
 import { db } from '../lib/db.js';
 import { AppError, throwDb } from '../lib/errors.js';
+import { blockedUserIds } from './safety.js';
 import { serverNow } from '../utils/time.js';
 import { sanitizeSearch, usernameAvailability, validateUsername } from '../utils/username.js';
 import { viewStreak, type StreakState } from '../engines/streakEngine.js';
@@ -232,7 +233,8 @@ export async function searchUsers(userId: string, rawQuery: string) {
     .or(`username.ilike.${query}%,display_name.ilike.%${query}%`)
     .limit(15);
   if (error) throwDb(error, 'search');
-  const rows = (data ?? []) as ProfileRow[];
+  const hidden = await blockedUserIds(userId);
+  const rows = ((data ?? []) as ProfileRow[]).filter((row) => !hidden.has(row.id));
   const ids = rows.map((row) => row.id);
   const [presence, conversations, requests] = await Promise.all([
     presenceMap(ids),

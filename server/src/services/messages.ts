@@ -13,6 +13,7 @@ import { expireConversation, insertSystem, loadMembers, loadRules, requireMember
 import { mapMessage, type MessageRow } from './mappers.js';
 import { notify } from './notifications.js';
 import { getProfiles } from './profiles.js';
+import { assertNotBlocked } from './safety.js';
 import { resolveExecution } from './shortcuts.js';
 
 export interface SendInput {
@@ -148,6 +149,9 @@ export async function sendMessage(userId: string, conversationId: string, input:
   }
 
   const memberIds = members.map((member) => member.user_id);
+  for (const otherId of memberIds) {
+    if (otherId !== userId) await assertNotBlocked(userId, otherId);
+  }
   const rules = await loadRules(conversationId);
   let kind = input.kind ?? 'text';
   let body = (input.body ?? '').trim();

@@ -12,6 +12,9 @@ api.use(requireUser);
 api.get('/profile/me', asyncHandler(http.me));
 api.post('/profile/setup', asyncHandler(http.setup));
 api.patch('/profile/me', asyncHandler(http.updateMe));
+api.delete('/account', asyncHandler(http.deleteAccount));
+api.post('/safety/block', asyncHandler(http.blockUser));
+api.post('/safety/report', asyncHandler(http.reportUser));
 api.get('/users/search', asyncHandler(http.search));
 
 api.get('/requests', asyncHandler(http.listRequests));

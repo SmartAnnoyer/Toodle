@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AVATARS, MOODS } from '../constants';
 import { Avatar, Button, Field, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
@@ -145,6 +145,12 @@ export function ProfilePage() {
         <Button disabled={busy} onClick={() => void save()}>Save</Button>
         <Button variant="soft" onClick={toggle}>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</Button>
         <Button variant="ghost" onClick={() => navigate('/shortcuts')}>Manage shortcuts</Button>
+        <Button variant="ghost" onClick={() => navigate('/account')}>Account and password</Button>
+        <p className="text-center text-xs text-muted">
+          <Link to="/privacy" className="underline">Privacy</Link>
+          {' · '}
+          <Link to="/terms" className="underline">Terms</Link>
+        </p>
         <Button variant="danger" onClick={() => void signOut().then(() => navigate('/welcome'))}>Log out</Button>
       </div>
     </div>

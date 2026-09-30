@@ -5,6 +5,7 @@ import { AVATARS, MOODS } from '../constants';
 import { Button, Field, Screen, Wordmark, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/http';
+import { MIN_AGE } from '../legal';
 import { supabase, supabaseConfigured } from '../lib/supabase';
 
 export function WelcomePage() {
@@ -17,6 +18,8 @@ export function WelcomePage() {
   const [usernameState, setUsernameState] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [oldEnough, setOldEnough] = useState(false);
   const [avatar, setAvatar] = useState('🦊');
   const [moodEmoji, setMoodEmoji] = useState('🫠');
   const [moodText, setMoodText] = useState('surviving');
@@ -54,7 +57,7 @@ export function WelcomePage() {
   }
 
   async function finish() {
-    if (!supabase) return;
+    if (!supabase || password !== confirmPassword || !oldEnough) return;
     setBusy(true);
     try {
       let active = session;
@@ -69,6 +72,7 @@ export function WelcomePage() {
               avatar_emoji: avatar,
               mood_emoji: moodEmoji,
               mood_text: moodText.trim(),
+              age_confirmed: true,
             },
           },
         });
@@ -99,7 +103,8 @@ export function WelcomePage() {
   }
 
   const canName = displayName.trim().length > 0;
-  const canAccount = username.trim().length >= 3 && email.includes('@') && password.length >= 8 && !usernameState.toLowerCase().includes('taken') && !usernameState.toLowerCase().includes('characters');
+  const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+  const canAccount = username.trim().length >= 3 && email.includes('@') && password.length >= 8 && password === confirmPassword && oldEnough && !usernameState.toLowerCase().includes('taken') && !usernameState.toLowerCase().includes('characters');
 
   return (
     <Screen className="app-bg overflow-y-auto px-5">
@@ -113,6 +118,11 @@ export function WelcomePage() {
               <p className="mt-3 text-lg text-muted">Talk. Play. Poof.</p>
               <Button className="mt-8 w-full" onClick={() => setStep(1)}>Let's go</Button>
               <Link to="/login" className="mt-4 text-sm text-muted">I already have a username</Link>
+              <p className="mt-6 text-xs text-muted">
+                <Link to="/privacy" className="underline">Privacy</Link>
+                {' · '}
+                <Link to="/terms" className="underline">Terms</Link>
+              </p>
             </div>
           )}
           {step === 1 && (
@@ -140,6 +150,11 @@ export function WelcomePage() {
                 <Field label="Username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="akki" hint={usernameState || '3–20 letters, numbers, underscores'} />
                 <Field label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@email.com" autoComplete="email" />
                 <Field label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" autoComplete="new-password" />
+                <Field label="Confirm password" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" hint={passwordMismatch ? 'Those passwords do not match.' : undefined} />
+                <label className="flex items-start gap-3 text-sm">
+                  <input type="checkbox" className="mt-1" checked={oldEnough} onChange={(event) => setOldEnough(event.target.checked)} />
+                  <span>I am {MIN_AGE} or older, and I agree to the <Link to="/terms" className="underline">Terms</Link> and <Link to="/privacy" className="underline">Privacy policy</Link>.</span>
+                </label>
               </div>
               <div className="mt-auto flex gap-3 pt-8">
                 <Button variant="ghost" onClick={() => setStep(1)}>Back</Button>

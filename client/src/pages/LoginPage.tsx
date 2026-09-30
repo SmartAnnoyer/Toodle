@@ -46,7 +46,13 @@ export function LoginPage() {
           <Field label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
         </div>
         <Button className="mt-8" type="submit" disabled={busy || password.length < 8}>{busy ? 'Signing in…' : 'Enter'}</Button>
-        <Link to="/welcome" className="mt-4 text-center text-sm text-muted">New here? Make a username</Link>
+        <Link to="/forgot" className="mt-4 text-center text-sm text-muted">Forgot password</Link>
+        <Link to="/welcome" className="mt-3 text-center text-sm text-muted">New here? Make a username</Link>
+        <p className="mt-6 text-center text-xs text-muted">
+          <Link to="/privacy" className="underline">Privacy</Link>
+          {' · '}
+          <Link to="/terms" className="underline">Terms</Link>
+        </p>
       </form>
     </Screen>
   );

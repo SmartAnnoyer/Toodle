@@ -6,6 +6,7 @@ import { emitToUsers } from '../socket/hub.js';
 import { activeConversationsWith } from './conversationStore.js';
 import { notify } from './notifications.js';
 import { getProfiles, toPublicProfiles } from './profiles.js';
+import { assertNotBlocked, blockedUserIds } from './safety.js';
 
 async function profileOrThrow(userId: string) {
   const profiles = await getProfiles([userId]);
@@ -16,6 +17,7 @@ async function profileOrThrow(userId: string) {
 
 export async function sendRequest(fromUserId: string, toUserId: string) {
   if (fromUserId === toUserId) throw new AppError(400, 'You cannot ping yourself.');
+  await assertNotBlocked(fromUserId, toUserId);
   const [from, to] = await Promise.all([profileOrThrow(fromUserId), profileOrThrow(toUserId)]);
   if (!to.onboarded) throw new AppError(404, 'Nobody with that username is here yet.');
 
@@ -145,7 +147,8 @@ export async function listRequests(userId: string) {
     };
   };
 
-  const mapped = rows.map(mapRow).filter((row): row is NonNullable<typeof row> => row != null);
+  const blocked = await blockedUserIds(userId);
+  const mapped = rows.map(mapRow).filter((row): row is NonNullable<typeof row> => row != null && !blocked.has(row.user.id));
   return {
     incoming: mapped.filter((row) => row.direction === 'incoming' && row.status === 'pending'),
     outgoing: mapped.filter((row) => row.direction === 'outgoing' && row.status === 'pending'),
