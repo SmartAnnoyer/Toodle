@@ -1,3 +1,4 @@
+import { onSwordFight } from '../3d/swordEvents';
 import type { ToodleBeat } from '../types';
 import { readChaos } from '../settings';
 import { voiceForAnimation } from './reactionSounds';
@@ -29,6 +30,17 @@ class ToodleAudioEngine {
     window.addEventListener('pointerdown', unlock, { passive: true });
     window.addEventListener('keydown', unlock);
     toodleSound.preload();
+    onSwordFight((hook) => {
+      const sound = hook === 'onSwordDraw' || hook === 'onSwordSheath'
+        ? 'shing'
+        : hook === 'onSwordSlash'
+          ? 'whoosh'
+          : hook === 'onSwordImpact'
+            ? 'impact'
+            : null;
+      if (!sound || readChaos() === 'off') return;
+      toodleSound.play(sound, { priority: 70, reason: hook, animation: 'sword_fight' });
+    });
   }
 
   unlock() {

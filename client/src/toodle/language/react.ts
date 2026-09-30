@@ -2,6 +2,7 @@ import { looksSerious } from '../lines';
 import type { LifeMemory } from '../life';
 import { ALL_TOODLE_REACTIONS, REACTIONS } from '../reactions/catalog';
 import { cue, type ChatReaction, type ReactionCue, type ReactionLevel } from '../reactions/types';
+import { swordFightCues } from '../reactions/sword';
 import { suitcase } from '../reactions/travel';
 import type { ChaosLevel, ToodleBeat } from '../types';
 import { timelineFor } from '../audio/reactionSounds';
@@ -20,6 +21,7 @@ const SURE = new Set([
   'birthday', 'cancel', 'deadline', 'exam', 'food', 'doing', 'where',
   'wellbeing', 'bike', 'outside', 'movie',
   'pspk', 'megastar', 'amma', 'nanna',
+  'og_sword_fight', 'og-mass-sword', 'og-fight-sword', 'mass-sword', 'og-sword', 'fight-sword',
 ]);
 
 const LISTEN_LINES = [
@@ -73,6 +75,16 @@ function gapScale(chaos: ChaosLevel): number {
   if (chaos === 'quiet') return 0.45;
   if (chaos === 'full') return 1.2;
   return 1;
+}
+
+function swordLocked(reactionId?: string) {
+  return reactionId === 'og_sword_fight'
+    || reactionId === 'fight_invite'
+    || reactionId === 'og-mass-sword'
+    || reactionId === 'og-fight-sword'
+    || reactionId === 'mass-sword'
+    || reactionId === 'og-sword'
+    || reactionId === 'fight-sword';
 }
 
 function toBeats(items: ReactionCue[], score: number, reactionId?: string): ToodleBeat[] {
@@ -233,6 +245,9 @@ function comboCues(id: string): ReactionCue[] {
   if (id === 'rapido-driver') {
     return [cue('2 mins bro.', 'run', 'excited', { prop: 'helmet', ms: 1200 })];
   }
+  if (id === 'og-mass-sword' || id === 'og-fight-sword' || id === 'mass-sword' || id === 'og-sword' || id === 'fight-sword') {
+    return swordFightCues();
+  }
   if (id === 'romantic-blush') {
     return [
       cue('Ohhh... 👀', 'blush', 'blushing', { prop: 'heart', ms: 1100 }),
@@ -242,7 +257,7 @@ function comboCues(id: string): ReactionCue[] {
   return [cue(undefined, 'confused', 'confused', { prop: 'coffee', ms: 1400, mood: 'dramatic' })];
 }
 
-const COMBOS: { id: string; need: string[]; level: ReactionLevel }[] = [
+const COMBOS: { id: string; need: string[]; level: ReactionLevel; cooldownMs?: number; probability?: number }[] = [
   { id: 'trip-plan-cancel', need: ['trip', 'plan', 'cancel'], level: 4 },
   { id: 'trip-cancel', need: ['trip', 'cancel'], level: 4 },
   { id: 'movie-cancel', need: ['movie', 'cancel'], level: 4 },
@@ -253,6 +268,11 @@ const COMBOS: { id: string; need: string[]; level: ReactionLevel }[] = [
   { id: 'romantic-blush', need: ['romance', 'heroine'], level: 4 },
   { id: 'sick-office', need: ['fever', 'office'], level: 4 },
   { id: 'headache-office', need: ['headache', 'office'], level: 4 },
+  { id: 'og-mass-sword', need: ['og', 'mass'], level: 4, cooldownMs: 180_000, probability: 0.9 },
+  { id: 'og-fight-sword', need: ['og', 'fight'], level: 4, cooldownMs: 180_000, probability: 0.9 },
+  { id: 'mass-sword', need: ['mass', 'sword'], level: 4, cooldownMs: 180_000, probability: 0.95 },
+  { id: 'og-sword', need: ['og', 'sword'], level: 4, cooldownMs: 180_000, probability: 0.95 },
+  { id: 'fight-sword', need: ['fight', 'sword'], level: 4, cooldownMs: 180_000, probability: 0.95 },
 ];
 
 function combinations(current: Set<string>, recent: Set<string>): Pick[] {
@@ -263,8 +283,8 @@ function combinations(current: Set<string>, recent: Set<string>): Pick[] {
       categories: item.need,
       level: item.level,
       specificity: 1000 + item.need.length,
-      probability: 0.72,
-      cooldownMs: 90_000,
+      probability: item.probability ?? 0.72,
+      cooldownMs: item.cooldownMs ?? 90_000,
       combo: true,
       build: () => comboCues(item.id),
     }));
@@ -652,6 +672,7 @@ function commit(memory: LifeMemory, pick: Pick, now: number, beats: ToodleBeat[]
   memory.lastListenAt = now;
   memory.categoryAt.set(coolKey(userId, pick.id), now);
   for (const category of pick.categories) memory.categoryAt.set(coolKey(userId, category), now);
+  if (swordLocked(pick.id)) memory.categoryAt.set(coolKey(userId, 'sword'), now);
   if (pick.categories.includes('name')) memory.namePingAt = now;
   if (pick.level >= 3) memory.majorAt.push(now);
 }
@@ -780,7 +801,8 @@ export function explainToodleReaction(
         blocked.push({ id: pick.id, reason: 'budget', remainingMs: 0 });
         return false;
       }
-      const keys = pick.combo ? [pick.id] : pick.categories;
+      const keys = pick.combo ? [pick.id] : [...pick.categories];
+      if (swordLocked(pick.id) && !keys.includes('sword')) keys.push('sword');
       for (const category of keys) {
         const gate = cooled(memory, userId, category, now, pick.cooldownMs);
         if (!gate.ok) {
@@ -826,7 +848,7 @@ export function explainToodleReaction(
       }
     }
     const built = winner.build(random);
-    const beats = toBeats(built, levelScore(winner.level) + (winner.combo ? 4 : 0), winner.id);
+    const beats = toBeats(built, swordLocked(winner.id) ? 86 : levelScore(winner.level) + (winner.combo ? 4 : 0), winner.id);
     commit(memory, winner, now, beats, userId);
     return done({ message: text, normalized, detected, selected: winner.id, status: 'played', reason: null, remainingMs: null, beats });
   }

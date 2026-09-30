@@ -5,6 +5,7 @@ import { MICRO } from './micro';
 import { OFFICE } from './office';
 import { PEOPLE } from './people';
 import { RELATIONSHIPS } from './relationships';
+import { SWORD } from './sword';
 import { TELUGU } from './telugu';
 import { TRAVEL } from './travel';
 import type { ChatReaction } from './types';
@@ -20,6 +21,7 @@ export const ALL_TOODLE_REACTIONS: ChatReaction[] = [
   ...TELUGU,
   ...MICRO,
   ...PEOPLE,
+  ...SWORD,
 ];
 
 export const REACTIONS = ALL_TOODLE_REACTIONS;

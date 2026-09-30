@@ -33,31 +33,56 @@ function beat(partial: Partial<ToodleBeat> & Pick<ToodleBeat, 'animation' | 'pos
   return { event: 'HEARD', spot: 'composer', ...partial };
 }
 
-/** Rare OG-only lines. Existing chat detection still runs first. */
+function mentions(flat: string, phrase: string) {
+  return hasPhrase(flat, phrase);
+}
+
+/** Sword words and OG/mass/fight pairings belong to the reaction engine. */
+export function ogSwordCombo(text: string) {
+  const flat = flattenOgText(text);
+  const og = mentions(flat, 'og');
+  const mass = mentions(flat, 'mass') || mentions(flat, 'too mass');
+  const fight = mentions(flat, 'fight') || mentions(flat, 'fighting') || mentions(flat, 'fight cheddam') || mentions(flat, 'fight cheddham');
+  const sword = mentions(flat, 'sword') || mentions(flat, 'katana') || mentions(flat, 'sword fight') || mentions(flat, 'swordfight');
+  if (sword) return true;
+  return (og && mass) || (og && fight) || (fight && sword);
+}
+
+/** Rare OG-only lines. Sword phrases and OG combinations are left for the reaction engine. */
 export function ogMassReaction(text: string, now: number, random: number, cooledUntil: number): { beats: ToodleBeat[]; until: number } | null {
+  if (ogSwordCombo(text)) return null;
   if (now < cooledUntil || random > 0.85) return null;
   const phrase = ogMassPhrase(text);
   if (!phrase) return null;
+  const hype = phrase === 'mass' || phrase === 'og' || phrase === 'mass ra' || phrase === 'mass bro';
+  if (hype && random > 0.73) {
+    return {
+      until: now + 180_000,
+      beats: [
+        beat({
+          animation: 'sword_fight',
+          pose: 'dramatic',
+          line: 'Mass. 😎',
+          ms: 4800,
+          priority: 86,
+          prop: 'katana',
+          reactionId: 'og_sword_fight',
+        }),
+      ],
+    };
+  }
   return {
     until: now + 45_000,
     beats: [
-      beat({ animation: 'dramatic', pose: 'dramatic', ms: 320, priority: 72, reactionId: 'og-mass' }),
+      beat({ animation: 'dramatic', pose: 'dramatic', ms: 700, priority: 58, prop: 'sunglasses', reactionId: 'og-mass' }),
       beat({
-        animation: 'sword',
-        pose: 'dramatic',
+        animation: 'walk',
+        pose: 'suspicious',
         line: 'Obviously.',
-        ms: 2500,
-        priority: 72,
-        prop: 'katana',
+        ms: 1200,
+        priority: 58,
+        prop: 'sunglasses',
         reactionId: 'og-mass',
-        timeline: [
-          { at: 80, sound: 'shing' },
-          { at: 520, sound: 'whoosh' },
-          { at: 780, sound: 'impact' },
-          { at: 1280, sound: 'whoosh' },
-          { at: 1480, sound: 'impact' },
-          { at: 2100, sound: 'shing' },
-        ],
       }),
     ],
   };

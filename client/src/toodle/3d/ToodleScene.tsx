@@ -9,16 +9,18 @@ import { ToodleModel } from './ToodleModel';
 function CameraRig({
   controller,
   glance,
+  animation,
   onPlace,
 }: {
   controller: ToodleAnimationController;
   glance: 'left' | 'right' | 'center';
+  animation: string | null;
   onPlace?: (x: number) => void;
 }) {
   useFrame((state, dt) => {
     controller.setHalfWidth(state.viewport.width / 2);
     controller.setGlance(glance);
-    followToodle(state.camera, dt);
+    followToodle(state.camera, dt, controller.focusX, animation === 'sword_fight' ? 5.45 : 4.7);
     if (!onPlace || controller.halfW <= 0) return;
     const norm = (controller.focusX / controller.halfW + 1) / 2;
     onPlace(Math.min(0.9, Math.max(0.1, norm)));
@@ -57,7 +59,7 @@ export default function ToodleScene({
       dpr={[1, 1.5]}
       frameloop={paused ? 'demand' : 'always'}
       gl={{ alpha: true, antialias: true, premultipliedAlpha: false, powerPreference: 'high-performance' }}
-      camera={{ position: [0, 1.05, 4.7], fov: 30, near: 0.1, far: 30 }}
+      camera={{ position: [0, 1.12, 4.7], fov: 30, near: 0.1, far: 30 }}
       style={{ width: '100%', height: '100%', background: 'transparent', pointerEvents: 'none', touchAction: 'auto' }}
       onCreated={({ gl, scene }) => {
         scene.background = null;
@@ -66,7 +68,7 @@ export default function ToodleScene({
       }}
     >
       <ToodleLighting />
-      <CameraRig controller={controller} glance={glance} onPlace={onPlace} />
+      <CameraRig controller={controller} glance={glance} animation={animation} onPlace={onPlace} />
       <ToodleModel controller={controller} danceStyle={danceStyle} prop={prop} listening={listening} reduced={reduced} />
     </Canvas>
   );

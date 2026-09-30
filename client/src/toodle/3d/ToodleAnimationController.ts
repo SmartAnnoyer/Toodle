@@ -519,6 +519,136 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
       });
     },
   },
+  sword_fight: {
+    duration: 4.8,
+    loop: false,
+    sample: (t) => {
+      const idle = pose({
+        head: { rx: -0.06, ry: 0 },
+        armL: { rz: 0.12 },
+        armR: { rz: -0.12 },
+        foreL: { rx: -0.15 },
+        foreR: { rx: -0.15 },
+      });
+      const notice = pose({
+        head: { rx: -0.12, ry: 0 },
+        spine: { rx: -0.05 },
+        armL: { rz: 0.16 },
+        armR: { rx: -0.25, rz: -0.2 },
+      });
+      const reach = pose({
+        head: { rx: -0.06, ry: -0.15 },
+        root: { ry: 0.4 },
+        hips: { ry: 0.12 },
+        spine: { ry: 0.18, rx: 0.05 },
+        armR: { rx: 1.05, rz: -0.3 },
+        foreR: { rx: -0.9 },
+        armL: { rx: -0.35, rz: 0.5 },
+        legL: { rx: -0.08 },
+        legR: { rx: 0.16 },
+      });
+      const drawn = pose({
+        head: { rx: -0.08, ry: 0 },
+        root: { ry: -0.12, y: 0.03 },
+        spine: { ry: -0.22, rx: -0.04 },
+        armR: { rx: -1.65, rz: -0.4 },
+        foreR: { rx: -0.3 },
+        armL: { rx: -0.45, rz: 0.4 },
+        legL: { rx: -0.18 },
+        legR: { rx: 0.26 },
+        shinR: { rx: 0.12 },
+      });
+      const slash = pose({
+        head: { rx: -0.06, ry: 0.12 },
+        root: { ry: 0.5, y: 0.04 },
+        hips: { ry: 0.16 },
+        spine: { ry: 0.4, rx: 0.04 },
+        armR: { rx: -1.1, rz: 1.1 },
+        foreR: { rx: -0.15 },
+        armL: { rx: -0.2, rz: -0.35 },
+        legL: { rx: 0.22 },
+        legR: { rx: -0.12 },
+      });
+      const reverse = pose({
+        head: { rx: -0.07, ry: -0.08 },
+        root: { ry: -0.42, y: 0.02 },
+        spine: { ry: -0.35 },
+        armR: { rx: -1.3, rz: -1.15 },
+        foreR: { rx: -0.2 },
+        armL: { rx: -0.25, rz: 0.65 },
+        legR: { rx: 0.32 },
+        legL: { rx: -0.08 },
+      });
+      const spin = pose({
+        head: { rx: -0.05, ry: 0.15 },
+        root: { ry: Math.PI * 1.2, y: 0.04 },
+        hips: { ry: 0.25 },
+        spine: { ry: 0.15 },
+        armR: { rx: -1.45, rz: -0.35 },
+        foreR: { rx: -0.18 },
+        armL: { rx: -0.75, rz: 0.45 },
+        legL: { rx: -0.3 },
+        legR: { rx: 0.38 },
+        shinL: { rx: 0.18 },
+        shinR: { rx: 0.22 },
+      });
+      const diagonal = pose({
+        head: { rx: 0.04, ry: 0 },
+        root: { ry: 0.22, y: -0.03 },
+        spine: { rx: 0.26, ry: 0.18 },
+        armR: { rx: -0.5, rz: 0.8 },
+        foreR: { rx: -0.65 },
+        armL: { rx: -0.35, rz: 0.28 },
+        legL: { rx: 0.32 },
+        shinL: { rx: 0.4 },
+        legR: { rx: 0.18 },
+        shinR: { rx: 0.25 },
+      });
+      const finale = pose({
+        head: { rx: 0.1, ry: 0 },
+        root: { ry: 0.16, y: -0.02 },
+        hips: { ry: 0.06 },
+        spine: { ry: 0.2, rx: 0.06 },
+        armR: { rx: -1.5, rz: -0.8 },
+        foreR: { rx: -0.22 },
+        armL: { rx: -0.65, rz: 0.5 },
+        legL: { rx: -0.16, rz: 0.08 },
+        legR: { rx: 0.3 },
+        shinL: { rx: 0.18 },
+        shinR: { rx: 0.26 },
+      });
+      const look = pose({
+        head: { rx: -0.1, ry: 0 },
+        root: { ry: 0.06, y: -0.01 },
+        spine: { ry: 0.1 },
+        armR: { rx: -1.45, rz: -0.75 },
+        foreR: { rx: -0.2 },
+        armL: { rx: -0.85, rz: 0.25 },
+        legL: { rx: -0.12 },
+        legR: { rx: 0.24 },
+        shinR: { rx: 0.16 },
+      });
+      const sheath = pose({
+        head: { rx: -0.08, ry: 0 },
+        root: { ry: 0.28 },
+        spine: { ry: 0.1 },
+        armR: { rx: 0.95, rz: -0.25 },
+        foreR: { rx: -0.85 },
+        armL: { rx: -1.15, rz: 0.15 },
+      });
+      if (t < 0.5) return lerpPose(idle, notice, smooth(t / 0.5));
+      if (t < 1) return lerpPose(notice, reach, smooth((t - 0.5) / 0.5));
+      if (t < 1.55) return lerpPose(reach, drawn, smooth((t - 1) / 0.4));
+      if (t < 2.15) return lerpPose(drawn, slash, smooth((t - 1.55) / 0.3));
+      if (t < 2.7) return lerpPose(slash, reverse, smooth((t - 2.15) / 0.28));
+      if (t < 3.35) return lerpPose(reverse, spin, smooth((t - 2.7) / 0.4));
+      if (t < 3.85) return lerpPose(spin, diagonal, smooth((t - 3.35) / 0.25));
+      if (t < 4.15) return lerpPose(diagonal, finale, smooth((t - 3.85) / 0.18));
+      if (t < 4.4) return lerpPose(finale, look, smooth((t - 4.15) / 0.16));
+      if (t < 4.6) return lerpPose(look, sheath, smooth((t - 4.4) / 0.16));
+      return lerpPose(sheath, idle, smooth((t - 4.6) / 0.2));
+    },
+  },
   sword: {
     duration: 2.5,
     loop: false,
@@ -672,6 +802,7 @@ export interface AnimationFrame {
   expression: ToodleExpression;
   blink: number;
   wink: boolean;
+  time: number;
   state: ToodleCharacterState;
 }
 
@@ -759,6 +890,13 @@ export class ToodleAnimationController {
     const live = CLIPS[clipKey] ?? clip;
     const fromClip = CLIPS[this.from] ?? CLIPS.idle;
     const mixed = lerpPose(fromClip.sample(this.fromTime, this.style), live.sample(this.time, this.style), smooth(this.blend));
+    const turn = this.current === 'walkAway' || this.current === 'spin' || this.current === 'buttWiggle' || this.current === 'sword_fight';
+    if (!turn) {
+      mixed.root.ry = 0;
+      mixed.hips.ry = 0;
+      mixed.spine.ry = 0;
+      mixed.head.ry = 0;
+    }
     const margin = 0.9;
     const left = -this.halfW + margin;
     const right = this.halfW - margin;
@@ -771,6 +909,7 @@ export class ToodleAnimationController {
       expression,
       blink: options.reduced ? 0 : this.blink,
       wink: this.current === 'wink',
+      time: this.time,
       state: {
         position: { x: mixed.root.x, y: mixed.root.y, z: mixed.root.z },
         rotation: { x: mixed.root.rx, y: mixed.root.ry, z: mixed.root.rz },

@@ -5,9 +5,10 @@ import type { DanceStyle, ToodleProp } from '../animations';
 
 const ToodleScene = lazy(() => import('./ToodleScene'));
 
-const ROOMY = new Set(['walk', 'run', 'dance', 'hide', 'peek', 'walkAway', 'fall', 'jump', 'spin', 'celebrate', 'dramatic', 'sword']);
+const ROOMY = new Set(['walk', 'run', 'dance', 'hide', 'peek', 'walkAway', 'fall', 'jump', 'spin', 'celebrate', 'dramatic', 'sword', 'sword_fight']);
 
 function stageHeight(animation?: string | null) {
+  if (animation === 'sword_fight') return 'clamp(12rem, 36dvh, 16rem)';
   if (animation && ROOMY.has(animation)) return 'clamp(11rem, 32dvh, 14rem)';
   if (animation) return 'clamp(9.5rem, 26dvh, 12rem)';
   return 'clamp(8.75rem, 22dvh, 10.5rem)';

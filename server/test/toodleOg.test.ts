@@ -14,6 +14,29 @@ test('og phrasing stays on whole words and does not replace a trip', () => {
   assert.equal(dressed.prop, 'suitcase');
 });
 
+test('sword fight stays on the same character and respects cooldown', () => {
+  const sword = hearMessage('sword', freshMemory(), 0, 'normal', () => 0);
+  assert.equal(sword?.[0]?.animation, 'sword_fight');
+  assert.equal(sword?.[0]?.prop, 'katana');
+  assert.equal(sword?.[0]?.line, 'Mass. 😎');
+  const again = hearMessage('katana', freshMemory(), 1_000, 'normal', () => 0);
+  assert.equal(again?.[0]?.animation, 'sword_fight');
+  const cooled = freshMemory();
+  hearMessage('sword', cooled, 0, 'normal', () => 0);
+  assert.equal(hearMessage('sword fight', cooled, 5_000, 'normal', () => 0), null);
+
+  const fight = hearMessage('fight', freshMemory(), 0, 'normal', () => 0);
+  assert.equal(fight?.[0]?.animation, 'sword_fight');
+  assert.equal(hearMessage('fighting', freshMemory(), 0, 'normal', () => 0.9), null);
+
+  const og = hearMessage('og', freshMemory(), 0, 'normal', () => 0.5);
+  assert.notEqual(og?.[0]?.animation, 'sword_fight');
+  const mass = hearMessage('mass', freshMemory(), 0, 'normal', () => 0);
+  assert.notEqual(mass?.[0]?.animation, 'sword_fight');
+  const combo = hearMessage('og mass', freshMemory(), 0, 'normal', () => 0);
+  assert.equal(combo?.[0]?.animation, 'sword_fight');
+});
+
 test('og mass is rare and a name flourish stays on cooldown', () => {
   const hit = ogMassReaction('mass ra', 0, 0, 0);
   assert.equal(hit?.beats[1]?.line, 'Obviously.');

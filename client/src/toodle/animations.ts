@@ -29,7 +29,8 @@ export type ToodleAnimation =
   | 'listen'
   | 'wave'
   | 'secret'
-  | 'sword';
+  | 'sword'
+  | 'sword_fight';
 
 export type ToodleSize = 'small' | 'medium' | 'large';
 export type ToodlePosition = 'floating' | 'inline' | 'peek';

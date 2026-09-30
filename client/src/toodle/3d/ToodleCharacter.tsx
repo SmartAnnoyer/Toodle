@@ -6,7 +6,9 @@ import { toodleAudio } from '../audio/ToodleAudioEngine';
 import type { DanceStyle, ToodleProp } from '../animations';
 import { ToodleAnimationController, type BoneName } from './ToodleAnimationController';
 import { faceFor } from './ToodleExpressionController';
+import { emitSwordFight, type SwordFightHook } from './swordEvents';
 import { propAnchor, ToodlePropMesh } from './ToodleProps';
+import { SwordSheath, ToodleSword } from './ToodleSword';
 import type { ToodleCharacterState, ToodleExpression } from './state';
 
 function Cloth({ color = '#141414' }: { color?: string }) {
@@ -18,7 +20,26 @@ function Skin() {
 }
 
 function Hair() {
-  return <meshStandardMaterial color="#16110f" roughness={0.46} metalness={0.08} />;
+  return <meshStandardMaterial color="#120e0c" roughness={0.62} metalness={0.04} />;
+}
+
+function Spike({
+  position,
+  rotation,
+  radius = 0.05,
+  height = 0.2,
+}: {
+  position: [number, number, number];
+  rotation: [number, number, number];
+  radius?: number;
+  height?: number;
+}) {
+  return (
+    <mesh position={position} rotation={rotation}>
+      <coneGeometry args={[radius, height, 5]} />
+      <Hair />
+    </mesh>
+  );
 }
 
 function Gold() {
@@ -70,9 +91,14 @@ export function ToodleCharacter({
   const shades = useRef<Group>(null);
   const scarf = useRef<Mesh>(null);
   const sheath = useRef<Group>(null);
+  const sheathed = useRef<Group>(null);
+  const emptySheath = useRef<Group>(null);
+  const handSword = useRef<Group>(null);
   const arc = useRef<Mesh>(null);
+  const sparks = useRef<Group>(null);
   const swordClock = useRef(0);
   const swordOn = useRef(false);
+  const swordMarks = useRef({ draw: false, sheath: false, complete: false, slashes: 0, impacts: 0 });
   const bones: Record<BoneName, RefObject<Group>> = {
     root, hips, spine, head, armL, armR, foreL, foreR, legL, legR, shinL, shinR,
   };
@@ -87,13 +113,14 @@ export function ToodleCharacter({
       if (!group) return;
       const part = frame.pose[name];
       if (name === 'root') group.position.set(part.x, part.y, part.z);
+      if (group.rotation.order !== 'YXZ') group.rotation.order = 'YXZ';
       group.rotation.set(part.rx, part.ry, part.rz);
     });
     const breathe = reduced ? 1 : 1 + Math.sin(performance.now() / 520) * 0.012;
     const fit = 0.98;
     if (hips.current) hips.current.scale.set(fit, breathe * fit, fit);
     const face = faceFor(frame.expression, frame.blink, frame.wink);
-    const turnAway = frame.state.animation === 'walkAway' || frame.state.animation === 'peek' || frame.state.animation === 'spin' || frame.state.animation === 'buttWiggle';
+    const turnAway = frame.state.animation === 'walkAway' || frame.state.animation === 'spin' || frame.state.animation === 'buttWiggle' || frame.state.animation === 'sword_fight';
     if (!turnAway) {
       if (root.current) root.current.rotation.y = 0;
       if (hips.current) hips.current.rotation.y = 0;
@@ -107,8 +134,8 @@ export function ToodleCharacter({
     const rightY = Math.max(0.55, (frame.wink ? 0.2 : face.narrow) * (1 - rightShut * 0.75));
     if (eyeL.current) eyeL.current.scale.set(1, leftY, 1);
     if (eyeR.current) eyeR.current.scale.set(1, rightY, 1);
-    if (pupilL.current) pupilL.current.position.x = face.pupilX * 0.012;
-    if (pupilR.current) pupilR.current.position.x = face.pupilX * 0.012;
+    if (pupilL.current) pupilL.current.position.x = 0;
+    if (pupilR.current) pupilR.current.position.x = 0;
     const crying = frame.expression === 'sad' || frame.state.animation === 'cry';
     const open = face.mouthOpen > 0.65;
     if (smile.current) {
@@ -150,29 +177,80 @@ export function ToodleCharacter({
       const bare = prop !== 'sunglasses' && prop !== 'glasses' && (BARE_FACE.has(frame.expression) || frame.state.animation === 'cry' || frame.state.animation === 'sleep');
       const glide = Math.min(1, dt * 8);
       const y = bare ? -0.1 : 0.055;
+      const notice = frame.state.animation === 'sword_fight' && frame.time < 0.55;
       const rx = bare ? 0.62 : 0.04 + (frame.state.animation === 'idle' ? Math.sin(performance.now() / 1300) * 0.05 : 0);
+      const rz = notice ? 0.22 : 0;
       shades.current.position.y += (y - shades.current.position.y) * glide;
       shades.current.rotation.x += (rx - shades.current.rotation.x) * glide;
+      shades.current.rotation.z += (rz - shades.current.rotation.z) * glide;
     }
     if (scarf.current && !reduced) scarf.current.rotation.z = 0.55 + Math.sin(performance.now() / 680) * 0.12;
-    if (sheath.current) sheath.current.visible = prop !== 'katana';
-    if (frame.state.animation === 'sword') {
-      if (!swordOn.current) swordClock.current = 0;
+    const fight = frame.state.animation === 'sword_fight';
+    const flourish = frame.state.animation === 'sword' && prop === 'katana';
+    const drawn = flourish || (fight && frame.time >= 1 && frame.time < 4.45);
+    if (handSword.current) handSword.current.visible = drawn;
+    if (sheathed.current) sheathed.current.visible = !drawn;
+    if (emptySheath.current) emptySheath.current.visible = drawn;
+    if (frame.state.animation === 'sword' || fight) {
+      if (!swordOn.current) {
+        swordClock.current = 0;
+        swordMarks.current = { draw: false, sheath: false, complete: false, slashes: 0, impacts: 0 };
+      }
       swordOn.current = true;
-      swordClock.current += dt;
+      swordClock.current = fight ? frame.time : swordClock.current + dt;
     } else {
       swordOn.current = false;
       swordClock.current = 0;
     }
+    if (fight) {
+      const marks = swordMarks.current;
+      const once = (flag: 'draw' | 'sheath' | 'complete', hook: SwordFightHook, at: number) => {
+        if (marks[flag] || frame.time < at) return;
+        marks[flag] = true;
+        emitSwordFight(hook);
+      };
+      once('draw', 'onSwordDraw', 1.05);
+      const slashAt = [1.7, 2.55, 3.4];
+      const impactAt = [1.95, 2.8, 3.65];
+      if (marks.slashes < slashAt.length && frame.time >= slashAt[marks.slashes]) {
+        marks.slashes += 1;
+        emitSwordFight('onSwordSlash');
+      }
+      if (marks.impacts < impactAt.length && frame.time >= impactAt[marks.impacts]) {
+        marks.impacts += 1;
+        emitSwordFight('onSwordImpact');
+      }
+      once('sheath', 'onSwordSheath', 4.45);
+      once('complete', 'onSwordComplete', 4.75);
+    }
     if (arc.current) {
       const t = swordClock.current;
-      const slash = Math.sin(Math.min(1, Math.max(0, (t - 0.62) / 0.4)) * Math.PI);
-      const chop = Math.sin(Math.min(1, Math.max(0, (t - 1.32) / 0.36)) * Math.PI);
-      const flash = Math.max(slash, chop);
+      const windows = fight
+        ? [[1.55, 0.55], [2.15, 0.5], [2.7, 0.6], [3.35, 0.45]]
+        : [[0.62, 0.4], [1.32, 0.36]];
+      let flash = 0;
+      let spin = 0;
+      windows.forEach(([start, span], index) => {
+        const wave = Math.sin(Math.min(1, Math.max(0, (t - start) / span)) * Math.PI);
+        if (wave > flash) {
+          flash = wave;
+          spin = index;
+        }
+      });
       arc.current.visible = flash > 0.08;
-      arc.current.rotation.z = slash >= chop ? -1.2 + slash * 2.3 : 0.4 - chop * 1.1;
-      arc.current.scale.setScalar(0.8 + flash * 0.55);
-      (arc.current.material as { opacity: number }).opacity = flash * 0.95;
+      arc.current.rotation.z = spin % 2 === 0 ? -1.15 + flash * 2.2 : 1.1 - flash * 2;
+      arc.current.scale.setScalar(0.75 + flash * 0.6);
+      (arc.current.material as { opacity: number }).opacity = flash * 0.9;
+      if (sparks.current) {
+        sparks.current.visible = flash > 0.35;
+        sparks.current.rotation.z = arc.current.rotation.z;
+        const bits = sparks.current.children;
+        bits.forEach((bit, index) => {
+          bit.position.set(Math.cos(index) * 0.18 * flash, Math.sin(index * 1.7) * 0.12 * flash, 0.02);
+          const material = (bit as Mesh).material as { opacity: number };
+          material.opacity = flash * 0.8;
+        });
+      }
     }
   });
 
@@ -234,25 +312,41 @@ export function ToodleCharacter({
           </mesh>
 
           <group ref={head} position={[0, 0.58, 0.02]}>
-            <mesh position={[0, 0.15, -0.03]} scale={[1.06, 0.74, 1]}>
-              <sphereGeometry args={[0.4, 18, 14]} />
+            <mesh position={[0, 0.17, -0.05]} scale={[1.05, 0.58, 0.9]}>
+              <sphereGeometry args={[0.34, 16, 12]} />
               <Hair />
             </mesh>
-            <mesh position={[0.13, 0.2, 0.02]} scale={[0.48, 0.34, 0.46]}>
-              <sphereGeometry args={[0.26, 12, 10]} />
+            <Spike position={[-0.1, 0.42, -0.02]} rotation={[-0.25, 0, 0.55]} radius={0.055} height={0.26} />
+            <Spike position={[0.02, 0.48, -0.01]} rotation={[-0.15, 0, -0.12]} radius={0.048} height={0.2} />
+            <Spike position={[0.14, 0.4, 0]} rotation={[-0.08, 0, -0.7]} radius={0.05} height={0.22} />
+            <Spike position={[-0.2, 0.3, 0.02]} rotation={[0.05, 0, 1.05]} radius={0.042} height={0.18} />
+            <Spike position={[0.2, 0.28, 0.03]} rotation={[0.08, 0, -1]} radius={0.04} height={0.16} />
+            <Spike position={[0, 0.36, -0.16]} rotation={[0.7, 0, 0.05]} radius={0.048} height={0.18} />
+            <Spike position={[-0.12, 0.32, -0.14]} rotation={[0.85, 0.15, 0.4]} radius={0.04} height={0.16} />
+            <Spike position={[0.12, 0.3, -0.13]} rotation={[0.75, -0.1, -0.35]} radius={0.038} height={0.15} />
+            <mesh position={[-0.03, 0.22, 0.32]} rotation={[2.2, 0.08, 0.5]}>
+              <coneGeometry args={[0.072, 0.22, 5]} />
               <Hair />
             </mesh>
-            <mesh position={[-0.13, 0.19, 0.02]} scale={[0.46, 0.32, 0.44]}>
-              <sphereGeometry args={[0.26, 12, 10]} />
+            <mesh position={[0.09, 0.2, 0.33]} rotation={[2.35, -0.05, -0.15]}>
+              <coneGeometry args={[0.048, 0.15, 5]} />
+              <Hair />
+            </mesh>
+            <mesh position={[-0.14, 0.18, 0.3]} rotation={[2.1, 0.12, 0.75]}>
+              <coneGeometry args={[0.036, 0.12, 5]} />
+              <Hair />
+            </mesh>
+            <mesh position={[-0.3, -0.02, 0.14]} rotation={[0.1, 0.1, 0.18]}>
+              <capsuleGeometry args={[0.034, 0.2, 4, 6]} />
+              <Hair />
+            </mesh>
+            <mesh position={[0.29, 0.02, 0.16]} rotation={[0.06, -0.08, -0.16]}>
+              <capsuleGeometry args={[0.03, 0.14, 4, 6]} />
               <Hair />
             </mesh>
             <mesh>
               <sphereGeometry args={[0.34, 24, 18]} />
               <Skin />
-            </mesh>
-            <mesh position={[0, 0.16, 0.22]} scale={[1.2, 0.22, 0.28]}>
-              <sphereGeometry args={[0.15, 10, 8]} />
-              <Hair />
             </mesh>
             <mesh position={[0, -0.01, 0.31]}>
               <sphereGeometry args={[0.022, 8, 8]} />
@@ -378,32 +472,33 @@ export function ToodleCharacter({
                 <sphereGeometry args={[0.05, 10, 8]} />
                 <Skin />
               </mesh>
-              {slot === 'hand' && prop ? <group position={[0, -0.2, 0.02]}><ToodlePropMesh prop={prop} /></group> : null}
+              {slot === 'hand' && prop && prop !== 'katana' ? <group position={[0, -0.2, 0.02]}><ToodlePropMesh prop={prop} /></group> : null}
+              <group ref={handSword} position={[0, -0.18, 0.02]} rotation={[0.25, 0.55, -1.05]} visible={false}>
+                <ToodleSword drawn />
+              </group>
             </group>
           </group>
 
           <mesh ref={arc} position={[0.02, 0.34, 0.24]} visible={false}>
-            <torusGeometry args={[0.4, 0.016, 6, 22, Math.PI * 0.95]} />
-            <meshStandardMaterial color="#ff3b3b" emissive="#ff1f1f" emissiveIntensity={2.2} transparent opacity={0} depthWrite={false} />
+            <torusGeometry args={[0.34, 0.012, 6, 20, Math.PI * 0.9]} />
+            <meshStandardMaterial color="#9b1c24" emissive="#7a1218" emissiveIntensity={1.4} transparent opacity={0} depthWrite={false} />
           </mesh>
+          <group ref={sparks} position={[0.02, 0.34, 0.28]} visible={false}>
+            {[0, 1, 2, 3].map((index) => (
+              <mesh key={index}>
+                <sphereGeometry args={[0.012, 6, 6]} />
+                <meshStandardMaterial color={index % 2 ? '#d4a85a' : '#c4373a'} emissive={index % 2 ? '#d4a85a' : '#c4373a'} emissiveIntensity={1.2} transparent opacity={0} depthWrite={false} />
+              </mesh>
+            ))}
+          </group>
           {slot === 'back' && prop ? <ToodlePropMesh prop={prop} /> : null}
-          <group ref={sheath} position={[0.16, 0.22, -0.18]} rotation={[0.25, 0.1, -0.8]}>
-            <mesh position={[0, -0.16, 0]}>
-              <capsuleGeometry args={[0.022, 0.32, 4, 8]} />
-              <meshStandardMaterial color="#1a1a1a" roughness={0.38} metalness={0.4} />
-            </mesh>
-            <mesh position={[0, 0.04, 0]}>
-              <boxGeometry args={[0.07, 0.016, 0.028]} />
-              <Gold />
-            </mesh>
-            <mesh position={[0, 0.12, 0]}>
-              <cylinderGeometry args={[0.016, 0.018, 0.1, 8]} />
-              <meshStandardMaterial color="#2a1214" roughness={0.45} />
-            </mesh>
-            <mesh position={[0, 0.08, 0]}>
-              <torusGeometry args={[0.018, 0.005, 6, 8]} />
-              <meshStandardMaterial color="#E32626" roughness={0.4} />
-            </mesh>
+          <group ref={sheath} position={[0.16, 0.22, -0.16]} rotation={[0.35, 0.15, -0.7]} scale={0.85}>
+            <group ref={sheathed}>
+              <ToodleSword drawn={false} />
+            </group>
+            <group ref={emptySheath} visible={false}>
+              <SwordSheath />
+            </group>
           </group>
         </group>
       </group>
