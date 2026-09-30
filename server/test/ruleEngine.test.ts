@@ -7,7 +7,6 @@ import {
   remainingMessages,
   renewalRequiresApproval,
   sanitizeRenewDuration,
-  shouldCleanSlate,
   shouldVanishOnExit,
   validateMessage,
   type ConversationRule,
@@ -96,29 +95,3 @@ test('ghost mode only vanishes when every member has left', () => {
   assert.equal(shouldVanishOnExit([], [new Date(), new Date()]), false);
 });
 
-test('clean slate runs once per UTC day', () => {
-  const rules = rule({ ruleType: 'clean_slate', enabled: true, configuration: {} });
-  assert.equal(shouldCleanSlate(rules, now, null), true);
-  assert.equal(shouldCleanSlate(rules, now, '2026-09-29'), false);
-  assert.equal(shouldCleanSlate(rules, now, '2026-09-28'), true);
-});
-
-test('challenge mode spaces out messages', () => {
-  const rules = rule({ ruleType: 'challenge_mode', enabled: true, configuration: { intervalSeconds: 60 } });
-  const tooSoon = validateMessage(rules, {
-    now,
-    messagesSent: 1,
-    lastOwnMessageAt: new Date('2026-09-29T11:59:30.000Z'),
-    conversationExpiresAt: null,
-    conversationStatus: 'active',
-  });
-  assert.equal(tooSoon.ok, false);
-  const ok = validateMessage(rules, {
-    now,
-    messagesSent: 1,
-    lastOwnMessageAt: new Date('2026-09-29T11:58:00.000Z'),
-    conversationExpiresAt: null,
-    conversationStatus: 'active',
-  });
-  assert.equal(ok.ok, true);
-});

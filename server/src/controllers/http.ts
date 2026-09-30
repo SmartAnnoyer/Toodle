@@ -164,7 +164,7 @@ export const http = {
 
   async createShortcut(req: Request, res: Response) {
     const body = parse(z.object({
-      name: z.string().min(1).max(32),
+      name: z.string().max(32).optional(),
       trigger: z.string().min(1).max(25),
       type: z.enum(['TEXT', 'ACTION']),
       content: z.string().max(500).default(''),

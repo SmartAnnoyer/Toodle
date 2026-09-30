@@ -131,6 +131,32 @@ body {
   background: color-mix(in srgb, var(--text) 14%, transparent);
 }
 
+.msg-pop {
+  animation: msg-pop 380ms ease;
+}
+
+.react-float {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 2;
+  font-size: 1.6rem;
+  pointer-events: none;
+  animation: react-float 460ms ease forwards;
+}
+
+@keyframes msg-pop {
+  0% { transform: translateX(var(--msg-shift, 0px)) scale(1); }
+  40% { transform: translateX(var(--msg-shift, 0px)) scale(1.05); }
+  100% { transform: translateX(var(--msg-shift, 0px)) scale(1); }
+}
+
+@keyframes react-float {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(0.5); }
+  35% { opacity: 1; transform: translate(-50%, -10px) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -32px) scale(1); }
+}
+
 [data-theme="og"] {
   --bg: #090909;
   --elevated: rgba(22, 14, 14, 0.94);

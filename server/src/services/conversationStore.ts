@@ -178,21 +178,7 @@ export async function upsertRule(
   enabled: boolean,
   configuration: Record<string, unknown>,
 ) {
-  const { data: existing, error: existingError } = await db()
-    .from('conversation_rules')
-    .select('configuration')
-    .eq('conversation_id', conversationId)
-    .eq('rule_type', ruleType)
-    .maybeSingle();
-  if (existingError) throwDb(existingError, 'existing rule');
-
-  let nextConfig = sanitizeRuleConfig(ruleType, configuration);
-  if (ruleType === 'clean_slate') {
-    const previous = (existing?.configuration ?? {}) as Record<string, unknown>;
-    nextConfig = {
-      lastClearedOn: typeof previous.lastClearedOn === 'string' ? previous.lastClearedOn : null,
-    };
-  }
+  const nextConfig = sanitizeRuleConfig(ruleType, configuration);
 
   const { error } = await db().from('conversation_rules').upsert({
     conversation_id: conversationId,

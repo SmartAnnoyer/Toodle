@@ -226,5 +226,46 @@ export function useChat(conversationId: string) {
     socket.emit(active ? SocketEvents.TypingStart : SocketEvents.TypingStop, { conversationId });
   }, [conversationId, socket, status]);
 
-  return { conversation, messages, typing, loading, error, streakPop, reload: load, send, signalTyping, setConversation };
+  const react = useCallback(async (messageId: string, emoji: string) => {
+    const userId = profile?.id;
+    if (!userId) return;
+    let previous: ChatMessage['reactions'] = [];
+    setMessages((prev) => prev.map((item) => {
+      if (item.id !== messageId) return item;
+      previous = item.reactions;
+      const already = item.reactions.some((reaction) => reaction.userId === userId && reaction.emoji === emoji);
+      const reactions = already
+        ? item.reactions.filter((reaction) => !(reaction.userId === userId && reaction.emoji === emoji))
+        : [...item.reactions, { emoji, userId }];
+      return { ...item, reactions };
+    }));
+    try {
+      const result = await api<{ reactions: ChatMessage['reactions'] }>(`/api/messages/${messageId}/reactions`, {
+        method: 'POST',
+        body: JSON.stringify({ emoji }),
+      });
+      setMessages((prev) => prev.map((item) => item.id === messageId ? { ...item, reactions: result.reactions } : item));
+    } catch (error) {
+      setMessages((prev) => prev.map((item) => item.id === messageId ? { ...item, reactions: previous } : item));
+      throw error;
+    }
+  }, [profile?.id]);
+
+  const discard = useCallback(async (messageId: string) => {
+    const held: { message?: ChatMessage } = {};
+    setMessages((prev) => {
+      held.message = prev.find((item) => item.id === messageId);
+      return prev.filter((item) => item.id !== messageId);
+    });
+    const kept = held.message;
+    if (!kept || kept.localStatus) return;
+    try {
+      await api(`/api/messages/${messageId}`, { method: 'DELETE' });
+    } catch (error) {
+      setMessages((prev) => prev.some((item) => item.id === messageId) ? prev : [...prev, kept].sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
+      throw error;
+    }
+  }, []);
+
+  return { conversation, messages, typing, loading, error, streakPop, reload: load, send, signalTyping, react, discard, setConversation };
 }

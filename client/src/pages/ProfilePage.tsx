@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AVATARS, MOODS } from '../constants';
-import { Avatar, Button, Field, useToast } from '../components/ui';
+import { Avatar, Button, Field, Toggle, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { ThemeSelect } from '../theme/ThemeSelect';
 import { api } from '../lib/http';
@@ -22,6 +22,13 @@ export function ProfilePage() {
   const [chaos, setChaos] = useState<ChaosLevel>(readChaos);
   const [soundsOn, setSoundsOn] = useState(() => readSoundPrefs().enabled);
   const [soundVolume, setSoundVolume] = useState(() => readSoundPrefs().volume);
+  const [showOnline, setShowOnline] = useState(profile?.showOnline ?? true);
+  const onlineReady = useRef(false);
+
+  useEffect(() => {
+    if (!profile || onlineReady.current) return;
+    setShowOnline(profile.showOnline);
+  }, [profile]);
 
   if (loading) return <p className="px-4 pt-10 text-muted">Loading you…</p>;
   if (!profile) {
@@ -82,18 +89,23 @@ export function ProfilePage() {
           <button key={mood.text} type="button" className="shrink-0 rounded-full border border-line px-3 py-2 text-sm" onClick={() => { setMoodEmoji(mood.emoji); setMoodText(mood.text); }}>{mood.emoji} {mood.text}</button>
         ))}
       </div>
-      <label className="mt-4 flex items-center justify-between rounded-2xl border border-line px-4 py-3 text-sm">
-        Show online status
-        <input
-          type="checkbox"
-          checked={profile.showOnline}
-          onChange={(event) => {
-            api('/api/profile/me', { method: 'PATCH', body: JSON.stringify({ showOnline: event.target.checked }) })
+      <div className="mt-4 flex items-center justify-between rounded-2xl border border-line px-4 py-3 text-sm">
+        <span>Show online status</span>
+        <Toggle
+          label="Show online status"
+          checked={showOnline}
+          onChange={(next) => {
+            onlineReady.current = true;
+            setShowOnline(next);
+            api('/api/profile/me', { method: 'PATCH', body: JSON.stringify({ showOnline: next }) })
               .then(() => refreshProfile())
-              .catch((error) => toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.'));
+              .catch((error) => {
+                setShowOnline(!next);
+                toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.');
+              });
           }}
         />
-      </label>
+      </div>
       <div className="mt-4">
         <p className="mb-2 text-sm text-muted">Toodle reactions</p>
         <div className="grid grid-cols-2 gap-2">
@@ -109,17 +121,17 @@ export function ProfilePage() {
           ))}
         </div>
       </div>
-      <label className="mt-4 flex items-center justify-between rounded-2xl border border-line px-4 py-3 text-sm">
-        Toodle sounds
-        <input
-          type="checkbox"
+      <div className="mt-4 flex items-center justify-between rounded-2xl border border-line px-4 py-3 text-sm">
+        <span>Toodle sounds</span>
+        <Toggle
+          label="Toodle sounds"
           checked={soundsOn}
-          onChange={(event) => {
-            setSoundsOn(event.target.checked);
-            writeSoundEnabled(event.target.checked);
+          onChange={(next) => {
+            setSoundsOn(next);
+            writeSoundEnabled(next);
           }}
         />
-      </label>
+      </div>
       {soundsOn ? (
         <label className="mt-3 block text-sm text-muted">
           Volume

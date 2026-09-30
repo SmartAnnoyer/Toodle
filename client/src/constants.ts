@@ -48,13 +48,6 @@ export const RENEW_OPTIONS = [
   { label: '+24 hours', seconds: 86400 },
 ];
 
-export const CHALLENGE_OPTIONS = [
-  { label: 'Every minute', seconds: 60 },
-  { label: 'Every 5 minutes', seconds: 300 },
-  { label: 'Every 10 minutes', seconds: 600 },
-  { label: 'Every 30 minutes', seconds: 1800 },
-];
-
 export const SocketEvents = {
   MessageSend: 'message:send',
   MessageNew: 'message:new',

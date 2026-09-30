@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { EMOJIS, MOODS, REACTIONS, RENEW_OPTIONS } from '../constants';
-import { RulesEditor } from '../components/RulesEditor';
+import { ChatRules } from '../components/RulesEditor';
 import { Button, EmptyState, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
@@ -22,6 +22,7 @@ import { useToodleChat } from '../toodle/useToodleChat';
 type Drawer = 'emoji' | 'gif' | 'sticker' | 'more' | 'renew' | null;
 
 const GHOST_PULL = 96;
+const pendingGhostLeave = new Map<string, number>();
 
 export function ChatPage() {
   const { id = '' } = useParams();
@@ -29,7 +30,7 @@ export function ChatPage() {
   const toast = useToast();
   const { profile, refreshProfile } = useAuth();
   const { banner, status } = useSocket();
-  const { conversation, messages, typing, loading, error, streakPop, send, signalTyping } = useChat(id);
+  const { conversation, messages, typing, loading, error, streakPop, send, signalTyping, react, discard } = useChat(id);
   const countdown = useCountdown(conversation?.status === 'active' ? conversation.expiresAt : null);
   const [text, setText] = useState('');
   const [reply, setReply] = useState<ChatMessage | null>(null);
@@ -49,6 +50,7 @@ export function ChatPage() {
   const lastContactTap = useRef(0);
   const enterGhostRef = useRef<() => void>(() => {});
   const ghostLock = useRef(false);
+  const rejoined = useRef(false);
   const typingTimer = useRef<number | null>(null);
   const musicRef = useRef<MusicSnapshot | null>(null);
   const noteMusic = useRef<(event: ToodleMusicEvent) => void>(() => {});
@@ -71,6 +73,34 @@ export function ChatPage() {
     musicTick: vibe.tick,
   });
   noteMusic.current = toodle.noteMusic;
+
+  useEffect(() => {
+    rejoined.current = false;
+  }, [id]);
+
+  useEffect(() => {
+    if (!conversation?.youLeft || rejoined.current) return;
+    rejoined.current = true;
+    void api(`/api/conversations/${id}/rejoin`, { method: 'POST' }).catch(() => undefined);
+  }, [conversation?.youLeft, id]);
+
+  useEffect(() => {
+    const pending = pendingGhostLeave.get(id);
+    if (pending) {
+      window.clearTimeout(pending);
+      pendingGhostLeave.delete(id);
+    }
+    const conversationId = id;
+    const ghost = Boolean(conversation?.ghostMode);
+    return () => {
+      if (!ghost) return;
+      const handle = window.setTimeout(() => {
+        pendingGhostLeave.delete(conversationId);
+        void api(`/api/conversations/${conversationId}/leave`, { method: 'POST' }).catch(() => undefined);
+      }, 350);
+      pendingGhostLeave.set(conversationId, handle);
+    };
+  }, [conversation?.ghostMode, id]);
 
   useEffect(() => {
     const handle = window.setInterval(() => setTick((value) => value + 1), 1000);
@@ -377,12 +407,10 @@ export function ChatPage() {
             onSelect={() => setSelected((current) => current === message.id ? null : message.id)}
             onReply={() => { setReply(message); setSelected(null); }}
             onDelete={() => {
-              api(`/api/messages/${message.id}`, { method: 'DELETE' })
-                .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
+              void discard(message.id).catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
             }}
             onReact={(emoji) => {
-              api(`/api/messages/${message.id}/reactions`, { method: 'POST', body: JSON.stringify({ emoji }) })
-                .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
+              void react(message.id, emoji).catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
             }}
             onRetry={() => {
               if (!message.clientId || message.kind === 'system') return;
@@ -455,38 +483,36 @@ export function ChatPage() {
           setDrawer(null);
         }} /> : null}
         {drawer === 'more' ? (
-          <div className="mb-2 grid grid-cols-2 gap-2">
-            <Button variant="soft" className="px-4 py-2" onClick={() => { setDrawer(null); setRulesOpen(true); }}>Rules</Button>
-            <Button variant="soft" className="px-4 py-2" onClick={() => setDrawer('renew')}>♻️ Renew</Button>
-            <Button variant="soft" className="px-4 py-2" onClick={() => navigate('/shortcuts')}>Shortcuts</Button>
-            <Button variant="danger" className="px-4 py-2" onClick={() => {
-              api(`/api/conversations/${id}/leave`, { method: 'POST' })
-                .then((result) => {
-                  const vanished = (result as { vanished?: boolean }).vanished;
-                  if (vanished) navigate('/');
-                  else toast('You left. Ghost mode waits for both of you.');
-                })
-                .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
-            }}>Leave</Button>
+          <div className="mb-2 flex gap-2 overflow-x-auto">
+            <Button variant="soft" className="shrink-0 px-4 py-2" onClick={() => { setDrawer(null); setRulesOpen(true); }}>Rules</Button>
+            <Button variant="soft" className="shrink-0 px-4 py-2" onClick={() => setDrawer('renew')}>♻️ Renew</Button>
+            <Button variant="soft" className="shrink-0 px-4 py-2" onClick={() => navigate('/shortcuts')}>Shortcuts</Button>
           </div>
         ) : null}
-        <div className="flex items-end gap-2">
-          <textarea
-            ref={composer}
-            value={text}
-            rows={1}
-            enterKeyHint="send"
-            placeholder="Message..."
-            onChange={(event) => onType(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                void submit();
-                composer.current?.focus({ preventScroll: true });
-              }
-            }}
-            className="max-h-28 min-h-11 flex-1 resize-none rounded-3xl border border-line bg-elevated px-4 py-2.5 text-base leading-6 outline-none"
-          />
+        <div className="flex items-end gap-1.5">
+          <button type="button" className="chat-tool shrink-0" data-on={drawer === 'more'} aria-label="More" onClick={() => toggleDrawer('more')}>
+            <MoreIcon />
+          </button>
+          <div className={`flex min-h-11 min-w-0 flex-1 items-end rounded-3xl border bg-elevated ${drawer === 'emoji' || drawer === 'gif' ? 'border-primary' : 'border-line'}`}>
+            <button type="button" className="chat-tool shrink-0 text-xl" data-on={drawer === 'emoji'} aria-label="Emoji" onClick={() => toggleDrawer('emoji')}>😊</button>
+            <textarea
+              ref={composer}
+              value={text}
+              rows={1}
+              enterKeyHint="send"
+              placeholder="Message"
+              onChange={(event) => onType(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  void submit();
+                  composer.current?.focus({ preventScroll: true });
+                }
+              }}
+              className="max-h-28 min-h-11 min-w-0 flex-1 resize-none bg-transparent py-2.5 text-base leading-6 outline-none"
+            />
+            <button type="button" className="chat-tool shrink-0 text-xs font-semibold" data-on={drawer === 'gif'} aria-label="GIFs and stickers" onClick={() => toggleDrawer('gif')}>GIF</button>
+          </div>
           <button
             type="button"
             aria-label="Send"
@@ -500,18 +526,20 @@ export function ChatPage() {
             ➤
           </button>
         </div>
-        <div className="mt-1 flex items-center justify-between">
-          <button type="button" className="chat-tool" data-on={drawer === 'more'} aria-label="More" onClick={() => toggleDrawer('more')}>
-            <MoreIcon />
-          </button>
-          <button type="button" className="chat-tool text-xl" data-on={drawer === 'emoji'} aria-label="Emoji" onClick={() => toggleDrawer('emoji')}>😊</button>
-          <button type="button" className="chat-tool text-xs font-semibold" data-on={drawer === 'gif'} aria-label="GIFs" onClick={() => toggleDrawer('gif')}>GIF</button>
-          <button type="button" className="chat-tool text-xl" data-on={drawer === 'sticker'} aria-label="Stickers" onClick={() => toggleDrawer('sticker')}>✨</button>
-        </div>
       </div>
-      <Sheet open={rulesOpen} title="Chat settings" onClose={() => setRulesOpen(false)}>
-        <RulesEditor conversationId={id} />
-      </Sheet>
+      <AnimatePresence>
+        {rulesOpen ? (
+          <motion.div
+            className="absolute inset-0 z-50 bg-bg/95 backdrop-blur-xl"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ duration: 0.22 }}
+          >
+            <ChatRules conversationId={id} onClose={() => setRulesOpen(false)} />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
       <Sheet open={contactOpen} title={conversation.otherUser.displayName} onClose={() => setContactOpen(false)}>
         <div className="text-center">
           <p className="text-5xl">{conversation.otherUser.avatarEmoji}</p>
@@ -605,6 +633,15 @@ function MessageBubble({
   onReact: (emoji: string) => void;
   onRetry?: () => void;
 }) {
+  const drag = useRef({ x: 0, y: 0, active: false, axis: '' as '' | 'x' | 'y' });
+  const lastTap = useRef(0);
+  const openTimer = useRef<number | null>(null);
+  const [shift, setShift] = useState(0);
+  const [pop, setPop] = useState<string | null>(null);
+  const [moreEmoji, setMoreEmoji] = useState(false);
+  useEffect(() => () => {
+    if (openTimer.current) window.clearTimeout(openTimer.current);
+  }, []);
   if (message.kind === 'system') {
     return <p className="py-2 text-center text-sm text-muted">{message.body}</p>;
   }
@@ -612,10 +649,81 @@ function MessageBubble({
   const label = typeof message.metadata.label === 'string' ? message.metadata.label : '';
   const expiresLabel = message.expiresAt ? formatRemaining((new Date(message.expiresAt).getTime() - serverNowMs()) / 1000) : null;
   void tick;
+
+  function feel(emoji: string) {
+    nudge(emoji === '❤️' ? [8, 18] : 10);
+    setPop(emoji);
+    window.setTimeout(() => setPop((current) => current === emoji ? null : current), 460);
+    onReact(emoji);
+  }
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    drag.current = { x: event.clientX, y: event.clientY, active: true, axis: '' };
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!drag.current.active) return;
+    const dx = event.clientX - drag.current.x;
+    const dy = event.clientY - drag.current.y;
+    if (!drag.current.axis) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      drag.current.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (drag.current.axis === 'x') event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    if (drag.current.axis !== 'x') return;
+    const next = Math.max(mine ? -112 : -24, Math.min(112, dx * 0.72));
+    setShift(next);
+  }
+
+  function onPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!drag.current.active) return;
+    const dx = event.clientX - drag.current.x;
+    const axis = drag.current.axis;
+    drag.current.active = false;
+    setShift(0);
+    if (axis === 'x') {
+      if (dx > 64) {
+        nudge(8);
+        onReply();
+      } else if (dx < -64 && mine && message.localStatus !== 'sending') {
+        nudge([6, 16]);
+        onDelete();
+      }
+      return;
+    }
+    if (Math.abs(dx) > 8) return;
+    const now = Date.now();
+    if (now - lastTap.current < 280) {
+      lastTap.current = 0;
+      if (openTimer.current) window.clearTimeout(openTimer.current);
+      feel('❤️');
+      return;
+    }
+    lastTap.current = now;
+    if (openTimer.current) window.clearTimeout(openTimer.current);
+    openTimer.current = window.setTimeout(() => onSelect(), 260);
+  }
+
   return (
-    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.08 }} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-      <div className="flex max-w-[min(80%,20rem)] flex-col gap-2">
-        <button type="button" onClick={onSelect} className={`rounded-[1.4rem] px-3 py-2 text-left ${mine ? 'bubble-mine' : 'bubble-theirs'}`}>
+    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.08 }} className={`relative flex ${mine ? 'justify-end' : 'justify-start'} ${selected ? 'z-30' : ''}`}>
+      <div className="relative flex max-w-[min(86%,22rem)] flex-col">
+        {shift > 18 ? <span className="absolute inset-y-0 left-2 grid place-items-center text-xs font-semibold text-primary">Reply</span> : null}
+        {shift < -18 && mine ? <span className="absolute inset-y-0 right-2 grid place-items-center text-xs font-semibold text-danger">Delete</span> : null}
+        <div
+          role="button"
+          tabIndex={0}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={() => { drag.current.active = false; setShift(0); }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') onSelect();
+          }}
+          className={`relative touch-pan-y select-none rounded-[1.4rem] px-3 py-2 text-left ${mine ? 'bubble-mine' : 'bubble-theirs'} ${pop ? 'msg-pop' : ''}`}
+          style={{ transform: pop ? undefined : `translateX(${shift}px)`, ['--msg-shift' as string]: `${shift}px` }}
+        >
+          {pop ? <span className="react-float">{pop}</span> : null}
           {message.replyTo ? <p className="mb-1 truncate text-xs opacity-70">↩ {message.replyTo.body}</p> : null}
           {message.kind === 'gif' && gifUrl ? <img src={gifUrl} alt={message.body} className="mb-1 max-h-52 rounded-2xl" /> : null}
           {message.kind === 'gif' && !gifUrl ? <span className="block text-5xl">{label || '✨'}</span> : null}
@@ -626,22 +734,44 @@ function MessageBubble({
             {formatClock(message.createdAt)}
             {seen ? ' · Seen' : ''}
             {message.localStatus === 'failed' ? (
-              <button type="button" className="ml-1 text-danger" onClick={(event) => { event.stopPropagation(); onRetry?.(); }}>Didn't send · Retry</button>
+              <button type="button" className="ml-1 text-danger" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onRetry?.(); }}>Didn't send · Retry</button>
             ) : null}
           </span>
           {expiresLabel ? <span className="block text-[10px] opacity-70">⏳ disappears in {expiresLabel}</span> : null}
           {message.reactions.length > 0 ? (
-            <span className="mt-1 flex flex-wrap gap-1 text-xs">{message.reactions.map((reaction) => <span key={`${reaction.userId}${reaction.emoji}`}>{reaction.emoji}</span>)}</span>
+            <span className="mt-1 flex flex-wrap gap-1 text-xs">
+              {message.reactions.map((reaction) => (
+                <button
+                  key={`${reaction.userId}${reaction.emoji}`}
+                  type="button"
+                  className="rounded-full bg-black/10 px-1.5 py-0.5"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => { event.stopPropagation(); feel(reaction.emoji); }}
+                >
+                  {reaction.emoji}
+                </button>
+              ))}
+            </span>
           ) : null}
-        </button>
+        </div>
         {selected ? (
-          <div className="glass flex flex-wrap gap-1.5 rounded-2xl p-2">
-            {REACTIONS.map((emoji) => (
-              <button key={emoji} type="button" className="grid h-10 w-10 place-items-center rounded-full bg-ink/10 text-lg" onClick={() => onReact(emoji)}>{emoji}</button>
-            ))}
-            <button type="button" className="min-h-10 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={onReply}>Reply</button>
-            <button type="button" className="min-h-10 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={() => void navigator.clipboard.writeText(message.body)}>Copy</button>
-            {mine ? <button type="button" className="min-h-10 rounded-full bg-danger/15 px-3 text-xs font-semibold text-danger" onClick={onDelete}>Delete</button> : null}
+          <div className={`absolute top-full z-30 mt-1 w-max max-w-[min(18rem,80vw)] glass rounded-2xl p-2 ${mine ? 'right-0' : 'left-0'}`}>
+            <div className="flex flex-wrap gap-1.5">
+              {REACTIONS.map((emoji) => (
+                <button key={emoji} type="button" className="grid h-11 w-11 place-items-center rounded-full bg-ink/10 text-lg active:scale-90" onClick={() => { feel(emoji); onSelect(); }}>{emoji}</button>
+              ))}
+              <button type="button" className="grid h-11 w-11 place-items-center rounded-full bg-ink/10 text-lg" aria-label="Add emoji" onClick={() => setMoreEmoji((open) => !open)}>+</button>
+              <button type="button" className="min-h-11 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={onReply}>Reply</button>
+              <button type="button" className="min-h-11 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={() => void navigator.clipboard.writeText(message.body)}>Copy</button>
+              {mine ? <button type="button" className="min-h-11 rounded-full bg-danger/15 px-3 text-xs font-semibold text-danger" onClick={onDelete}>Delete</button> : null}
+            </div>
+            {moreEmoji ? (
+              <div className="mt-2 grid grid-cols-6 gap-1">
+                {EMOJIS.map((emoji) => (
+                  <button key={emoji} type="button" className="grid h-10 w-10 place-items-center rounded-full text-xl active:scale-90" onClick={() => { setMoreEmoji(false); feel(emoji); onSelect(); }}>{emoji}</button>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

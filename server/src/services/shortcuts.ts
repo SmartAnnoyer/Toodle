@@ -144,7 +144,7 @@ async function loadShortcutMap(ids: string[]) {
 }
 
 export async function createShortcut(userId: string, input: {
-  name: string;
+  name?: string;
   trigger: string;
   type: ShortcutType;
   content: string;
@@ -154,8 +154,9 @@ export async function createShortcut(userId: string, input: {
 }) {
   const parsed = validateTrigger(input.trigger);
   if (!parsed.ok) throw new AppError(400, parsed.message);
-  const name = input.name.trim();
-  if (name.length < 1 || name.length > 32) throw new AppError(400, 'Give the shortcut a short name.');
+  const given = input.name?.trim() ?? '';
+  if (given.length > 32) throw new AppError(400, 'Give the shortcut a short name.');
+  const name = given || parsed.trigger.replace(/^\//, '').slice(0, 32);
   if (input.visibility === 'conversation') {
     if (!input.conversationId) throw new AppError(400, 'Pick the chat this shortcut belongs to.');
     await requireMember(input.conversationId, userId);

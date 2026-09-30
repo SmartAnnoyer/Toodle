@@ -13,7 +13,7 @@ export const MOODS = [
 
 export const AVATARS = ['🦊', '🌙', '☕', '✨', '🌸', '🔥', '💜', '🦋', '🍓', '⚡', '🌊', '🎧'] as const;
 
-export const REACTION_EMOJIS = ['❤️', '😂', '💀', '🔥', '👀', '😭'] as const;
+export const REACTION_EMOJIS = ['😂', '❤️', '😭', '🔥', '✨', '💀', '👀', '🫠', '🤡', '😴', '🥱', '🧠', '💜', '🌙', '☕', '🌸', '⚡', '🥺', '😘', '🤝', '👋', '💕', '😎', '🎉'] as const;
 
 export const DEFAULT_SHORTCUTS = [
   { trigger: '/shrug', name: 'Shrug', type: 'TEXT' as const, content: '¯\\_(ツ)_/¯', actionType: null },

@@ -12,7 +12,6 @@ export function ShortcutsPage() {
   const [incoming, setIncoming] = useState<IncomingShare[]>([]);
   const [sharedWithMe, setSharedWithMe] = useState<Shortcut[]>([]);
   const [trigger, setTrigger] = useState('/');
-  const [name, setName] = useState('');
   const [content, setContent] = useState('');
   const [shareWith, setShareWith] = useState<Record<string, string>>({});
 
@@ -45,14 +44,12 @@ export function ShortcutsPage() {
       await api('/api/shortcuts', {
         method: 'POST',
         body: JSON.stringify({
-          name: name || trigger.replace('/', ''),
           trigger,
           type: 'TEXT',
           content,
           visibility: 'private',
         }),
       });
-      setName('');
       setContent('');
       setTrigger('/');
       await load();
@@ -103,7 +100,6 @@ export function ShortcutsPage() {
       ) : null}
       <div className="glass mt-5 space-y-3 rounded-[1.6rem] p-4">
         <input value={trigger} onChange={(event) => setTrigger(event.target.value)} placeholder="/gm" className="w-full bg-transparent text-lg outline-none" />
-        <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Name" className="w-full bg-transparent outline-none" />
         <textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder="Good morningggg ☀️❤️" className="w-full resize-none bg-transparent outline-none" rows={2} />
         <Button onClick={() => void createShortcut()} disabled={!content.trim()}>Save shortcut</Button>
       </div>
