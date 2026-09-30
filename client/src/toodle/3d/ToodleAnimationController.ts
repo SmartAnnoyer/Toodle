@@ -831,9 +831,9 @@ export class ToodleAnimationController {
   }
 
   private placeX(local: number) {
-    const margin = 0.9;
+    const margin = 0.7;
     const left = -this.halfW + margin;
-    const right = this.halfW - margin;
+    const right = Math.min(left + 0.8, -this.halfW * 0.05);
     const span = Math.max(0.2, right - left);
     const t = Math.min(1, Math.max(0, local));
     return left + t * span;

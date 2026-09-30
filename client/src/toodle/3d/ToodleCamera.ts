@@ -4,5 +4,5 @@ export function followToodle(camera: Camera, dt: number, focusX = 0, distance = 
   const step = Math.min(1, dt * 4);
   camera.position.x += (focusX - camera.position.x) * step;
   camera.position.z += (distance - camera.position.z) * step;
-  camera.lookAt(camera.position.x, 1.12, 0);
+  camera.lookAt(camera.position.x, 0.92, 0);
 }
