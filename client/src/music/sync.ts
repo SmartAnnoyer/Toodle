@@ -2,9 +2,12 @@ import type { MusicSnapshot, SharedMusicState } from './MusicTypes';
 
 export function livePosition(state: Pick<SharedMusicState, 'position' | 'status' | 'startedAt' | 'duration'>, now: number): number {
   const duration = Math.max(0, state.duration);
-  const parked = Math.min(duration, Math.max(0, state.position));
-  if (state.status !== 'playing' || state.startedAt == null) return parked;
-  return Math.min(duration, Math.max(0, parked + (now - state.startedAt) / 1000));
+  const parked = Math.max(0, state.position);
+  const base = duration > 0 ? Math.min(parked, duration) : parked;
+  if (state.status !== 'playing' || state.startedAt == null) return base;
+  const next = base + (now - state.startedAt) / 1000;
+  if (duration <= 0) return Math.max(0, next);
+  return next % duration;
 }
 
 export type DriftFix = 'ignore' | 'smooth' | 'hard';

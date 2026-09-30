@@ -7,7 +7,7 @@ import { markRead, sendMessage } from '../services/messages.js';
 import { partnerIds, setPresence } from '../services/profiles.js';
 import { loadMembers } from '../services/conversationStore.js';
 import { emitToUsers, userSocketCount } from './hub.js';
-import { attachMusic } from './music.js';
+import { attachMusic, noteConversationLeft } from './music.js';
 
 const sendSchema = z.object({
   conversationId: z.string().uuid(),
@@ -54,7 +54,11 @@ export function registerSocket(io: Server) {
     });
 
     socket.on(SocketEvents.ConversationLeave, (payload: { conversationId?: string }) => {
-      if (payload?.conversationId) socket.leave(`conversation:${payload.conversationId}`);
+      if (!payload?.conversationId) return;
+      const room = `conversation:${payload.conversationId}`;
+      socket.leave(room);
+      const remaining = io.sockets.adapter.rooms.get(room)?.size ?? 0;
+      noteConversationLeft(payload.conversationId, remaining);
     });
 
     socket.on(SocketEvents.MessageSend, async (payload: unknown, ack?: (result: unknown) => void) => {

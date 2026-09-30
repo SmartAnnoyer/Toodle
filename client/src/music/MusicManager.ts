@@ -22,13 +22,18 @@ class MusicManager {
 
   async start(track: MusicTrack, position = 0) {
     const audio = this.element();
-    if (!audio) return;
-    if (this.url !== track.audioUrl) {
-      this.url = track.audioUrl;
-      audio.src = track.audioUrl;
+    if (!audio) return false;
+    audio.loop = true;
+    await this.load(audio, track.audioUrl);
+    const duration = this.duration() || track.duration;
+    const at = duration > 0 ? Math.max(0, Math.min(duration, position)) : Math.max(0, position);
+    if (Math.abs((audio.currentTime || 0) - at) > 0.05) audio.currentTime = at;
+    try {
+      await audio.play();
+      return true;
+    } catch {
+      return false;
     }
-    audio.currentTime = Math.max(0, Math.min(track.duration, position));
-    await audio.play().catch(() => undefined);
   }
 
   pause() {
@@ -37,28 +42,59 @@ class MusicManager {
 
   async follow(state: SharedMusicState, now: number) {
     const audio = this.element();
-    if (!audio) return;
+    if (!audio) return false;
+    audio.loop = true;
     const remote = livePosition(state, now);
     if (this.url !== state.audioUrl) {
-      this.url = state.audioUrl;
-      audio.src = state.audioUrl;
+      await this.load(audio, state.audioUrl);
       audio.currentTime = remote;
     } else {
       const next = correctTime(audio.currentTime || 0, remote);
       if (next != null) audio.currentTime = next;
     }
     if (state.status === 'playing') {
-      if (audio.paused) await audio.play().catch(() => undefined);
-      return;
+      if (!audio.paused) return true;
+      try {
+        await audio.play();
+        return true;
+      } catch {
+        return false;
+      }
     }
     if (!audio.paused) audio.pause();
+    return true;
+  }
+
+  async resume() {
+    const audio = this.audio;
+    if (!audio) return false;
+    try {
+      await audio.play();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   stop() {
     const audio = this.audio;
     if (!audio) return;
+    audio.loop = false;
     audio.pause();
     audio.currentTime = 0;
+    this.url = '';
+  }
+
+  private load(audio: HTMLAudioElement, url: string) {
+    if (this.url === url && audio.readyState >= 1) return Promise.resolve();
+    this.url = url;
+    audio.src = encodeURI(url);
+    if (audio.readyState >= 1) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const done = () => resolve();
+      audio.addEventListener('loadedmetadata', done, { once: true });
+      audio.addEventListener('error', done, { once: true });
+    });
   }
 
   private element() {

@@ -26,11 +26,11 @@ export function useVibe({
   const [query, setQuery] = useState('');
   const [tracks, setTracks] = useState<MusicTrack[]>(LOCAL_TRACKS);
   const [state, setState] = useState<SharedMusicState | null>(null);
+  const [needsTap, setNeedsTap] = useState(false);
   const [tick, setTick] = useState(0);
   const stateRef = useRef<SharedMusicState | null>(null);
   const seen = useRef(0);
   const onEventRef = useRef(onEvent);
-  const ended = useRef(false);
   const near = useRef(false);
   const played = useRef(0);
   const longFired = useRef(false);
@@ -44,12 +44,10 @@ export function useVibe({
     if (!next) {
       played.current = 0;
       longFired.current = false;
-      ended.current = false;
       near.current = false;
     }
     if (!event) return;
     if (event === 'music_changed' || event === 'music_started') {
-      ended.current = false;
       near.current = false;
     }
     if (previous?.trackId === next?.trackId && previous?.status === next?.status && event === 'music_started') return;
@@ -66,20 +64,13 @@ export function useVibe({
     };
   }, [query]);
 
-  useEffect(() => {
-    musicPlayer.bindEnded(() => {
-      const current = stateRef.current;
-      if (!current || current.status !== 'playing' || ended.current) return;
-      ended.current = true;
-      onEventRef.current('music_finished');
-      socket?.emit(SocketEvents.MusicPause, { conversationId });
-    });
-    return () => musicPlayer.bindEnded(null);
-  }, [socket, conversationId]);
+  useEffect(() => () => {
+    musicPlayer.stop();
+  }, [conversationId]);
 
   useEffect(() => {
     if (!socket || !conversationId) return;
-    const apply = (payload: unknown) => {
+    const apply = async (payload: unknown) => {
       if (!payload || typeof payload !== 'object') return;
       const body = payload as SharedMusicState & { state?: null; conversationId?: string };
       if ('state' in body && body.state === null) {
@@ -93,7 +84,8 @@ export function useVibe({
       if (!isState(payload) || payload.conversationId !== conversationId) return;
       if (payload.version < seen.current) return;
       const previous = stateRef.current;
-      void musicPlayer.follow(payload, serverNowMs());
+      const heard = await musicPlayer.follow(payload, serverNowMs());
+      setNeedsTap(payload.status === 'playing' && !heard);
       if (payload.version === seen.current && previous?.status === payload.status && previous.trackId === payload.trackId) return;
       seen.current = payload.version;
       let event: ToodleMusicEvent | undefined;
@@ -153,7 +145,7 @@ export function useVibe({
     return () => window.clearInterval(handle);
   }, [conversationId]);
 
-  function emitTrack(event: string, track: MusicTrack, position?: number) {
+  function emitTrack(event: string, track: MusicTrack, position: number | undefined, duration: number) {
     socket?.emit(SocketEvents.ConversationJoin, { conversationId });
     socket?.emit(event, {
       conversationId,
@@ -163,7 +155,7 @@ export function useVibe({
         title: track.title,
         artist: track.artist,
         audioUrl: track.audioUrl,
-        duration: track.duration,
+        duration,
         energy: track.energy,
         mood: track.mood,
       },
@@ -175,7 +167,10 @@ export function useVibe({
     const current = stateRef.current;
     const position = current?.trackId === track.id ? musicPlayer.position() : 0;
     const starting = !current || current.status !== 'playing' || current.trackId !== track.id;
-    await musicPlayer.start(track, position);
+    const heard = await musicPlayer.start(track, position);
+    const duration = musicPlayer.duration() || track.duration;
+    if (!(duration > 0)) return;
+    setNeedsTap(!heard);
     const event: ToodleMusicEvent = current && current.trackId !== track.id ? 'music_changed' : current?.status === 'paused' ? 'music_resumed' : 'music_started';
     remember({
       conversationId,
@@ -183,7 +178,7 @@ export function useVibe({
       title: track.title,
       artist: track.artist,
       audioUrl: track.audioUrl,
-      duration: track.duration,
+      duration,
       energy: track.energy,
       mood: track.mood,
       status: 'playing',
@@ -193,7 +188,7 @@ export function useVibe({
       version: seen.current,
       control: 'both',
     }, starting ? event : undefined);
-    emitTrack(current && current.trackId !== track.id ? SocketEvents.MusicChange : SocketEvents.MusicPlay, track, position);
+    emitTrack(current && current.trackId !== track.id ? SocketEvents.MusicChange : SocketEvents.MusicPlay, track, position, duration);
   }
 
   function pause() {
@@ -214,8 +209,14 @@ export function useVibe({
 
   function stop() {
     musicPlayer.stop();
+    setNeedsTap(false);
     remember(null);
     socket?.emit(SocketEvents.MusicStop, { conversationId });
+  }
+
+  async function hear() {
+    const ok = await musicPlayer.resume();
+    setNeedsTap(!ok);
   }
 
   function change(track: MusicTrack) {
@@ -235,6 +236,8 @@ export function useVibe({
     tick,
     snapshot,
     reconnecting: status === 'disconnected',
+    needsTap,
+    hear: () => void hear(),
     play: () => void play(),
     pause,
     seek,

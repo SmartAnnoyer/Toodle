@@ -21,6 +21,10 @@ export function userSocketCount(userId: string): number {
   return io?.sockets.adapter.rooms.get(`user:${userId}`)?.size ?? 0;
 }
 
+export function conversationRoomSize(conversationId: string): number {
+  return io?.sockets.adapter.rooms.get(`conversation:${conversationId}`)?.size ?? 0;
+}
+
 export function isUserInConversation(userId: string, conversationId: string): boolean {
   const room = io?.sockets.adapter.rooms.get(`conversation:${conversationId}`);
   if (!room || !io) return false;

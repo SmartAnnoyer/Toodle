@@ -1,7 +1,7 @@
 import type { Socket } from 'socket.io';
 import { z } from 'zod';
 import { SocketEvents } from '../constants/events.js';
-import { emitToConversation } from './hub.js';
+import { conversationRoomSize, emitToConversation } from './hub.js';
 import { reduceMusic, type MusicCommand, type RoomMusic, type TrackCommand } from './musicState.js';
 
 const rooms = new Map<string, RoomMusic>();
@@ -10,8 +10,8 @@ const trackSchema = z.object({
   trackId: z.string().min(1).max(80),
   title: z.string().min(1).max(80),
   artist: z.string().max(80).optional(),
-  audioUrl: z.string().max(180),
-  duration: z.number().positive().max(180),
+  audioUrl: z.string().max(400),
+  duration: z.number().positive().max(900),
   energy: z.string().max(20).optional(),
   mood: z.string().max(40).optional(),
 });
@@ -19,7 +19,7 @@ const trackSchema = z.object({
 const playSchema = z.object({
   conversationId: z.string().uuid(),
   track: trackSchema,
-  position: z.number().min(0).max(180).optional(),
+  position: z.number().min(0).max(900).optional(),
 });
 
 const roomSchema = z.object({ conversationId: z.string().uuid() });
@@ -43,6 +43,10 @@ function run(conversationId: string, command: MusicCommand, userId: string) {
   const result = reduceMusic(rooms.get(conversationId) ?? null, command, userId, Date.now(), conversationId);
   if (!result.changed) return;
   publish(conversationId, result.next);
+}
+
+export function noteConversationLeft(conversationId: string, remaining: number) {
+  if (remaining <= 0) rooms.delete(conversationId);
 }
 
 export function attachMusic(socket: Socket, userId: string) {
@@ -83,5 +87,14 @@ export function attachMusic(socket: Socket, userId: string) {
     const parsed = roomSchema.safeParse(payload);
     if (!parsed.success || !joined(parsed.data.conversationId)) return;
     run(parsed.data.conversationId, { type: 'stop' }, userId);
+  });
+
+  socket.on('disconnecting', () => {
+    for (const room of socket.rooms) {
+      if (!room.startsWith('conversation:')) continue;
+      const conversationId = room.slice('conversation:'.length);
+      const size = conversationRoomSize(conversationId);
+      if (size <= 1) rooms.delete(conversationId);
+    }
   });
 }

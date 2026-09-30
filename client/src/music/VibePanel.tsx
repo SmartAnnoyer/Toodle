@@ -57,8 +57,15 @@ export function VibePanel({
 
   if (!vibe.expanded) {
     return (
-      <button type="button" className="max-w-full truncate rounded-full bg-white/10 px-3 py-1 text-xs" onClick={vibe.toggle}>
-        🎵 {vibe.state?.title ?? 'Vibe Together'} · {playing ? '▶' : '❚❚'}
+      <button
+        type="button"
+        className="max-w-full truncate rounded-full bg-white/10 px-3 py-1 text-xs"
+        onClick={() => {
+          if (vibe.needsTap) vibe.hear();
+          vibe.toggle();
+        }}
+      >
+        🎵 {vibe.state?.title ?? 'Vibe Together'} · {vibe.needsTap ? 'Tap to hear' : playing ? '▶' : '❚❚'}
       </button>
     );
   }
