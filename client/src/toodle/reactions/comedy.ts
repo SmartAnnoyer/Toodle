@@ -12,9 +12,9 @@ export const COMEDY: ChatReaction[] = [
     cooldownMs: 180_000,
     level: 4,
     cues: () => [
-      cue(undefined, 'suspicious', 'suspicious', { ms: 700, timeline: [{ at: 80, sound: 'whoosh' }] }),
-      cue(undefined, 'thinking', 'thinking', { prop: 'glasses', ms: 800, timeline: [{ at: 40, sound: 'page_flip' }] }),
-      cue("I'm listening... 👀", 'dramatic', 'dramatic', { prop: 'notebook', ms: 1500, mood: 'curious', timeline: [{ at: 220, sound: 'pen' }] }),
+      cue(undefined, 'secret', 'suspicious', { ms: 700, timeline: [{ at: 80, sound: 'whoosh' }] }),
+      cue(undefined, 'secret', 'thinking', { prop: 'glasses', ms: 800, timeline: [{ at: 40, sound: 'page_flip' }] }),
+      cue("I'm listening... 👀", 'secret', 'dramatic', { prop: 'notebook', ms: 1500, mood: 'curious', timeline: [{ at: 220, sound: 'pen' }] }),
     ],
   },
   {

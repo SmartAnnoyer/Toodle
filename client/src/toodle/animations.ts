@@ -27,7 +27,9 @@ export type ToodleAnimation =
   | 'walkAway'
   | 'joke'
   | 'listen'
-  | 'wave';
+  | 'wave'
+  | 'secret'
+  | 'sword';
 
 export type ToodleSize = 'small' | 'medium' | 'large';
 export type ToodlePosition = 'floating' | 'inline' | 'peek';

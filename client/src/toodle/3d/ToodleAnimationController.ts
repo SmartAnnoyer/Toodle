@@ -56,80 +56,109 @@ function patrol(t: number, period: number) {
   return { amount, forward };
 }
 
-function gait(t: number, speed: number, stride: number, localX = 0, faceAway = false): Pose {
+function gait(t: number, speed: number, stride: number, localX = 0, faceAway = false, run = false): Pose {
   const s = Math.sin(t * speed);
-  const bob = Math.abs(Math.sin(t * speed));
+  const bob = Math.abs(s);
+  const liftL = Math.max(0, -s);
+  const liftR = Math.max(0, s);
   return pose({
-    root: { x: localX, y: bob * 0.07, ry: faceAway ? Math.PI : 0 },
-    hips: { ry: s * 0.08 },
-    spine: { rx: 0.08, ry: s * 0.05 },
-    head: { rx: -0.04, ry: -s * 0.1 },
-    armL: { rx: -s * stride * 0.7 },
-    armR: { rx: s * stride * 0.7 },
-    foreL: { rx: -0.28 },
-    foreR: { rx: -0.28 },
-    legL: { rx: s * stride },
-    legR: { rx: -s * stride },
-    shinL: { rx: Math.max(0, -s) * stride * 1.05 },
-    shinR: { rx: Math.max(0, s) * stride * 1.05 },
+    root: {
+      x: localX,
+      y: (run ? 0.04 : 0.015) + bob * (run ? 0.12 : 0.055),
+      ry: faceAway ? Math.PI : 0,
+      rz: s * (run ? 0.07 : 0.045),
+    },
+    hips: { ry: s * (run ? 0.28 : 0.18), rz: s * 0.07 },
+    spine: { rx: run ? 0.34 : 0.08, ry: -s * 0.1, rz: -s * 0.05 },
+    head: { rx: run ? -0.16 : -0.02, ry: -s * 0.14, rz: s * (run ? 0.08 : 0.05) },
+    armL: { rx: s * stride * (run ? 1.2 : 0.9), rz: 0.18 },
+    armR: { rx: -s * stride * (run ? 1.2 : 0.9), rz: -0.18 },
+    foreL: { rx: run ? -0.85 - liftR * 0.45 : -0.35 },
+    foreR: { rx: run ? -0.85 - liftL * 0.45 : -0.35 },
+    legL: { rx: s * stride * (run ? 1.2 : 1) },
+    legR: { rx: -s * stride * (run ? 1.2 : 1) },
+    shinL: { rx: liftL * stride * (run ? 1.45 : 1.15) },
+    shinR: { rx: liftR * stride * (run ? 1.45 : 1.15) },
+  });
+}
+
+function downed(): Pose {
+  return pose({
+    root: { rz: 1.2, rx: 0.32, y: -0.5, x: 0.16 },
+    spine: { rx: 0.28 },
+    head: { rx: 0.42, rz: 0.22 },
+    armL: { rx: -0.25, rz: 1.2 },
+    armR: { rx: 0.15, rz: -1.3 },
+    foreL: { rx: -0.55 },
+    foreR: { rx: -0.75 },
+    legL: { rx: -0.5, rz: 0.3 },
+    legR: { rx: 0.9 },
+    shinL: { rx: 1.2 },
+    shinR: { rx: 1.05 },
   });
 }
 
 function dancePose(t: number, style: DanceStyle): Pose {
   const s = Math.sin(t * 7);
   const c = Math.cos(t * 7);
+  const beat = Math.abs(s);
   if (style === 'victory') {
     return pose({
-      root: { y: Math.max(0, Math.sin(t * 6)) * 0.16 },
-      spine: { rx: -0.08 },
-      head: { rx: -0.1, rz: s * 0.08 },
-      armL: { rx: -2.5, rz: 0.25 + s * 0.15 },
-      armR: { rx: -2.5, rz: -0.25 - s * 0.15 },
-      foreL: { rx: -0.3 },
-      foreR: { rx: -0.3 },
-      legL: { rx: -0.15 },
-      legR: { rx: 0.2 },
+      root: { y: Math.max(0, Math.sin(t * 7)) * 0.2, rz: s * 0.06 },
+      spine: { rx: -0.12 },
+      head: { rx: -0.18, rz: s * 0.14 },
+      armL: { rx: -2.6, rz: 0.3 + s * 0.25 },
+      armR: { rx: -2.6, rz: -0.3 - s * 0.25 },
+      foreL: { rx: -0.25 },
+      foreR: { rx: -0.25 },
+      legL: { rx: -0.35 },
+      legR: { rx: beat * 0.45 },
+      shinR: { rx: beat * 0.4 },
     });
   }
   if (style === 'chaotic') {
     return pose({
-      root: { y: Math.abs(s) * 0.08, rz: s * 0.12 },
-      hips: { ry: s * 0.35 },
-      spine: { rx: c * 0.15, rz: s * 0.2 },
-      head: { rz: -s * 0.25, ry: c * 0.2 },
-      armL: { rx: -1.2 + s * 0.8, rz: 0.6 },
-      armR: { rx: -0.4 - s * 0.9, rz: -0.8 },
-      foreL: { rx: -0.8 },
-      foreR: { rx: -1.1 },
-      legL: { rx: s * 0.45 },
-      legR: { rx: -c * 0.45 },
+      root: { y: beat * 0.12, rz: s * 0.18, ry: s * 0.25 },
+      hips: { ry: s * 0.7, rz: c * 0.12 },
+      spine: { rx: c * 0.22, rz: s * 0.28 },
+      head: { rz: -s * 0.4, ry: c * 0.3, rx: -0.08 },
+      armL: { rx: -1.5 + s * 1.2, rz: 0.8 },
+      armR: { rx: -0.3 - s * 1.3, rz: -1.1 },
+      foreL: { rx: -0.9 + c * 0.4 },
+      foreR: { rx: -1.2 },
+      legL: { rx: s * 0.7 },
+      legR: { rx: -c * 0.7 },
+      shinL: { rx: Math.max(0, -s) * 0.6 },
+      shinR: { rx: Math.max(0, c) * 0.6 },
     });
   }
   if (style === 'silly') {
     return pose({
-      root: { y: Math.abs(s) * 0.05 },
-      hips: { rz: s * 0.18 },
-      head: { rz: -s * 0.22, rx: 0.12 },
-      armL: { rx: -0.4, rz: 0.9 + s * 0.3 },
-      armR: { rx: -1.6, rz: -0.2 },
-      foreL: { rx: -0.5 },
-      foreR: { rx: -0.9 },
-      legL: { rx: 0.2 },
-      shinL: { rx: 0.35 },
-      legR: { rx: -0.15 },
+      root: { y: beat * 0.08, rz: s * 0.1 },
+      hips: { rz: s * 0.28, ry: c * 0.2 },
+      head: { rz: -s * 0.35, rx: 0.16 },
+      armL: { rx: -0.5, rz: 1.1 + s * 0.4 },
+      armR: { rx: -1.8, rz: -0.25 },
+      foreL: { rx: -0.4 + c * 0.5 },
+      foreR: { rx: -1.1 },
+      legL: { rx: 0.25 + s * 0.2 },
+      shinL: { rx: 0.45 },
+      legR: { rx: -0.2 },
     });
   }
   return pose({
-    root: { y: Math.abs(s) * 0.07 },
-    hips: { ry: s * 0.2 },
-    spine: { rx: 0.05 },
-    head: { rz: s * 0.12 },
-    armL: { rx: -0.9 + s * 0.45, rz: 0.35 },
-    armR: { rx: -0.9 - s * 0.45, rz: -0.35 },
-    foreL: { rx: -0.55 },
-    foreR: { rx: -0.55 },
-    legL: { rx: -s * 0.25 },
-    legR: { rx: s * 0.25 },
+    root: { y: beat * 0.1, rz: s * 0.07 },
+    hips: { ry: s * 0.5, rz: c * 0.06 },
+    spine: { rx: 0.06, ry: -s * 0.18 },
+    head: { rz: -s * 0.24, rx: -0.06 },
+    armL: { rx: -1.5 + s * 0.95, rz: 0.55 },
+    armR: { rx: -0.45 - s * 0.95, rz: -0.75 },
+    foreL: { rx: -0.35 + c * 0.45 },
+    foreR: { rx: -1.05 },
+    legL: { rx: -Math.max(0, s) * 0.6 },
+    legR: { rx: Math.max(0, -s) * 0.5 },
+    shinL: { rx: Math.max(0, s) * 0.55 },
+    shinR: { rx: Math.max(0, -s) * 0.45 },
   });
 }
 
@@ -152,7 +181,7 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     loop: true,
     sample: (t) => {
       const step = patrol(t, 3.2);
-      return gait(t, 7.5, 0.72, step.amount * 0.92, !step.forward);
+      return gait(t, 8, 0.9, step.amount * 0.92, !step.forward);
     },
   },
   run: {
@@ -160,10 +189,7 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     loop: true,
     sample: (t) => {
       const step = patrol(t, 1.8);
-      const next = gait(t, 12, 1.05, step.amount, !step.forward);
-      next.spine.rx = 0.28;
-      next.root.y += 0.04;
-      return next;
+      return gait(t, 14, 1.15, step.amount * 0.85, !step.forward, true);
     },
   },
   jump: {
@@ -220,42 +246,67 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     sample: (t) => CLIPS.sleep.sample(t, 'bounce'),
   },
   laugh: {
-    duration: 0.8,
+    duration: 0.9,
     loop: true,
-    sample: (t) => pose({
-      root: { y: Math.abs(Math.sin(t * 14)) * 0.05 },
-      spine: { rx: 0.12 + Math.sin(t * 14) * 0.08 },
-      head: { rx: -0.15, rz: Math.sin(t * 14) * 0.08 },
-      armL: { rx: -1.1, rz: 0.3 },
-      armR: { rx: -1.1, rz: -0.3 },
-      foreL: { rx: -0.4 },
-      foreR: { rx: -0.4 },
-    }),
+    sample: (t) => {
+      const ha = Math.sin(t * 16);
+      return pose({
+        root: { y: Math.abs(ha) * 0.08, rz: ha * 0.05 },
+        hips: { ry: ha * 0.1 },
+        spine: { rx: 0.38 + Math.abs(ha) * 0.14 },
+        head: { rx: -0.42 + ha * 0.16, rz: ha * 0.12 },
+        armL: { rx: -0.15, rz: 0.45 },
+        armR: { rx: -1.55, rz: -0.15 },
+        foreL: { rx: -0.25 },
+        foreR: { rx: -0.85 + ha * 0.2 },
+        legL: { rx: 0.08 },
+        legR: { rx: -0.12 + Math.abs(ha) * 0.18 },
+      });
+    },
   },
   cry: {
     duration: 1.4,
     loop: true,
-    sample: (t) => pose({
-      spine: { rx: 0.22 },
-      head: { rx: 0.35, rz: Math.sin(t * 3) * 0.05 },
-      armL: { rx: -0.5, rz: 0.35 },
-      armR: { rx: -0.9 },
-      foreR: { rx: -1.5 },
-      hips: { y: Math.sin(t * 2) * 0.01 },
-    }),
+    sample: (t) => {
+      const sob = Math.abs(Math.sin(t * 7));
+      const hic = Math.sin(t * 3.2);
+      return pose({
+        root: { y: -0.08 - sob * 0.05 },
+        hips: { rz: hic * 0.06 },
+        spine: { rx: 0.42 + sob * 0.1 },
+        head: { rx: 0.5 + hic * 0.08, rz: hic * 0.14 },
+        armL: { rx: -1.35, rz: 0.5 },
+        armR: { rx: -1.4, rz: -0.42 },
+        foreL: { rx: -1.45 },
+        foreR: { rx: -1.5 },
+        legL: { rx: 0.18 },
+        legR: { rx: -0.08 },
+        shinL: { rx: 0.3 },
+      });
+    },
   },
   angry: {
-    duration: 0.8,
+    duration: 0.9,
     loop: true,
-    sample: (t) => pose({
-      spine: { rx: -0.06 },
-      head: { rx: 0.08 },
-      armL: { rx: -0.55, rz: 0.55 },
-      armR: { rx: -0.55, rz: -0.55 },
-      foreL: { rx: -1.45 },
-      foreR: { rx: -1.45 },
-      hips: { rz: Math.sin(t * 8) * 0.03 },
-    }),
+    sample: (t) => {
+      const stompL = Math.max(0, Math.sin(t * 11));
+      const stompR = Math.max(0, Math.sin(t * 11 + Math.PI));
+      const shake = Math.sin(t * 24);
+      return pose({
+        root: { y: Math.max(stompL, stompR) * 0.07, rz: shake * 0.05 },
+        hips: { rz: shake * 0.08 },
+        spine: { rx: -0.16, ry: shake * 0.1 },
+        head: { rx: 0.2, rz: shake * 0.18, ry: Math.sin(t * 9) * 0.12 },
+        armL: { rx: -0.75, rz: 0.78 + shake * 0.16 },
+        armR: { rx: -0.75, rz: -0.78 - shake * 0.16 },
+        foreL: { rx: -1.75 },
+        foreR: { rx: -1.75 },
+        legL: { rx: -stompL * 0.7 },
+        legR: { rx: -stompR * 0.7 },
+        shinL: { rx: stompL * 0.85 },
+        shinR: { rx: stompR * 0.85 },
+      });
+    },
   },
   fear: {
     duration: 0.6,
@@ -314,15 +365,22 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     }),
   },
   blush: {
-    duration: 1,
+    duration: 1.1,
     loop: true,
-    sample: (t) => pose({
-      head: { rx: 0.18, ry: -0.2 },
-      armL: { rx: -0.4, rz: 0.5 },
-      armR: { rx: -0.7 },
-      foreR: { rx: -1.2 },
-      spine: { rx: Math.sin(t * 3) * 0.03 },
-    }),
+    sample: (t) => {
+      const shy = Math.sin(t * 6);
+      return pose({
+        root: { y: Math.abs(shy) * 0.035, ry: -0.12 },
+        spine: { rx: 0.14, ry: shy * 0.16 },
+        head: { rx: 0.32, ry: -0.42 + shy * 0.1, rz: 0.2 },
+        armL: { rx: -1.2, rz: 0.62 },
+        armR: { rx: -1.25, rz: -0.5 },
+        foreL: { rx: -1.55 },
+        foreR: { rx: -1.6 },
+        legL: { rz: 0.14 + shy * 0.1 },
+        legR: { rz: -0.1 },
+      });
+    },
   },
   wink: {
     duration: 0.7,
@@ -387,23 +445,99 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     }),
   },
   fall: {
-    duration: 0.55,
+    duration: 0.85,
     loop: false,
     sample: (t) => {
-      const p = Math.min(1, t / 0.55);
-      return pose({
-        root: { rz: p * 1.35, y: -p * 0.42, x: p * 0.15 },
-        armL: { rz: 0.8 },
-        armR: { rz: -0.6 },
+      const flail = Math.sin(t * 28);
+      const slip = pose({
+        root: { x: 0.08, y: 0.06, rz: 0.16 },
+        head: { rx: -0.32, rz: flail * 0.22 },
+        armL: { rx: -0.5 - flail * 1.35, rz: 0.45 },
+        armR: { rx: flail * 1.45, rz: -0.55 },
+        foreL: { rx: -0.65 },
+        foreR: { rx: -0.85 },
+        legR: { rx: 1.2 },
+        shinR: { rx: 0.45 },
+        legL: { rx: -0.28 },
       });
+      const mid = pose({
+        root: { rz: 0.7, rx: 0.2, y: 0.04, x: 0.12 },
+        head: { rx: -0.12, rz: flail * 0.32 },
+        armL: { rx: -1.35, rz: 1.05 },
+        armR: { rx: 0.55, rz: -1.2 },
+        legL: { rx: -0.95 },
+        legR: { rx: 0.6 },
+        shinL: { rx: 0.65 },
+        shinR: { rx: 0.4 },
+      });
+      const splat = downed();
+      splat.head.rz = 0.22 + Math.sin(Math.max(0, t - 0.55) * 14) * 0.2;
+      splat.root.y = -0.5 + Math.sin(Math.min(1, Math.max(0, (t - 0.5) / 0.22)) * Math.PI) * 0.07;
+      if (t < 0.22) return lerpPose(pose(), slip, smooth(t / 0.22));
+      if (t < 0.42) return lerpPose(slip, mid, smooth((t - 0.22) / 0.2));
+      return lerpPose(mid, splat, smooth(Math.min(1, (t - 0.42) / 0.18)));
     },
   },
   get_up: {
-    duration: 0.7,
+    duration: 0.8,
     loop: false,
     sample: (t) => {
-      const p = 1 - Math.min(1, t / 0.7);
-      return pose({ root: { rz: p * 1.35, y: -p * 0.42 }, head: { rx: -0.1 * (1 - p) } });
+      const p = Math.min(1, t / 0.8);
+      const crouch = pose({
+        root: { y: -0.3, rx: 0.42, rz: 0.12 },
+        spine: { rx: 0.38 },
+        head: { rx: 0.12, rz: -0.12 },
+        armL: { rx: -1.15, rz: 0.28 },
+        armR: { rx: -1.15, rz: -0.28 },
+        foreL: { rx: -0.35 },
+        foreR: { rx: -0.35 },
+        legL: { rx: -1.15 },
+        legR: { rx: -1.15 },
+        shinL: { rx: 1.45 },
+        shinR: { rx: 1.45 },
+      });
+      if (p < 0.5) return lerpPose(downed(), crouch, smooth(p / 0.5));
+      return lerpPose(crouch, pose({ head: { rx: -0.08 }, root: { y: 0.03 } }), smooth((p - 0.5) / 0.5));
+    },
+  },
+  secret: {
+    duration: 1.6,
+    loop: true,
+    sample: (t) => {
+      const look = Math.sin(t * 3.4);
+      const tiptoe = Math.abs(Math.sin(t * 6));
+      return pose({
+        root: { y: tiptoe * 0.045, z: 0.05 },
+        spine: { rx: 0.32, ry: look * 0.22 },
+        head: { rx: 0.08, ry: look * 0.5, rz: 0.1 },
+        armR: { rx: -1.3, rz: -0.4 },
+        foreR: { rx: -1.4 },
+        armL: { rx: -0.35, rz: 0.3 },
+        legL: { rx: tiptoe * 0.25 },
+        legR: { rx: -tiptoe * 0.18 },
+        shinL: { rx: tiptoe * 0.35 },
+      });
+    },
+  },
+  sword: {
+    duration: 1.15,
+    loop: false,
+    sample: (t) => {
+      const draw = smooth(Math.min(1, t / 0.22));
+      const slash = Math.sin(Math.min(1, Math.max(0, (t - 0.22) / 0.32)) * Math.PI);
+      const hold = smooth(Math.min(1, Math.max(0, (t - 0.54) / 0.18)));
+      const away = smooth(Math.min(1, Math.max(0, (t - 0.78) / 0.32)));
+      return pose({
+        root: { y: slash * 0.08, ry: draw * -0.25 + slash * 0.7 * (1 - away) },
+        spine: { rx: -0.08 - slash * 0.18, ry: slash * 0.35 },
+        head: { rx: -0.1, ry: 0.12 },
+        armR: { rx: -0.35 - draw * 2.3 * (1 - away * 0.65) - slash * 0.4, rz: -0.25 - slash * 0.55 },
+        foreR: { rx: -0.25 - draw * 0.55 },
+        armL: { rx: -0.25 - hold * 0.5, rz: 0.35 + hold * 0.35 },
+        legL: { rx: -0.2 * slash },
+        legR: { rx: 0.28 * hold },
+        shinR: { rx: 0.2 * hold },
+      });
     },
   },
   spin: {

@@ -76,6 +76,10 @@ export function expressionFor(animation: string): ToodleExpression {
       return 'suspicious';
     case 'dramatic':
       return 'dramatic';
+    case 'secret':
+      return 'suspicious';
+    case 'sword':
+      return 'proud';
     case 'hide':
       return 'shy';
     case 'notice':

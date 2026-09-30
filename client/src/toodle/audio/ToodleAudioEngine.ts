@@ -5,8 +5,8 @@ import { toodleSound } from './ToodleSoundManager';
 import type { SoundCue, ToodleSoundId } from './types';
 
 const STEP_SECONDS: Record<string, number> = {
-  walk: Math.PI / 7.5,
-  run: Math.PI / 12,
+  walk: Math.PI / 8,
+  run: Math.PI / 14,
   walkAway: Math.PI / 8,
 };
 
