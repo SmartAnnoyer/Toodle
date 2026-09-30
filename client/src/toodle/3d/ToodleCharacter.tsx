@@ -166,11 +166,11 @@ export function ToodleCharacter({
     }
     if (arc.current) {
       const t = swordClock.current;
-      const slash = Math.sin(Math.min(1, Math.max(0, (t - 0.5) / 0.42)) * Math.PI);
-      const back = Math.sin(Math.min(1, Math.max(0, (t - 0.98) / 0.4)) * Math.PI);
-      const flash = Math.max(slash, back);
+      const slash = Math.sin(Math.min(1, Math.max(0, (t - 0.62) / 0.4)) * Math.PI);
+      const chop = Math.sin(Math.min(1, Math.max(0, (t - 1.32) / 0.36)) * Math.PI);
+      const flash = Math.max(slash, chop);
       arc.current.visible = flash > 0.08;
-      arc.current.rotation.z = slash >= back ? -1.15 + slash * 2.2 : 1.2 - back * 2.2;
+      arc.current.rotation.z = slash >= chop ? -1.2 + slash * 2.3 : 0.4 - chop * 1.1;
       arc.current.scale.setScalar(0.8 + flash * 0.55);
       (arc.current.material as { opacity: number }).opacity = flash * 0.95;
     }
@@ -378,7 +378,7 @@ export function ToodleCharacter({
                 <sphereGeometry args={[0.05, 10, 8]} />
                 <Skin />
               </mesh>
-              {slot === 'hand' && prop ? <group position={[0.02, -0.12, 0.06]}><ToodlePropMesh prop={prop} /></group> : null}
+              {slot === 'hand' && prop ? <group position={[0, -0.2, 0.02]}><ToodlePropMesh prop={prop} /></group> : null}
             </group>
           </group>
 

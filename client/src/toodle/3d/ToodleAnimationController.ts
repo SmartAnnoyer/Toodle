@@ -520,36 +520,61 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     },
   },
   sword: {
-    duration: 2.45,
+    duration: 2.5,
     loop: false,
     sample: (t) => {
-      const reach = smooth(Math.min(1, t / 0.22));
-      const draw = smooth(Math.min(1, Math.max(0, (t - 0.2) / 0.28)));
-      const slash = Math.sin(Math.min(1, Math.max(0, (t - 0.5) / 0.42)) * Math.PI);
-      const back = Math.sin(Math.min(1, Math.max(0, (t - 0.98) / 0.4)) * Math.PI);
-      const hero = smooth(Math.min(1, Math.max(0, (t - 1.38) / 0.2))) * (1 - smooth(Math.min(1, Math.max(0, (t - 1.9) / 0.18))));
-      const sheath = smooth(Math.min(1, Math.max(0, (t - 1.95) / 0.45)));
-      const live = 1 - sheath;
-      return pose({
-        root: {
-          y: (draw * 0.07 + slash * 0.12 + back * 0.08) * live,
-          ry: 0,
-          rz: (slash * 0.1 - back * 0.08) * live,
-        },
-        hips: { ry: 0 },
-        spine: { rx: (-0.08 * draw - slash * 0.1) * live, ry: 0 },
-        head: { rx: -0.08, ry: 0 },
-        armR: {
-          rx: (-0.35 - reach * 1.15 - draw * 1.55 - hero * 0.35) * (0.15 + 0.85 * live),
-          rz: (0.7 * reach - slash * 1.45 + back * 1.25 - hero * 0.8) * live,
-        },
-        foreR: { rx: (-0.25 - draw * 0.75) * live },
-        armL: { rx: (-0.25 - slash * 0.45 - hero * 1.05) * live, rz: (0.25 + back * 0.45 + hero * 0.8) * live },
-        legL: { rx: (-0.2 * slash - hero * 0.3) * live, rz: hero * 0.18 * live },
-        legR: { rx: (slash * 0.2 + hero * 0.45) * live },
-        shinL: { rx: hero * 0.2 * live },
-        shinR: { rx: hero * 0.3 * live },
+      const face = { rx: -0.06, ry: 0 };
+      const ready = pose({
+        head: face,
+        spine: { rx: 0.08 },
+        armR: { rx: -1.05, rz: 0.95 },
+        foreR: { rx: -0.45 },
       });
+      const guard = pose({
+        head: face,
+        root: { y: 0.05 },
+        armR: { rx: -2.45, rz: -0.15 },
+        foreR: { rx: -0.1 },
+        armL: { rx: -0.45, rz: 0.4 },
+        legL: { rx: -0.12 },
+        legR: { rx: 0.22 },
+      });
+      const cut = pose({
+        head: face,
+        root: { y: 0.07, x: 0.06 },
+        armR: { rx: -1.45, rz: -1.35 },
+        foreR: { rx: -0.15 },
+        armL: { rx: -0.3, rz: 0.6 },
+        legL: { rx: -0.4 },
+        legR: { rx: 0.12 },
+      });
+      const chop = pose({
+        head: face,
+        root: { y: 0.02, x: -0.05 },
+        armR: { rx: -0.7, rz: -0.1 },
+        foreR: { rx: -0.65 },
+        armL: { rx: -0.55, rz: 0.45 },
+        legR: { rx: 0.5 },
+        shinR: { rx: 0.45 },
+      });
+      const hero = pose({
+        head: face,
+        root: { y: 0.04 },
+        armR: { rx: -2.05, rz: -0.9 },
+        foreR: { rx: -0.15 },
+        armL: { rx: -1.05, rz: 0.75 },
+        legL: { rx: -0.22, rz: 0.12 },
+        legR: { rx: 0.38 },
+        shinR: { rx: 0.22 },
+      });
+      const away = pose({ head: face, armR: { rx: -0.45, rz: 0.35 }, foreR: { rx: -0.2 } });
+      if (t < 0.32) return lerpPose(pose({ head: face }), ready, smooth(t / 0.32));
+      if (t < 0.62) return lerpPose(ready, guard, smooth((t - 0.32) / 0.3));
+      if (t < 1.02) return lerpPose(guard, cut, smooth((t - 0.62) / 0.22));
+      if (t < 1.32) return lerpPose(cut, guard, smooth((t - 1.02) / 0.3));
+      if (t < 1.68) return lerpPose(guard, chop, smooth((t - 1.32) / 0.18));
+      if (t < 2.12) return lerpPose(chop, hero, smooth((t - 1.68) / 0.24));
+      return lerpPose(hero, away, smooth((t - 2.12) / 0.38));
     },
   },
   spin: {

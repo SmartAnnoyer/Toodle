@@ -155,26 +155,22 @@ export function ToodlePropMesh({ prop }: { prop: ToodleProp }) {
   }
   if (prop === 'katana') {
     return (
-      <group position={[0.02, -0.02, 0.05]} rotation={[0.15, 0, -1.15]}>
-        <mesh position={[0, 0.28, 0]}>
-          <boxGeometry args={[0.018, 0.46, 0.006]} />
-          <meshStandardMaterial color="#f2efe8" metalness={0.65} roughness={0.22} emissive="#ff3b3b" emissiveIntensity={0.35} />
-        </mesh>
-        <mesh position={[0, 0.28, 0.008]}>
-          <boxGeometry args={[0.006, 0.42, 0.004]} />
-          <meshStandardMaterial color="#E32626" emissive="#ff2a2a" emissiveIntensity={1.6} />
-        </mesh>
-        <mesh position={[0, 0.02, 0]}>
-          <boxGeometry args={[0.07, 0.016, 0.016]} />
-          <meshStandardMaterial color="#D4A85A" metalness={0.55} roughness={0.32} />
-        </mesh>
-        <mesh position={[0, -0.08, 0]}>
-          <cylinderGeometry args={[0.014, 0.016, 0.12, 8]} />
+      <group rotation={[-0.7, 0, 0]}>
+        <mesh position={[0, 0.04, 0]}>
+          <cylinderGeometry args={[0.016, 0.018, 0.1, 8]} />
           <meshStandardMaterial color="#2a1214" roughness={0.45} />
         </mesh>
-        <mesh position={[0, -0.01, 0]}>
-          <torusGeometry args={[0.02, 0.005, 6, 8]} />
-          <meshStandardMaterial color="#E32626" emissive="#E32626" emissiveIntensity={0.4} />
+        <mesh position={[0, -0.03, 0]}>
+          <boxGeometry args={[0.08, 0.016, 0.018]} />
+          <meshStandardMaterial color="#D4A85A" metalness={0.55} roughness={0.3} />
+        </mesh>
+        <mesh position={[0, -0.3, 0]}>
+          <boxGeometry args={[0.02, 0.48, 0.008]} />
+          <meshStandardMaterial color="#f4f1ea" metalness={0.7} roughness={0.18} emissive="#ff4040" emissiveIntensity={0.45} />
+        </mesh>
+        <mesh position={[0, -0.3, 0.008]}>
+          <boxGeometry args={[0.008, 0.44, 0.004]} />
+          <meshStandardMaterial color="#ff2a2a" emissive="#ff1a1a" emissiveIntensity={1.8} />
         </mesh>
       </group>
     );

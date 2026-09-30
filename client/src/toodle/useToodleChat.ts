@@ -207,6 +207,7 @@ export function useToodleChat({
       const recent = texts.slice(Math.max(0, index - 4), index).map((item) => item.body);
       if (message.senderId !== myId) setWaiting(false);
       if (message.senderId === myId && Date.now() - ackedAt.current < 4000) continue;
+      if (offerMass(message.body)) continue;
       const heard = hearMessage(message.body, memory.current, Date.now(), readChaos(), Math.random, {
         userId: message.senderId ?? undefined,
         recent,
@@ -228,9 +229,6 @@ export function useToodleChat({
       else if (rapid) show('USER_SENT_MANY_MESSAGES');
       else if (message.body.length > 280) show('LONG_MESSAGE');
       else if (emojiOnly) show('EMOJI_REACT', { emoji: message.body });
-      else if (offerMass(message.body)) {
-        continue;
-      }
       else if (musicRef.current?.status === 'playing') {
         continue;
       }
@@ -360,6 +358,7 @@ export function useToodleChat({
       ackedAt.current = Date.now();
       toodleAudio.unlock();
       setWaiting(true);
+      if (offerMass(trimmed)) return;
       const decision = explainToodleReaction(trimmed, memory.current, Date.now(), readChaos(), Math.random, { userId: myId });
       if (decision.beats?.length) {
         offer(skin(decision.beats));

@@ -35,22 +35,29 @@ function beat(partial: Partial<ToodleBeat> & Pick<ToodleBeat, 'animation' | 'pos
 
 /** Rare OG-only lines. Existing chat detection still runs first. */
 export function ogMassReaction(text: string, now: number, random: number, cooledUntil: number): { beats: ToodleBeat[]; until: number } | null {
-  if (now < cooledUntil || random > 0.42) return null;
+  if (now < cooledUntil || random > 0.85) return null;
   const phrase = ogMassPhrase(text);
   if (!phrase) return null;
   return {
     until: now + 45_000,
     beats: [
-      beat({ animation: 'dramatic', pose: 'dramatic', ms: 700, priority: 58, prop: 'sunglasses', reactionId: 'og-mass' }),
+      beat({ animation: 'dramatic', pose: 'dramatic', ms: 320, priority: 72, reactionId: 'og-mass' }),
       beat({
-        animation: 'walk',
-        pose: 'suspicious',
+        animation: 'sword',
+        pose: 'dramatic',
         line: 'Obviously.',
-        ms: 1200,
-        priority: 58,
-        prop: 'sunglasses',
+        ms: 2500,
+        priority: 72,
+        prop: 'katana',
         reactionId: 'og-mass',
-        sound: 'shing',
+        timeline: [
+          { at: 80, sound: 'shing' },
+          { at: 520, sound: 'whoosh' },
+          { at: 780, sound: 'impact' },
+          { at: 1280, sound: 'whoosh' },
+          { at: 1480, sound: 'impact' },
+          { at: 2100, sound: 'shing' },
+        ],
       }),
     ],
   };
@@ -86,7 +93,7 @@ export function dressOgBeat(beat: ToodleBeat): ToodleBeat {
 /** Very rare sword flourish after a name call or an enjoy. */
 export function ogFlourish(reactionId: string | undefined, now: number, cooledUntil: number, random: number): { beat: ToodleBeat; until: number } | null {
   if (!reactionId || now < cooledUntil || random > 0.22) return null;
-  if (reactionId !== 'name' && reactionId !== 'name-ask' && reactionId !== 'enjoy' && reactionId !== 'og-mass') return null;
+  if (reactionId !== 'name' && reactionId !== 'name-ask' && reactionId !== 'enjoy') return null;
   return {
     until: now + 180_000,
     beat: {
@@ -99,6 +106,14 @@ export function ogFlourish(reactionId: string | undefined, now: number, cooledUn
       priority: 64,
       sound: 'shing',
       reactionId: 'og_sword_draw',
+      timeline: [
+        { at: 80, sound: 'shing' },
+        { at: 520, sound: 'whoosh' },
+        { at: 780, sound: 'impact' },
+        { at: 1280, sound: 'whoosh' },
+        { at: 1480, sound: 'impact' },
+        { at: 2100, sound: 'shing' },
+      ],
     },
   };
 }
@@ -108,7 +123,14 @@ export function ogTapBeats(count: number): ToodleBeat[] {
   if (count <= 1) return [{ ...base, animation: 'listen', pose: 'suspicious', ms: 700 }];
   if (count === 2) return [{ ...base, animation: 'confused', pose: 'confused', line: '...', ms: 800 }];
   if (count === 3) return [{ ...base, animation: 'dramatic', pose: 'dramatic', prop: 'sunglasses', ms: 900 }];
-  if (count === 4) return [{ ...base, animation: 'sword', pose: 'dramatic', prop: 'katana', ms: 2500, sound: 'shing', reactionId: 'og_sword_draw' }];
+  if (count === 4) return [{ ...base, animation: 'sword', pose: 'dramatic', prop: 'katana', ms: 2500, sound: 'shing', reactionId: 'og_sword_draw', timeline: [
+    { at: 80, sound: 'shing' },
+    { at: 520, sound: 'whoosh' },
+    { at: 780, sound: 'impact' },
+    { at: 1280, sound: 'whoosh' },
+    { at: 1480, sound: 'impact' },
+    { at: 2100, sound: 'shing' },
+  ] }];
   return [
     { ...base, animation: 'angry', pose: 'chaotic', line: 'Enough.', ms: 900, priority: 98 },
     { ...base, animation: 'walkAway', pose: 'dramatic', ms: 900, priority: 98, sound: 'whoosh' },
