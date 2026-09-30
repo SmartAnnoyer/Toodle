@@ -140,7 +140,7 @@ const CLIPS: Record<string, { duration: number; loop: boolean; sample: (t: numbe
     sample: (t) => pose({
       root: { y: Math.sin(t * 1.7) * 0.03 },
       spine: { rx: Math.sin(t * 1.6) * 0.04 },
-      head: { ry: Math.sin(t * 0.45) * 0.14, rx: Math.sin(t * 0.7) * 0.03 },
+      head: { ry: Math.sin(t * 0.7) * 0.05, rx: Math.sin(t * 0.7) * 0.03 },
       armL: { rz: 0.12 },
       armR: { rz: -0.12 },
       foreL: { rx: -0.15 },
@@ -519,7 +519,6 @@ export class ToodleAnimationController {
   focusX = 0;
   halfW = 2.2;
   private glance = 0;
-  private glanceYaw = 0;
 
   setHalfWidth(width: number) {
     if (Number.isFinite(width) && width > 0.3) this.halfW = width;
@@ -589,9 +588,6 @@ export class ToodleAnimationController {
     const live = CLIPS[clipKey] ?? clip;
     const fromClip = CLIPS[this.from] ?? CLIPS.idle;
     const mixed = lerpPose(fromClip.sample(this.fromTime, this.style), live.sample(this.time, this.style), smooth(this.blend));
-    const targetYaw = this.glance * -0.42;
-    this.glanceYaw += (targetYaw - this.glanceYaw) * Math.min(1, step * 4);
-    mixed.root.ry += this.glanceYaw;
     const margin = 0.9;
     const left = -this.halfW + margin;
     const right = this.halfW - margin;
