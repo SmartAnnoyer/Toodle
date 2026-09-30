@@ -43,6 +43,7 @@ export type ToodleSoundId =
   | 'bike'
   | 'helmet'
   | 'whoosh'
+  | 'shing'
   | 'popcorn'
   | 'impact';
 

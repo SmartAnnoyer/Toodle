@@ -5,6 +5,8 @@ import { reactionForText } from './3d/intent';
 import { explainToodleReaction, feelTap, freshMemory, hearMessage, keywordHit } from './life';
 import { looksSerious, mentionsFiveMinutes, mentionsGoodnight, notableWord, poseForEmoji } from './lines';
 import type { MusicSnapshot, ToodleMusicEvent } from '../music/MusicTypes';
+import { useTheme } from '../theme/ThemeProvider';
+import { dressOgBeat, dressOgMusicLine, ogFlourish, ogMassReaction, ogTapBeats } from './og/registry';
 import { toodleAudio } from './audio/ToodleAudioEngine';
 import { shouldPopIncoming } from './audio/ToodleAudioState';
 import { ambientVibeBeat, decideMusicReaction, musicComboBeat } from './music/reactions';
@@ -54,7 +56,43 @@ export function useToodleChat({
   const ackedAt = useRef(0);
   const longChat = useRef(false);
   const musicCool = useRef(new Map<string, number>());
+  const ogFlourishUntil = useRef(0);
+  const ogMassUntil = useRef(0);
+  const ogTaps = useRef<number[]>([]);
+  const ogTapLock = useRef(0);
+  const { theme } = useTheme();
   const conversationId = conversation?.id;
+
+  function skin(cues: ToodleBeat[]) {
+    const themed = theme === 'og'
+      ? cues.map((item) => {
+        const dressed = dressOgBeat(item);
+        if (!dressed.reactionId?.startsWith('music_')) return dressed;
+        return {
+          ...dressed,
+          line: dressOgMusicLine(dressed.line, dressed.reactionId),
+          prop: dressed.prop === 'headphones' ? 'sunglasses' as const : dressed.prop,
+        };
+      })
+      : cues;
+    if (theme === 'og') {
+      const flourish = ogFlourish(cues[0]?.reactionId, Date.now(), ogFlourishUntil.current, Math.random());
+      if (flourish) {
+        ogFlourishUntil.current = flourish.until;
+        themed.push(flourish.beat);
+      }
+    }
+    return decorate(themed);
+  }
+
+  function offerMass(text: string) {
+    if (theme !== 'og') return false;
+    const mass = ogMassReaction(text, Date.now(), Math.random(), ogMassUntil.current);
+    if (!mass) return false;
+    ogMassUntil.current = mass.until;
+    offer(skin(mass.beats));
+    return true;
+  }
 
   function decorate(cues: ToodleBeat[]) {
     const extra = musicComboBeat(cues[0]?.reactionId, musicRef.current, Math.random());
@@ -64,7 +102,13 @@ export function useToodleChat({
   function vibeAfter() {
     const music = musicRef.current;
     if (!music || music.status !== 'playing' || readChaos() === 'off') return null;
-    return ambientVibeBeat(music);
+    const ambient = ambientVibeBeat(music);
+    if (theme !== 'og') return ambient;
+    return {
+      ...ambient,
+      prop: 'sunglasses' as const,
+      animation: music.energy === 'chaotic' ? 'dramatic' as const : music.energy === 'energetic' ? 'dance' as const : 'listen' as const,
+    };
   }
 
   function present(next: ToodleBeat | null) {
@@ -121,6 +165,10 @@ export function useToodleChat({
     engine.current = new ToodleEngine();
     memory.current = freshMemory();
     musicCool.current = new Map();
+    ogFlourishUntil.current = 0;
+    ogMassUntil.current = 0;
+    ogTaps.current = [];
+    ogTapLock.current = 0;
     script.current = [];
     present(null);
     setWaiting(false);
@@ -164,7 +212,7 @@ export function useToodleChat({
         recent,
       });
       if (heard?.length) {
-        offer(decorate(heard));
+        offer(skin(heard));
         continue;
       }
       if (message.senderId === myId) {
@@ -180,6 +228,9 @@ export function useToodleChat({
       else if (rapid) show('USER_SENT_MANY_MESSAGES');
       else if (message.body.length > 280) show('LONG_MESSAGE');
       else if (emojiOnly) show('EMOJI_REACT', { emoji: message.body });
+      else if (offerMass(message.body)) {
+        continue;
+      }
       else if (musicRef.current?.status === 'playing') {
         continue;
       }
@@ -311,10 +362,11 @@ export function useToodleChat({
       setWaiting(true);
       const decision = explainToodleReaction(trimmed, memory.current, Date.now(), readChaos(), Math.random, { userId: myId });
       if (decision.beats?.length) {
-        offer(decorate(decision.beats));
+        offer(skin(decision.beats));
         return;
       }
       if (decision.detected.length || keywordHit(trimmed)) return;
+      if (offerMass(trimmed)) return;
       if (musicRef.current?.status === 'playing') return;
       const pick = reactionForText(trimmed);
       play([
@@ -346,6 +398,18 @@ export function useToodleChat({
     poke() {
       if (paused || readChaos() === 'off' || Date.now() < memory.current.chaosUntil) return;
       toodleAudio.unlock();
+      if (theme === 'og') {
+        const now = Date.now();
+        if (now < ogTapLock.current) return;
+        ogTaps.current = [...ogTaps.current.filter((time) => now - time < 1600), now];
+        const count = ogTaps.current.length;
+        if (count >= 5) {
+          ogTaps.current = [];
+          ogTapLock.current = now + 20_000;
+        }
+        play(ogTapBeats(Math.min(count, 5)));
+        return;
+      }
       const cues = feelTap(memory.current, Date.now());
       if (cues.length) play(cues);
     },

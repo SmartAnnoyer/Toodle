@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useTheme } from '../theme/ThemeProvider';
 import { useEffect, useRef } from 'react';
 import { musicPlayer } from './MusicManager';
 import { vibePresence } from './sync';
@@ -29,6 +30,7 @@ export function VibePanel({
   friendName: string;
   myId?: string;
 }) {
+  const og = useTheme().theme === 'og';
   const bar = useRef<HTMLInputElement>(null);
   const label = useRef<HTMLSpanElement>(null);
   const playing = vibe.state?.status === 'playing';
@@ -68,10 +70,10 @@ export function VibePanel({
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mt-2 w-full min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-500/20 via-fuchsia-500/10 to-cyan-400/10 p-3 shadow-[0_0_24px_rgba(168,85,247,0.15)] backdrop-blur-md"
+        className={`vibe-panel mt-2 w-full min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-500/20 via-fuchsia-500/10 to-cyan-400/10 p-3 shadow-[0_0_24px_rgba(168,85,247,0.15)] backdrop-blur-md ${og ? 'vibe-panel-og' : ''}`}
       >
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold">🎵 Vibe Together</p>
+          <p className={`text-sm font-semibold ${og ? 'og-display' : ''}`}>{og ? '⚔ VIBE TOGETHER' : '🎵 Vibe Together'}</p>
           <button type="button" className="text-xs text-muted" onClick={vibe.collapse}>Close</button>
         </div>
         <div className="mt-3 flex items-center gap-3">

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AVATARS, MOODS } from '../constants';
 import { Avatar, Button, Field, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
-import { useTheme } from '../hooks/useTheme';
+import { ThemeSelect } from '../theme/ThemeSelect';
 import { api } from '../lib/http';
 import { readSoundPrefs, writeSoundEnabled, writeSoundVolume } from '../toodle/audio/ToodleAudioState';
 import { CHAOS_OPTIONS, readChaos, writeChaos } from '../toodle/settings';
@@ -11,7 +11,6 @@ import type { ChaosLevel } from '../toodle/types';
 
 export function ProfilePage() {
   const { profile, loading, refreshProfile, signOut } = useAuth();
-  const { theme, toggle } = useTheme();
   const toast = useToast();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '');
@@ -143,7 +142,7 @@ export function ProfilePage() {
       <p className="mt-3 text-sm text-muted">Your email stays hidden. Only your username is public.</p>
       <div className="mt-5 flex flex-col gap-3">
         <Button disabled={busy} onClick={() => void save()}>Save</Button>
-        <Button variant="soft" onClick={toggle}>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</Button>
+        <ThemeSelect />
         <Button variant="ghost" onClick={() => navigate('/shortcuts')}>Manage shortcuts</Button>
         <Button variant="ghost" onClick={() => navigate('/account')}>Account and password</Button>
         <p className="text-center text-xs text-muted">

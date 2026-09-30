@@ -105,6 +105,11 @@ export function playSynth(ctx: AudioContext, dest: AudioNode, id: ToodleSoundId,
     case 'fall':
     case 'whoosh':
       return noise(ctx, dest, peak * 0.55, 180, 700);
+    case 'shing':
+      return longest([
+        tone(ctx, dest, 1800, peak * 0.35, 'sawtooth', 0.005, 0.04, 0.12),
+        noise(ctx, dest, peak * 0.45, 160, 2400),
+      ]);
     case 'land':
     case 'impact':
     case 'triple_tap':

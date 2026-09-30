@@ -12,7 +12,7 @@ export function Button({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' | 'danger' | 'soft' }) {
   const styles = {
-    primary: 'bg-gradient-to-r from-violet-400 to-pink-400 text-slate-950 shadow-lg shadow-fuchsia-500/20',
+    primary: 'btn-primary bg-gradient-to-r from-violet-400 to-pink-400 text-slate-950 shadow-lg shadow-fuchsia-500/20',
     ghost: 'bg-transparent border border-line text-ink',
     danger: 'bg-danger/15 text-danger border border-danger/30',
     soft: 'bg-elevated text-ink border border-line',

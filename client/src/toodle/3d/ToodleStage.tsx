@@ -102,7 +102,7 @@ export function ToodleStage({
         />
       </div>
       {bubble ? (
-        <div className={`${suggestion ? 'pointer-events-auto' : 'pointer-events-none'} ${inline ? 'mb-6' : `absolute top-1 flex flex-col ${bubbleSide}`} max-w-[200px] rounded-2xl bg-elevated px-3 py-2 text-sm shadow-card`}>
+        <div className={`toodle-line ${suggestion ? 'pointer-events-auto' : 'pointer-events-none'} ${inline ? 'mb-6' : `absolute top-1 flex flex-col ${bubbleSide}`} max-w-[200px] rounded-2xl bg-elevated px-3 py-2 text-sm shadow-card`}>
           <p>{bubble}</p>
           {suggestion ? (
             <button

@@ -62,7 +62,7 @@ export function HomePage() {
       </header>
       <Link to="/find" className="glass mt-5 block rounded-[1.6rem] px-4 py-4 text-muted">Find someone to Toodle with</Link>
       {pending > 0 ? (
-        <Link to="/requests" className="mt-3 block rounded-2xl bg-white/10 px-4 py-3 text-sm">👋 {pending} {pending === 1 ? 'person wants' : 'people want'} to Toodle</Link>
+        <Link to="/requests" className="og-note mt-3 block rounded-2xl bg-white/10 px-4 py-3 text-sm">👋 {pending} {pending === 1 ? 'person wants' : 'people want'} to Toodle</Link>
       ) : null}
       {error ? (
         <div className="mt-6 text-center">

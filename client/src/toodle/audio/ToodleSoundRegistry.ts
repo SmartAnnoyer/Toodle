@@ -56,6 +56,7 @@ export const SOUND_REGISTRY: Record<ToodleSoundId, SoundDef> = {
   bike: def({ id: 'bike', file: 'props/bike.mp3', channel: 'prop', group: 'effects', priority: 45, cooldownMs: 900, holdMs: 320, gain: 0.32 }),
   helmet: def({ id: 'helmet', file: 'props/helmet.mp3', channel: 'prop', group: 'effects', priority: 45, cooldownMs: 700, holdMs: 140, gain: 0.4 }),
   whoosh: def({ id: 'whoosh', file: 'movement/whoosh.mp3', channel: 'movement', group: 'effects', priority: 40, cooldownMs: 700, holdMs: 280, gain: 0.34 }),
+  shing: def({ id: 'shing', file: 'movement/shing.mp3', channel: 'interaction', group: 'effects', priority: 60, cooldownMs: 700, holdMs: 280, gain: 0.42 }),
   popcorn: def({ id: 'popcorn', file: 'props/popcorn.mp3', channel: 'prop', group: 'effects', priority: 35, cooldownMs: 800, holdMs: 260, gain: 0.32 }),
   impact: def({ id: 'impact', file: 'expressions/impact.mp3', channel: 'interaction', group: 'effects', priority: 85, cooldownMs: 400, holdMs: 180, gain: 0.5 }),
 };

@@ -8,6 +8,7 @@ export function propAnchor(prop?: ToodleProp): 'face' | 'head' | 'hand' | 'back'
   if (!prop) return 'none';
   if (prop === 'glasses' || prop === 'sunglasses') return 'face';
   if (prop === 'helmet' || prop === 'party' || prop === 'headphones') return 'head';
+  if (prop === 'katana') return 'hand';
   if (prop === 'backpack' || prop === 'blanket') return 'back';
   return 'hand';
 }
@@ -148,6 +149,24 @@ export function ToodlePropMesh({ prop }: { prop: ToodleProp }) {
         <mesh position={[0.08, -0.06, 0]} rotation={[0, 0, -0.6]}>
           <cylinderGeometry args={[0.01, 0.01, 0.1, 8]} />
           <Gloss color="#c4b5fd" />
+        </mesh>
+      </group>
+    );
+  }
+  if (prop === 'katana') {
+    return (
+      <group position={[0.02, -0.02, 0.02]} rotation={[0.3, 0, -0.9]}>
+        <mesh position={[0, 0.16, 0]}>
+          <boxGeometry args={[0.012, 0.34, 0.004]} />
+          <meshStandardMaterial color="#d7d2cb" metalness={0.65} roughness={0.28} />
+        </mesh>
+        <mesh position={[0, -0.02, 0]}>
+          <boxGeometry args={[0.05, 0.014, 0.012]} />
+          <meshStandardMaterial color="#c9a45c" metalness={0.4} roughness={0.4} />
+        </mesh>
+        <mesh position={[0, -0.1, 0]}>
+          <cylinderGeometry args={[0.012, 0.012, 0.1, 8]} />
+          <meshStandardMaterial color="#7f1d1d" roughness={0.55} />
         </mesh>
       </group>
     );

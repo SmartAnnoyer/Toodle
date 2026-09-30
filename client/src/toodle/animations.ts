@@ -55,4 +55,5 @@ export type ToodleProp =
   | 'backpack'
   | 'medicine'
   | 'party'
-  | 'headphones';
+  | 'headphones'
+  | 'katana';

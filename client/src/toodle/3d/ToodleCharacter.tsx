@@ -1,6 +1,7 @@
 import { useMemo, useRef, type RefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CanvasTexture, ExtrudeGeometry, Shape, type Group, type Mesh } from 'three';
+import { useTheme } from '../../theme/ThemeProvider';
 import { toodleAudio } from '../audio/ToodleAudioEngine';
 import type { DanceStyle, ToodleProp } from '../animations';
 import { ToodleAnimationController, type BoneName } from './ToodleAnimationController';
@@ -46,7 +47,7 @@ function speechBubbleShape() {
   return shape;
 }
 
-function useBubbleTexture() {
+function useBubbleTexture(og: boolean) {
   return useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -54,11 +55,18 @@ function useBubbleTexture() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
     const wash = ctx.createLinearGradient(20, 10, 230, 250);
-    wash.addColorStop(0, '#fff1e4');
-    wash.addColorStop(0.28, '#ffd0b8');
-    wash.addColorStop(0.52, '#ff9ec8');
-    wash.addColorStop(0.78, '#e9b4ff');
-    wash.addColorStop(1, '#b9c6ff');
+    if (og) {
+      wash.addColorStop(0, '#2a1718');
+      wash.addColorStop(0.4, '#140c0d');
+      wash.addColorStop(0.72, '#3a1218');
+      wash.addColorStop(1, '#1a140c');
+    } else {
+      wash.addColorStop(0, '#fff1e4');
+      wash.addColorStop(0.28, '#ffd0b8');
+      wash.addColorStop(0.52, '#ff9ec8');
+      wash.addColorStop(0.78, '#e9b4ff');
+      wash.addColorStop(1, '#b9c6ff');
+    }
     ctx.fillStyle = wash;
     ctx.fillRect(0, 0, 256, 256);
     const shine = ctx.createRadialGradient(78, 62, 6, 90, 78, 120);
@@ -70,7 +78,7 @@ function useBubbleTexture() {
     const texture = new CanvasTexture(canvas);
     texture.needsUpdate = true;
     return texture;
-  }, []);
+  }, [og]);
 }
 
 function Gloss({ map }: { map: CanvasTexture | null }) {
@@ -103,7 +111,8 @@ export function ToodleCharacter({
   reduced: boolean;
   onState?: (state: ToodleCharacterState) => void;
 }) {
-  const map = useBubbleTexture();
+  const og = useTheme().theme === 'og';
+  const map = useBubbleTexture(og);
   const body = useMemo(() => {
     const geo = new ExtrudeGeometry(speechBubbleShape(), {
       depth: 0.045,
@@ -149,7 +158,7 @@ export function ToodleCharacter({
       const group = bones[name].current;
       if (!group) return;
       const part = frame.pose[name];
-      if (name === 'root') group.position.set(part.x, part.y, part.z);
+      if (name === 'root') group.position.set(part.x, og && frame.state.animation === 'idle' ? part.y * 0.35 : part.y, part.z);
       group.rotation.set(part.rx, part.ry, part.rz);
     });
     const breathe = reduced ? 1 : 1 + Math.sin(performance.now() / 480) * 0.02;
@@ -230,6 +239,7 @@ export function ToodleCharacter({
               <meshStandardMaterial color="#fb7185" transparent opacity={0.55} />
             </mesh>
             {slot === 'face' && prop ? <ToodlePropMesh prop={prop} /> : null}
+            {og && prop !== 'sunglasses' && prop !== 'glasses' ? <ToodlePropMesh prop="sunglasses" /> : null}
             {slot === 'head' && prop ? <ToodlePropMesh prop={prop} /> : null}
           </group>
           <group ref={armL} position={[-0.9, 0.02, 0.04]}>
@@ -250,6 +260,11 @@ export function ToodleCharacter({
           </group>
         </group>
         {slot === 'back' && prop ? <ToodlePropMesh prop={prop} /> : null}
+        {og && !prop ? (
+          <group position={[0.15, 0.05, -0.2]} rotation={[0.2, 0, 0.4]}>
+            <ToodlePropMesh prop="katana" />
+          </group>
+        ) : null}
         <group ref={legL} />
         <group ref={legR}>
           <group ref={shinL} />
