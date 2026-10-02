@@ -6,7 +6,25 @@ import { vibeNotice, vibePresence } from './sync';
 import type { useVibe } from './useVibe';
 
 type VibeApi = ReturnType<typeof useVibe>;
-type SheetView = 'home' | 'listen' | 'guess' | 'queue';
+type SheetView = 'home' | 'listen' | 'guess';
+
+type Board = { mine: number; theirs: number; call: string };
+
+function scoreCall(mine: number, theirs: number, friendName: string) {
+  if (mine === theirs) return 'Tie';
+  if (mine > theirs) return 'You win';
+  return `${friendName} wins`;
+}
+
+function boardFrom(scores: Record<string, number> | undefined, myId: string | undefined, otherId: string | undefined, friendName: string): Board {
+  const mine = myId ? scores?.[myId] ?? 0 : 0;
+  const theirs = otherId ? scores?.[otherId] ?? 0 : 0;
+  return { mine, theirs, call: scoreCall(mine, theirs, friendName) };
+}
+
+function activated(on: boolean) {
+  return on ? 'border-2 border-white bg-white/20 font-semibold' : 'border border-line bg-white/5';
+}
 
 const CLIPS = [5, 10, 15, 20, 30];
 
@@ -82,6 +100,9 @@ export function VibePanel({
   const [guide, setGuide] = useState(false);
   const [guess, setGuess] = useState('');
   const [seconds, setSeconds] = useState(10);
+  const [finale, setFinale] = useState<Board | null>(null);
+  const finaleKey = useRef('');
+  const liveBoard = useRef<Board | null>(null);
   const hold = useRef<SheetView | null>(null);
   const bar = useRef<HTMLInputElement>(null);
   const time = useRef<HTMLSpanElement>(null);
@@ -116,7 +137,34 @@ export function VibePanel({
     return () => window.cancelAnimationFrame(frame);
   }, [playing, vibe.state]);
 
+  useEffect(() => {
+    if (!finale || vibe.state?.status !== 'playing' || vibe.state.waiting) return;
+    const key = `${vibe.state.round ?? ''}:${vibe.state.trackId ?? ''}:${vibe.state.mode ?? ''}`;
+    if (key !== finaleKey.current) {
+      setFinale(null);
+      if (vibe.state.mode !== 'guess') liveBoard.current = null;
+    }
+  }, [finale, vibe.state?.status, vibe.state?.waiting, vibe.state?.trackId, vibe.state?.round, vibe.state?.mode]);
+
+  function settle() {
+    const shown = liveBoard.current;
+    const state = vibe.state;
+    finaleKey.current = `${state?.round ?? ''}:${state?.trackId ?? ''}:${state?.mode ?? ''}`;
+    if (shown) {
+      setFinale(shown);
+      return;
+    }
+    if (!state?.scores || !myId) return;
+    const otherId = state.pickerId === myId ? state.guesserId : state.pickerId;
+    setFinale(boardFrom(state.scores, myId, otherId, friendName));
+  }
+
+  useEffect(() => {
+    if (vibe.state?.notice === 'friend-left') settle();
+  }, [vibe.state?.notice]);
+
   function endSession() {
+    settle();
     hold.current = 'home';
     setGuide(false);
     setView('home');
@@ -124,6 +172,7 @@ export function VibePanel({
   }
 
   function listenInstead() {
+    settle();
     hold.current = 'listen';
     setGuide(false);
     setView('listen');
@@ -162,8 +211,8 @@ export function VibePanel({
 
   const shell = `vibe-panel mt-2 max-h-[46dvh] w-full min-w-0 overflow-y-auto rounded-3xl border border-line bg-elevated p-3 shadow-card ${og ? 'vibe-panel-og' : ''}`;
   const notice = vibeNotice(vibe.state?.notice, vibe.state?.updatedBy === myId, friendName);
-  const canBack = guide || view === 'queue' || (view === 'listen' && !vibe.state) || (view === 'guess' && vibe.state?.mode !== 'guess');
-  const heading = guide ? 'How it works' : view === 'listen' ? 'Listen together' : view === 'guess' ? 'Guess the song' : view === 'queue' ? 'Up next' : (og ? 'VIBE TOGETHER' : 'Vibe');
+  const canBack = guide || (view === 'listen' && !vibe.state) || (view === 'guess' && vibe.state?.mode !== 'guess');
+  const heading = guide ? 'How it works' : view === 'listen' ? 'Listen together' : view === 'guess' ? 'Guess the song' : (og ? 'VIBE TOGETHER' : 'Vibe');
 
   return (
     <motion.section
@@ -179,7 +228,6 @@ export function VibePanel({
             label="Back"
             onClick={() => {
               if (guide) setGuide(false);
-              else if (view === 'queue') setView('listen');
               else setView('home');
             }}
           />
@@ -197,6 +245,7 @@ export function VibePanel({
         </button>
       ) : null}
 
+      {finale && !guide ? <ResultCard board={finale} friendName={friendName} /> : null}
       {guide ? <Guide /> : null}
       {!guide && view === 'home' ? <Home og={og} onListen={() => setView('listen')} onGuess={() => setView('guess')} /> : null}
       {!guide && view === 'listen' ? (
@@ -207,7 +256,6 @@ export function VibePanel({
           bar={bar}
           time={time}
           playing={Boolean(playing)}
-          onQueue={() => setView('queue')}
           onGuess={() => setView('guess')}
         />
       ) : null}
@@ -224,9 +272,10 @@ export function VibePanel({
           time={time}
           playing={Boolean(playing)}
           onListen={listenInstead}
+          onSettle={settle}
+          onScores={(board) => { liveBoard.current = board; }}
         />
       ) : null}
-      {!guide && view === 'queue' ? <Queue vibe={vibe} myId={myId} friendName={friendName} /> : null}
     </motion.section>
   );
 }
@@ -255,12 +304,21 @@ function Guide() {
           <li>Choose 5, 10, 15, 20, or 30 seconds. Some songs open with music, some with a lyric, so pick a clip that is fair.</li>
           <li>That clip loops until someone names the song, or you switch who picks.</li>
           <li>The picker marks each guess right or wrong. A different spelling can still count.</li>
-          <li>A guess marked right wins the round. Switch turns, and the other person can win the next one.</li>
+          <li>A guess marked right wins the point immediately. Switching, leaving, or ending shows who wins, or a tie.</li>
           <li>The picker can send a short name hint. Keep it a clue.</li>
           <li>New song keeps the same guesser. Switch turns swaps who picks. End closes the game.</li>
           <li>Hide leaves the clip playing in the chat. End stops it for both of you.</li>
         </ul>
       </div>
+    </div>
+  );
+}
+
+function ResultCard({ board, friendName }: { board: Board; friendName: string }) {
+  return (
+    <div className="mt-3 rounded-3xl border-2 border-white bg-white/15 p-3 text-center">
+      <p className="text-lg font-semibold">{board.call}</p>
+      <p className="mt-1 text-sm">You {board.mine} · {friendName} {board.theirs}</p>
     </div>
   );
 }
@@ -292,7 +350,6 @@ function Listen({
   bar,
   time,
   playing,
-  onQueue,
   onGuess,
 }: {
   vibe: VibeApi;
@@ -301,7 +358,6 @@ function Listen({
   bar: RefObject<HTMLInputElement>;
   time: RefObject<HTMLSpanElement>;
   playing: boolean;
-  onQueue: () => void;
   onGuess: () => void;
 }) {
   const presence = vibePresence(vibe.state, myId, friendName);
@@ -347,10 +403,9 @@ function Listen({
         />
       </label>
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        <button type="button" className="rounded-full bg-white/5 px-3 py-2" onClick={onQueue}>Queue</button>
         <button type="button" className="rounded-full bg-white/5 px-3 py-2" onClick={onGuess}>Guess instead</button>
       </div>
-      <SearchList vibe={vibe} action="play" />
+      <SearchList vibe={vibe} action="play" selectedId={vibe.state?.trackId} />
     </div>
   );
 }
@@ -367,6 +422,8 @@ function Guess({
   time,
   playing,
   onListen,
+  onSettle,
+  onScores,
 }: {
   vibe: VibeApi;
   friendName: string;
@@ -379,31 +436,50 @@ function Guess({
   time: RefObject<HTMLSpanElement>;
   playing: boolean;
   onListen: () => void;
+  onSettle: () => void;
+  onScores: (board: Board) => void;
 }) {
   const state = vibe.state;
   const picker = state?.role === 'picker';
   const hidden = Boolean(state?.sealed && !state.revealed);
   const revealed = Boolean(state?.revealed && state.title);
-  const mineScore = myId ? state?.scores?.[myId] ?? 0 : 0;
   const otherId = myId && state?.pickerId === myId ? state?.guesserId : state?.pickerId;
-  const friendScore = otherId ? state?.scores?.[otherId] ?? 0 : 0;
   const pending = Boolean(state?.lastGuess?.pending);
   const wrong = state?.lastGuess && !state.lastGuess.pending && !state.lastGuess.correct ? state.lastGuess : null;
   const [hint, setHint] = useState('');
   const [hintNote, setHintNote] = useState('');
   const [picking, setPicking] = useState(false);
+  const [side, setSide] = useState<'me' | 'them' | null>(null);
+  const [nextSide, setNextSide] = useState<'me' | 'them' | null>(null);
+  const [point, setPoint] = useState<{ userId: string; version: number } | null>(null);
+  const [marked, setMarked] = useState<'right' | 'wrong' | null>(null);
   const clip = state?.clipSeconds || seconds;
+  const activeSide = state?.role === 'picker' ? 'me' : state?.role === 'guesser' ? 'them' : side;
+  const bump = point && point.version === state?.version ? point.userId : '';
+  const mineScore = (myId ? state?.scores?.[myId] ?? 0 : 0) + (bump === myId ? 1 : 0);
+  const friendScore = (otherId ? state?.scores?.[otherId] ?? 0 : 0) + (bump && bump === otherId ? 1 : 0);
+
+  useEffect(() => {
+    if (!state || state.mode !== 'guess') return;
+    onScores({ mine: mineScore, theirs: friendScore, call: scoreCall(mineScore, friendScore, friendName) });
+  }, [friendName, friendScore, mineScore, onScores, state]);
+
+  function markGuess(correct: boolean) {
+    setMarked(correct ? 'right' : 'wrong');
+    if (correct && state?.lastGuess?.userId) setPoint({ userId: state.lastGuess.userId, version: state.version });
+    vibe.judgeGuess(correct);
+  }
 
   if (!state || state.mode !== 'guess') {
     return (
       <div className="mt-3 space-y-2">
         <p className="text-sm">Who picks the song?</p>
-        <button type="button" className="w-full rounded-2xl bg-white/10 px-3 py-3 text-left" onClick={() => vibe.inviteGuess('me')}>
-          <span className="font-semibold">I'll pick</span>
+        <button type="button" className={`w-full rounded-2xl px-3 py-3 text-left ${activated(activeSide === 'me')}`} aria-pressed={activeSide === 'me'} onClick={() => { setSide('me'); vibe.inviteGuess('me'); }}>
+          <span className="font-semibold">I'll pick {activeSide === 'me' ? '✓' : ''}</span>
           <span className="mt-1 block text-xs text-muted">{friendName} guesses.</span>
         </button>
-        <button type="button" className="w-full rounded-2xl bg-white/10 px-3 py-3 text-left" disabled={!vibe.friendReady} onClick={() => vibe.inviteGuess('them')}>
-          <span className="font-semibold">They pick</span>
+        <button type="button" className={`w-full rounded-2xl px-3 py-3 text-left ${activated(activeSide === 'them')}`} aria-pressed={activeSide === 'them'} disabled={!vibe.friendReady} onClick={() => { setSide('them'); vibe.inviteGuess('them'); }}>
+          <span className="font-semibold">They pick {activeSide === 'them' ? '✓' : ''}</span>
           <span className="mt-1 block text-xs text-muted">{friendName} chooses. You guess.</span>
         </button>
       </div>
@@ -448,8 +524,8 @@ function Guess({
           <p className="text-sm">"{state.lastGuess.text}"</p>
           {picker ? (
             <div className="mt-2 flex justify-center gap-2">
-              <button type="button" className="min-h-11 rounded-full bg-white/15 px-4 text-sm font-semibold" onClick={() => vibe.judgeGuess(true)}>Right</button>
-              <button type="button" className="min-h-11 rounded-full bg-white/10 px-4 text-sm font-semibold" onClick={() => vibe.judgeGuess(false)}>Wrong</button>
+              <button type="button" className={`min-h-11 rounded-full px-4 text-sm font-semibold ${activated(marked === 'right')}`} aria-pressed={marked === 'right'} onClick={() => markGuess(true)}>Right {marked === 'right' ? '✓' : ''}</button>
+              <button type="button" className={`min-h-11 rounded-full px-4 text-sm font-semibold ${activated(marked === 'wrong')}`} aria-pressed={marked === 'wrong'} onClick={() => markGuess(false)}>Wrong {marked === 'wrong' ? '✓' : ''}</button>
             </div>
           ) : (
             <p className="mt-1 text-xs text-muted">{friendName} marks this.</p>
@@ -511,8 +587,8 @@ function Guess({
           <p className="text-xs text-muted">How many seconds loop</p>
           <div className="mt-2 flex flex-wrap gap-2 text-xs">
             {CLIPS.map((option) => (
-              <button key={option} type="button" className={`min-h-11 rounded-full px-3 ${seconds === option ? 'bg-white/15' : 'bg-white/5'}`} onClick={() => setSeconds(option)}>
-                {option}s
+              <button key={option} type="button" className={`min-h-11 rounded-full px-3 ${activated(seconds === option)}`} aria-pressed={seconds === option} onClick={() => setSeconds(option)}>
+                {option}s{seconds === option ? ' ✓' : ''}
               </button>
             ))}
           </div>
@@ -521,17 +597,17 @@ function Guess({
             vibe={vibe}
             action="guess"
             seconds={seconds}
+            selectedId={state.trackId}
             onPicked={() => setPicking(false)}
           />
         </div>
       ) : null}
 
       <div className="mt-3 flex items-center justify-between text-sm">
-        <span>You {mineScore}</span>
-        <span className="text-muted">Round {state.round ?? 1}</span>
-        <span>{friendName} {friendScore}</span>
+        <span className={bump === myId ? 'font-semibold' : ''}>You {mineScore}</span>
+        <span className="font-semibold">{scoreCall(mineScore, friendScore, friendName)}</span>
+        <span className={bump === otherId ? 'font-semibold' : ''}>{friendName} {friendScore}</span>
       </div>
-      <p className="mt-1 text-center text-[11px] text-muted">Whoever is guessing can win. Switch turns and the other person can win next.</p>
 
       {!state.waiting ? (
         <div className="mt-2 flex justify-center">
@@ -542,39 +618,13 @@ function Guess({
       ) : null}
 
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        {picker && hidden && !state.waiting ? <button type="button" className="rounded-full bg-white/10 px-3 py-2" onClick={() => setPicking((open) => !open)}>New song</button> : null}
-        {!revealed ? <button type="button" className="rounded-full bg-white/10 px-3 py-2" onClick={() => vibe.nextRound(picker ? 'them' : 'me')}>Switch turns</button> : null}
-        {revealed ? <button type="button" className="rounded-full bg-white/10 px-3 py-2" onClick={() => vibe.nextRound('me')}>I pick next</button> : null}
-        {revealed ? <button type="button" className="rounded-full bg-white/10 px-3 py-2" onClick={() => vibe.nextRound('them')}>They pick next</button> : null}
+        {picker && hidden && !state.waiting ? <button type="button" className={`rounded-full px-3 py-2 ${activated(picking)}`} aria-pressed={picking} onClick={() => setPicking((open) => !open)}>New song {picking ? '✓' : ''}</button> : null}
+        {!revealed ? <button type="button" className="rounded-full bg-white/10 px-3 py-2" onClick={() => { onSettle(); vibe.nextRound(picker ? 'them' : 'me'); }}>Switch turns</button> : null}
+        {revealed ? <button type="button" className={`rounded-full px-3 py-2 ${activated(nextSide === 'me')}`} aria-pressed={nextSide === 'me'} onClick={() => { setNextSide('me'); onSettle(); vibe.nextRound('me'); }}>I pick next {nextSide === 'me' ? '✓' : ''}</button> : null}
+        {revealed ? <button type="button" className={`rounded-full px-3 py-2 ${activated(nextSide === 'them')}`} aria-pressed={nextSide === 'them'} onClick={() => { setNextSide('them'); onSettle(); vibe.nextRound('them'); }}>They pick next {nextSide === 'them' ? '✓' : ''}</button> : null}
         {picker && hidden && !state.waiting ? <button type="button" className="rounded-full px-3 py-2 text-muted" onClick={vibe.reveal}>Show song</button> : null}
         <button type="button" className="rounded-full px-3 py-2 text-muted" onClick={onListen}>Listen together</button>
       </div>
-    </div>
-  );
-}
-
-function Queue({
-  vibe,
-  myId,
-  friendName,
-}: {
-  vibe: VibeApi;
-  myId?: string;
-  friendName: string;
-}) {
-  return (
-    <div className="mt-3">
-      <div className="space-y-1">
-        {(vibe.state?.queue ?? []).length === 0 ? <p className="text-xs text-muted">Queue is empty. Add a song.</p> : null}
-        {vibe.state?.queue?.map((item) => (
-          <div key={item.trackId} className="flex items-center justify-between gap-2 text-sm">
-            <span className="min-w-0 truncate">{item.title}</span>
-            <span className="shrink-0 text-[11px] text-muted">{item.addedBy === myId ? 'You' : friendName}</span>
-            <button type="button" className="text-xs text-muted" onClick={() => vibe.queueRemove(item.trackId)} aria-label={`Remove ${item.title}`}>Remove</button>
-          </div>
-        ))}
-      </div>
-      <SearchList vibe={vibe} action="queue" />
     </div>
   );
 }
@@ -583,13 +633,17 @@ function SearchList({
   vibe,
   action,
   seconds = 10,
+  selectedId,
   onPicked,
 }: {
   vibe: VibeApi;
-  action: 'play' | 'queue' | 'guess';
+  action: 'play' | 'guess';
   seconds?: number;
+  selectedId?: string;
   onPicked?: () => void;
 }) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const current = picked || selectedId;
   return (
     <div className="mt-3">
       <input
@@ -600,26 +654,30 @@ function SearchList({
         className="w-full rounded-2xl border border-line bg-transparent px-3 py-2 text-sm outline-none"
       />
       <div className="mt-2 max-h-36 space-y-1 overflow-y-auto">
-        {vibe.tracks.map((track) => (
-          <button
-            key={track.id}
-            type="button"
-            className="flex w-full min-w-0 items-center justify-between gap-2 rounded-2xl px-2 py-2 text-left text-sm hover:bg-white/10"
-            onClick={() => {
-              if (action === 'queue') vibe.queueAdd(track);
-              else if (action === 'guess') {
-                void vibe.startGuess(track, seconds);
-                onPicked?.();
-              } else vibe.change(track);
-            }}
-          >
-            <span className="min-w-0">
-              <span className="block truncate">{track.title}</span>
-              <span className="block truncate text-[11px] text-muted">{track.artist}</span>
-            </span>
-            <span className="shrink-0 text-[11px]">{action === 'queue' ? 'Add' : 'Play'}</span>
-          </button>
-        ))}
+        {vibe.tracks.map((track) => {
+          const on = track.id === current;
+          return (
+            <button
+              key={track.id}
+              type="button"
+              aria-pressed={on}
+              className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-2xl px-2 py-2 text-left text-sm ${activated(on)}`}
+              onClick={() => {
+                setPicked(track.id);
+                if (action === 'guess') {
+                  void vibe.startGuess(track, seconds);
+                  onPicked?.();
+                } else vibe.change(track);
+              }}
+            >
+              <span className="min-w-0">
+                <span className="block truncate">{track.title}</span>
+                <span className="block truncate text-[11px] text-muted">{track.artist}</span>
+              </span>
+              <span className="shrink-0 text-[11px]">{on ? 'Selected ✓' : 'Play'}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
