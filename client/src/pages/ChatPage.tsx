@@ -16,6 +16,8 @@ import { VibePanel } from '../music/VibePanel';
 import { useVibe } from '../music/useVibe';
 import type { MusicSnapshot, ToodleMusicEvent } from '../music/MusicTypes';
 import { ChatBurst, type ChatBurstState } from '../chat/ChatBurst';
+import { HerMark, type HerMarkState } from '../chat/HerMark';
+import { herMarkFor } from '../chat/herMark';
 import { keywordEffectFor } from '../chat/keywordEffects';
 import { readChaos } from '../toodle/settings';
 import { ToodlePresence } from '../toodle/ToodlePresence';
@@ -49,6 +51,7 @@ export function ChatPage() {
   const [picked, setPicked] = useState<string[]>([]);
   const [ask, setAsk] = useState<null | { title: string; confirm: string; run: () => void }>(null);
   const [burst, setBurst] = useState<ChatBurstState | null>(null);
+  const [herMark, setHerMark] = useState<HerMarkState | null>(null);
   useEffect(() => {
     setPicked([]);
     setAsk(null);
@@ -132,6 +135,7 @@ export function ChatPage() {
       burstSeen.current.clear();
       burstEcho.current = [];
       setBurst(null);
+      setHerMark(null);
     }
     if (loading) {
       burstArmed.current = false;
@@ -145,18 +149,22 @@ export function ChatPage() {
     const now = Date.now();
     burstEcho.current = burstEcho.current.filter((item) => now - item.at < 8000);
     let hit: ChatBurstState | null = null;
+    let mark: HerMarkState | null = null;
     for (const message of messages) {
       if (burstSeen.current.has(message.id) || message.kind !== 'text') continue;
       burstSeen.current.add(message.id);
-      const effect = keywordEffectFor(message.body);
-      if (!effect) continue;
+      const personal = herMarkFor(message.body);
+      const effect = personal ? null : keywordEffectFor(message.body);
+      if (!personal && !effect) continue;
       const senderId = message.senderId ?? '';
       const echoed = !message.localStatus && burstEcho.current.some((item) => item.senderId === senderId && item.body === message.body);
       if (message.localStatus) burstEcho.current.push({ senderId, body: message.body, at: now });
       if (echoed) continue;
-      hit = { token: now + burstSeen.current.size, emojis: effect.emojis };
+      if (personal) mark = { token: now + burstSeen.current.size, line: personal.line };
+      else if (effect) hit = { token: now + burstSeen.current.size, emojis: effect.emojis, motion: effect.motion, density: effect.density, pop: effect.pop };
     }
-    if (hit) setBurst(hit);
+    if (mark) setHerMark(mark);
+    else if (hit) setBurst(hit);
   }, [id, loading, messages]);
 
   useEffect(() => {
@@ -164,6 +172,12 @@ export function ChatPage() {
     const handle = window.setTimeout(() => setBurst(null), 5600);
     return () => window.clearTimeout(handle);
   }, [burst]);
+
+  useEffect(() => {
+    if (!herMark) return;
+    const handle = window.setTimeout(() => setHerMark(null), 1200);
+    return () => window.clearTimeout(handle);
+  }, [herMark]);
 
   useEffect(() => {
     const node = scroller.current;
@@ -454,6 +468,7 @@ export function ChatPage() {
 
       <div className="relative min-h-0 flex-1">
       <ChatBurst burst={burst} />
+      <HerMark mark={herMark} />
       <div ref={scroller} className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-1" onPointerDown={() => setMoodOpen(false)}>
         <div className="relative z-10 space-y-2 px-4">
         {messages.length === 0 ? <p className="pt-6 text-center text-muted">Say the first thing.</p> : null}

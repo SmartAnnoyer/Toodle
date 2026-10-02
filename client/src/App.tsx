@@ -12,7 +12,7 @@ import { ChatPage } from './pages/ChatPage';
 import { FindPage } from './pages/FindPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { HomePage } from './pages/HomePage';
-import { PrivacyPage, TermsPage } from './pages/LegalPage';
+import { DeleteAccountPage, PrivacyPage, TermsPage } from './pages/LegalPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RequestsPage } from './pages/RequestsPage';
@@ -51,6 +51,7 @@ export function App() {
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="/terms" element={<TermsPage />} />
+                <Route path="/delete-account" element={<DeleteAccountPage />} />
                 <Route element={<RequireAuth />}>
                   <Route element={<AppShell />}>
                     <Route path="/" element={<HomePage />} />

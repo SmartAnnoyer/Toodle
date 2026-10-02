@@ -344,6 +344,34 @@ body {
   75% { transform: translateX(4px); }
 }
 
+.her-mark {
+  pointer-events: none;
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  bottom: 16%;
+  animation: her-mark 1100ms ease forwards;
+}
+
+.her-mark span {
+  display: inline-block;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--elevated) 90%, transparent);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+}
+
+@keyframes her-mark {
+  0% { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.92); }
+  14% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  42% { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-22px) scale(0.98); }
+}
+
 .chat-burst {
   pointer-events: none;
   position: absolute;
@@ -368,6 +396,22 @@ body {
   animation-name: balloon-pop;
 }
 
+.balloon-fall {
+  top: -14%;
+  bottom: auto;
+  animation-name: balloon-fall;
+}
+
+.balloon-drift {
+  bottom: auto;
+  animation-name: balloon-drift;
+}
+
+.balloon-blink {
+  bottom: auto;
+  animation-name: balloon-blink;
+}
+
 @keyframes balloon-rise {
   0% { opacity: 0; transform: translate3d(0, 28px, 0) scale(0.25) rotate(0deg); }
   12% { opacity: 1; transform: translate3d(calc(var(--drift) * 0.15), -8cqh, 0) scale(1) rotate(calc(var(--spin) * 0.2)); }
@@ -382,6 +426,26 @@ body {
   100% { opacity: 0; transform: translate3d(var(--drift), -70cqh, 0) scale(2.05); }
 }
 
+@keyframes balloon-fall {
+  0% { opacity: 0; transform: translate3d(0, -16px, 0) scale(0.45); }
+  16% { opacity: 0.95; transform: translate3d(calc(var(--drift) * 0.2), 8cqh, 0) scale(1); }
+  100% { opacity: 0; transform: translate3d(var(--drift), 108cqh, 0) scale(1.05) rotate(var(--spin)); }
+}
+
+@keyframes balloon-drift {
+  0% { opacity: 0; transform: translate3d(-18vw, 0, 0) scale(0.55); }
+  14% { opacity: 1; transform: translate3d(8vw, 0, 0) scale(1); }
+  100% { opacity: 0; transform: translate3d(108vw, var(--drift), 0) scale(1.05); }
+}
+
+@keyframes balloon-blink {
+  0% { opacity: 0; transform: scale(0.7); }
+  18% { opacity: 1; transform: scale(1); }
+  42% { opacity: 0.12; transform: scale(0.92); }
+  68% { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 0; transform: scale(0.95); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .og-slash,
   .og-veil,
@@ -391,6 +455,10 @@ body {
 
   .balloon,
   .balloon-pop,
+  .balloon-fall,
+  .balloon-drift,
+  .balloon-blink,
+  .her-mark,
   .vibe-disc,
   .vibe-shake,
   .vibe-reveal {

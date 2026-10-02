@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Screen, Wordmark } from '../components/ui';
 import { MIN_AGE, SUPPORT_EMAIL } from '../legal';
+
+const DELETE_MAIL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Delete my Toodle account')}&body=${encodeURIComponent('Please delete my Toodle account and the data associated with it.\n\nAccount email:\nUsername:\n')}`;
 
 function Frame({ title, children }: { title: string; children: ReactNode }) {
   const navigate = useNavigate();
@@ -32,7 +34,7 @@ export function PrivacyPage() {
       <h2 className="text-base font-semibold text-ink">How long we keep it</h2>
       <p>Messages follow the chat rules, including timers that delete them. Your account stays until you delete it.</p>
       <h2 className="text-base font-semibold text-ink">Delete your account</h2>
-      <p>Open Profile, then Account and password, then Delete account. You confirm with your password. That removes the login, profile, and chats you created. You can also email {SUPPORT_EMAIL} and ask us to delete it.</p>
+      <p>You can delete the account and the data associated with it from the <Link to="/delete-account" className="text-primary underline">delete account page</Link>. In the app, open Profile, then Account and password, then Delete account, and confirm with your password. That removes the login, profile, and chats you created.</p>
       <h2 className="text-base font-semibold text-ink">Age</h2>
       <p>Toodle is for people {MIN_AGE} and older. We do not want accounts from anyone younger.</p>
       <h2 className="text-base font-semibold text-ink">Contact</h2>
@@ -50,8 +52,25 @@ export function TermsPage() {
       <p>No harassment, hate, sexual content involving anyone under 18, spam, or threats. We have zero tolerance for that. We may remove messages and delete accounts that break these terms.</p>
       <p>Use Report and Block in a chat when someone crosses the line. We review reports and aim to act within 24 hours.</p>
       <h2 className="text-base font-semibold text-ink">Your account</h2>
-      <p>Keep your password to yourself. You can reset it from the login screen, change it in Account and password, and delete the account there. Deleting it removes the login and the chats you created.</p>
+      <p>Keep your password to yourself. You can reset it from the login screen, change it in Account and password, and delete the account there. Deleting it removes the login, profile, and chats you created. You can also use the <Link to="/delete-account" className="text-primary underline">delete account page</Link>.</p>
       <p>Questions: <a className="text-primary" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></p>
+    </Frame>
+  );
+}
+
+export function DeleteAccountPage() {
+  return (
+    <Frame title="Delete your account">
+      <p>Use this page to delete your Toodle account and the data associated with it. Last updated 2 October 2026.</p>
+      <h2 className="text-base font-semibold text-ink">What gets deleted</h2>
+      <p>Your login, email account, profile (display name, username, emoji, and mood), messages you sent, reactions, and the chats you created.</p>
+      <h2 className="text-base font-semibold text-ink">Delete it in the app</h2>
+      <p>Sign in, open Profile, then Account and password, then Delete account. Confirm with your password. This is immediate and cannot be undone.</p>
+      <p><Link to="/login" className="text-primary underline">Sign in to delete your account</Link></p>
+      <h2 className="text-base font-semibold text-ink">Cannot sign in?</h2>
+      <p>Email us from the address on the account, or include that email and your username. We will delete the account and the associated data.</p>
+      <p><a className="text-primary underline" href={DELETE_MAIL}>Request account deletion</a></p>
+      <p>Send it to <a className="text-primary" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
     </Frame>
   );
 }
