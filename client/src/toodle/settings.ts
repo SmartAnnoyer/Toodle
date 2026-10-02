@@ -9,11 +9,9 @@ export const CHAOS_OPTIONS: { id: ChaosLevel; label: string }[] = [
   { id: 'off', label: '🔕 Off' },
 ];
 
+/** Forced off for everyone until the mascot is ready. The profile control stays hidden. */
 export function readChaos(): ChaosLevel {
-  if (typeof localStorage === 'undefined') return 'normal';
-  const stored = localStorage.getItem(KEY);
-  if (stored === 'full' || stored === 'normal' || stored === 'quiet' || stored === 'off') return stored;
-  return 'normal';
+  return 'off';
 }
 
 export function writeChaos(level: ChaosLevel) {

@@ -15,6 +15,8 @@ import type { ChatMessage, GifResult } from '../types';
 import { VibePanel } from '../music/VibePanel';
 import { useVibe } from '../music/useVibe';
 import type { MusicSnapshot, ToodleMusicEvent } from '../music/MusicTypes';
+import { ChatBurst, type ChatBurstState } from '../chat/ChatBurst';
+import { keywordEffectFor } from '../chat/keywordEffects';
 import { readChaos } from '../toodle/settings';
 import { ToodlePresence } from '../toodle/ToodlePresence';
 import { useToodleChat } from '../toodle/useToodleChat';
@@ -46,11 +48,16 @@ export function ChatPage() {
   const [tick, setTick] = useState(0);
   const [picked, setPicked] = useState<string[]>([]);
   const [ask, setAsk] = useState<null | { title: string; confirm: string; run: () => void }>(null);
+  const [burst, setBurst] = useState<ChatBurstState | null>(null);
   useEffect(() => {
     setPicked([]);
     setAsk(null);
   }, [id]);
   const scroller = useRef<HTMLDivElement>(null);
+  const burstSeen = useRef(new Set<string>());
+  const burstEcho = useRef<{ senderId: string; body: string; at: number }[]>([]);
+  const burstArmed = useRef(false);
+  const burstChat = useRef(id);
   const frame = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const lastContactTap = useRef(0);
@@ -63,6 +70,7 @@ export function ChatPage() {
   const vibe = useVibe({
     conversationId: id,
     myId: profile?.id,
+    friendId: conversation?.otherUser.id,
     onEvent: (event) => noteMusic.current(event),
   });
   musicRef.current = vibe.snapshot;
@@ -116,6 +124,46 @@ export function ChatPage() {
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
   }, [messages.length, typing]);
+
+  useEffect(() => {
+    if (burstChat.current !== id) {
+      burstChat.current = id;
+      burstArmed.current = false;
+      burstSeen.current.clear();
+      burstEcho.current = [];
+      setBurst(null);
+    }
+    if (loading) {
+      burstArmed.current = false;
+      return;
+    }
+    if (!burstArmed.current) {
+      burstArmed.current = true;
+      for (const message of messages) burstSeen.current.add(message.id);
+      return;
+    }
+    const now = Date.now();
+    burstEcho.current = burstEcho.current.filter((item) => now - item.at < 8000);
+    let hit: ChatBurstState | null = null;
+    for (const message of messages) {
+      if (burstSeen.current.has(message.id) || message.kind !== 'text') continue;
+      burstSeen.current.add(message.id);
+      const effect = keywordEffectFor(message.body);
+      if (!effect) continue;
+      const senderId = message.senderId ?? '';
+      const echoed = !message.localStatus && burstEcho.current.some((item) => item.senderId === senderId && item.body === message.body);
+      if (message.localStatus) burstEcho.current.push({ senderId, body: message.body, at: now });
+      if (echoed) continue;
+      hit = { token: now + burstSeen.current.size, emojis: effect.emojis };
+    }
+    if (hit) setBurst(hit);
+  }, [id, loading, messages]);
+
+  useEffect(() => {
+    if (!burst) return;
+    const handle = window.setTimeout(() => setBurst(null), 5600);
+    return () => window.clearTimeout(handle);
+  }, [burst]);
 
   useEffect(() => {
     const node = scroller.current;
@@ -238,6 +286,12 @@ export function ChatPage() {
     const trimmed = body.trim();
     if (!trimmed && extra?.kind !== 'gif' && extra?.kind !== 'sticker') return;
     if (trimmed) toodle.notice(trimmed);
+    if (/^let'?s vibe\b/i.test(trimmed)) {
+      if (!vibe.expanded) vibe.toggle();
+      void vibe.play();
+    } else if (/you pick/i.test(trimmed) && /guess/i.test(trimmed)) {
+      vibe.inviteGuess('them');
+    }
     const fromComposer = body === text;
     const replyTo = reply ? {
       id: reply.id,
@@ -282,9 +336,6 @@ export function ChatPage() {
     return (
       <div className="app-bg grid min-h-dvh place-items-center px-6">
         <EmptyState emoji="💨" title="Poof." body="That conversation is gone." action={<Link to="/" className="text-primary">Back home</Link>} />
-        <div className="mt-6">
-          <ToodlePresence inline beat={{ event: 'CONVERSATION_EXPIRING', pose: 'dramatic', line: 'Well... that was fun.', spot: 'composer', ms: 4000, priority: 90 }} />
-        </div>
       </div>
     );
   }
@@ -381,7 +432,7 @@ export function ChatPage() {
           {conversation.ghostMode ? <span>🫥 Ghost mode</span> : null}
         </div>
         <div className="mt-2 flex min-w-0 items-center">
-          <VibePanel vibe={{ ...vibe, reconnecting: status === 'disconnected' || vibe.reconnecting }} friendName={conversation.otherUser.displayName} myId={profile?.id} />
+          <VibePanel place="bar" vibe={{ ...vibe, reconnecting: status === 'disconnected' || vibe.reconnecting }} friendName={conversation.otherUser.displayName} myId={profile?.id} />
         </div>
         <AnimatePresence>
           {streakPop ? (
@@ -401,8 +452,10 @@ export function ChatPage() {
         {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
       </header>
 
-      <div ref={scroller} className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-1" onPointerDown={() => setMoodOpen(false)}>
-        <div className="space-y-2 px-4">
+      <div className="relative min-h-0 flex-1">
+      <ChatBurst burst={burst} />
+      <div ref={scroller} className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-1" onPointerDown={() => setMoodOpen(false)}>
+        <div className="relative z-10 space-y-2 px-4">
         {messages.length === 0 ? <p className="pt-6 text-center text-muted">Say the first thing.</p> : null}
         {messages.map((message) => (
           <MessageBubble
@@ -460,6 +513,7 @@ export function ChatPage() {
           />
         ) : null}
       </div>
+      </div>
 
       {ghostPull > 0 ? (
         <div className="flex items-end justify-center overflow-hidden text-xs text-muted" style={{ height: Math.min(ghostPull, 56) }}>
@@ -468,6 +522,7 @@ export function ChatPage() {
       ) : null}
 
       <div className="composer-safe relative border-t border-line px-3 pt-2">
+        <VibePanel place="sheet" vibe={{ ...vibe, reconnecting: status === 'disconnected' || vibe.reconnecting }} friendName={conversation.otherUser.displayName} myId={profile?.id} />
         {reply ? (
           <div className="mb-2 flex items-center justify-between rounded-2xl bg-white/5 px-3 py-2 text-sm">
             <span className="truncate">Replying to {reply.body}</span>

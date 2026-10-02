@@ -16,13 +16,20 @@ export interface MusicTrack {
   artwork?: string;
 }
 
-export interface SharedMusicState {
-  conversationId: string;
+export interface VibeQueueItem {
   trackId: string;
   title: string;
   artist?: string;
+  addedBy: string;
+}
+
+export interface SharedMusicState {
+  conversationId: string;
+  trackId?: string;
+  title?: string;
+  artist?: string;
   artwork?: string;
-  audioUrl: string;
+  audioUrl?: string;
   duration: number;
   energy: MusicEnergy;
   mood?: MusicMood;
@@ -32,6 +39,22 @@ export interface SharedMusicState {
   updatedBy?: string;
   version: number;
   control: MusicControl;
+  mode?: 'listen' | 'guess';
+  hostId?: string;
+  queue?: VibeQueueItem[];
+  notice?: string;
+  mystery?: boolean;
+  revealed?: boolean;
+  sealed?: boolean;
+  role?: 'picker' | 'guesser';
+  round?: number;
+  revealAt?: number | null;
+  hints?: string[];
+  scores?: Record<string, number>;
+  lastGuess?: { userId: string; text: string; correct: boolean };
+  pickerId?: string;
+  guesserId?: string;
+  waiting?: boolean;
 }
 
 export interface MusicSnapshot {

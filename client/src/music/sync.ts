@@ -28,9 +28,28 @@ export function correctTime(local: number, remote: number): number | null {
 
 export function vibePresence(state: SharedMusicState | null, myId: string | undefined, friendName: string): string {
   if (!state) return '';
+  if (state.mode === 'guess' && state.mystery) return 'Mystery vibe';
   if (state.status === 'playing') return `You + ${friendName} are vibing`;
   if (state.updatedBy && myId && state.updatedBy === myId) return 'You paused';
   return `${friendName} paused`;
+}
+
+export function vibeNotice(code: string | undefined, mine: boolean, friendName: string): string {
+  const who = mine ? 'You' : friendName;
+  if (code === 'paused') return `${who} paused the vibe`;
+  if (code === 'seek') return `${who} jumped in the song`;
+  if (code === 'skipped') return `${who} changed the song`;
+  if (code === 'started') return `${who} started the vibe`;
+  if (code === 'friend-left') return `${friendName} left the vibe`;
+  if (code === 'wrong') return 'Not quite. Keep listening.';
+  if (code === 'correct') return 'Got it.';
+  if (code === 'reveal') return 'The song is out.';
+  if (code === 'hint') return 'A hint just dropped.';
+  if (code === 'guess-start') return 'Mystery song started.';
+  if (code === 'guess-wait') return 'Waiting on a song pick.';
+  if (code === 'switch') return 'New round. Your turn to switch it up.';
+  if (code === 'queued') return `${who} updated the queue`;
+  return '';
 }
 
 export function snapshotFrom(state: SharedMusicState | null): MusicSnapshot {

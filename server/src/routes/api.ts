@@ -1,9 +1,40 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Router } from 'express';
 import { http } from '../controllers/http.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { requireUser } from '../middleware/auth.js';
+import { musicRooms } from '../socket/music.js';
+import { mysteryAudio } from '../socket/musicState.js';
 
 export const api = Router();
+
+const musicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../client/public/audio/music');
+
+api.get('/music/mystery/:token', (req, res) => {
+  const audioUrl = mysteryAudio(musicRooms(), String(req.params.token ?? ''));
+  const prefix = '/audio/music/';
+  if (!audioUrl?.startsWith(prefix) || audioUrl.includes('..')) {
+    res.status(404).end();
+    return;
+  }
+  const base = path.basename(audioUrl);
+  if (base !== audioUrl.slice(prefix.length)) {
+    res.status(404).end();
+    return;
+  }
+  const file = path.resolve(musicDir, base);
+  if (!file.startsWith(musicDir + path.sep)) {
+    res.status(404).end();
+    return;
+  }
+  res.setHeader('Content-Type', base.endsWith('.wav') ? 'audio/wav' : 'audio/mpeg');
+  res.setHeader('Content-Disposition', 'inline; filename="mystery"');
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.sendFile(file, (error) => {
+    if (error && !res.headersSent) res.status(404).end();
+  });
+});
 
 api.get('/moods', asyncHandler(http.moods));
 api.get('/usernames/:username', asyncHandler(http.username));

@@ -4,6 +4,7 @@ import type { MusicTrack, SharedMusicState } from './MusicTypes';
 class MusicManager {
   private audio: HTMLAudioElement | null = null;
   private url = '';
+  private level = 0.85;
   private onEnded: (() => void) | null = null;
 
   bindEnded(handler: (() => void) | null) {
@@ -20,10 +21,10 @@ class MusicManager {
     return 0;
   }
 
-  async start(track: MusicTrack, position = 0) {
+  async start(track: MusicTrack, position = 0, loop = true) {
     const audio = this.element();
     if (!audio) return false;
-    audio.loop = true;
+    audio.loop = loop;
     await this.load(audio, track.audioUrl);
     const duration = this.duration() || track.duration;
     const at = duration > 0 ? Math.max(0, Math.min(duration, position)) : Math.max(0, position);
@@ -40,10 +41,15 @@ class MusicManager {
     this.audio?.pause();
   }
 
+  setVolume(volume: number) {
+    this.level = Math.min(1, Math.max(0, volume));
+    if (this.audio) this.audio.volume = this.level;
+  }
+
   async follow(state: SharedMusicState, now: number) {
     const audio = this.element();
-    if (!audio) return false;
-    audio.loop = true;
+    if (!audio || !state.audioUrl) return false;
+    audio.loop = state.mode !== 'guess';
     const remote = livePosition(state, now);
     if (this.url !== state.audioUrl) {
       await this.load(audio, state.audioUrl);
@@ -101,7 +107,7 @@ class MusicManager {
     if (this.audio || typeof Audio === 'undefined') return this.audio;
     const audio = new Audio();
     audio.preload = 'auto';
-    audio.volume = 0.85;
+    audio.volume = this.level;
     audio.addEventListener('ended', () => this.onEnded?.());
     this.audio = audio;
     return audio;

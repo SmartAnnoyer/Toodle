@@ -301,10 +301,105 @@ body {
   100% { transform: translateX(6%) scaleX(1); opacity: 0; }
 }
 
+.vibe-disc {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 18%, color-mix(in srgb, var(--primary) 55%, transparent) 19% 22%, transparent 23%),
+    conic-gradient(from 20deg, var(--primary), var(--accent), var(--secondary), var(--primary));
+  animation: vibe-spin 8s linear infinite;
+}
+
+.vibe-mystery {
+  background:
+    radial-gradient(120px 80px at 50% 0%, color-mix(in srgb, var(--primary) 35%, transparent), transparent 70%),
+    color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.vibe-mystery-og {
+  background:
+    radial-gradient(140px 90px at 50% 0%, rgba(226, 27, 45, 0.35), transparent 70%),
+    #120c0c;
+  box-shadow: inset 0 0 24px rgba(226, 27, 45, 0.18);
+}
+
+.vibe-reveal {
+  animation: vibe-reveal 700ms ease;
+}
+
+.vibe-shake {
+  animation: vibe-shake 420ms ease;
+}
+
+@keyframes vibe-spin {
+  to { transform: rotate(1turn); }
+}
+
+@keyframes vibe-reveal {
+  from { filter: blur(12px); opacity: 0; transform: scale(0.94); }
+  to { filter: blur(0); opacity: 1; transform: scale(1); }
+}
+
+@keyframes vibe-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.chat-burst {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  container-type: size;
+}
+
+.balloon {
+  position: absolute;
+  bottom: -8%;
+  line-height: 1;
+  animation-name: balloon-rise;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation-fill-mode: forwards;
+  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.16));
+  will-change: transform, opacity;
+}
+
+.balloon-pop {
+  animation-name: balloon-pop;
+}
+
+@keyframes balloon-rise {
+  0% { opacity: 0; transform: translate3d(0, 28px, 0) scale(0.25) rotate(0deg); }
+  12% { opacity: 1; transform: translate3d(calc(var(--drift) * 0.15), -8cqh, 0) scale(1) rotate(calc(var(--spin) * 0.2)); }
+  100% { opacity: 0; transform: translate3d(var(--drift), -112cqh, 0) scale(1.08) rotate(var(--spin)); }
+}
+
+@keyframes balloon-pop {
+  0% { opacity: 0; transform: translate3d(0, 16px, 0) scale(0.2); }
+  16% { opacity: 1; transform: translate3d(calc(var(--drift) * 0.2), -22cqh, 0) scale(1); }
+  58% { opacity: 1; transform: translate3d(calc(var(--drift) * 0.55), -58cqh, 0) scale(1.05) rotate(calc(var(--spin) * 0.4)); }
+  76% { opacity: 1; transform: translate3d(calc(var(--drift) * 0.7), -64cqh, 0) scale(1.7); }
+  100% { opacity: 0; transform: translate3d(var(--drift), -70cqh, 0) scale(2.05); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .og-slash,
   .og-veil,
   .theme-choice-og:hover::after {
     animation: none;
   }
+
+  .balloon,
+  .balloon-pop,
+  .vibe-disc,
+  .vibe-shake,
+  .vibe-reveal {
+    animation: none;
+  }
+}
+
+@keyframes balloon-still {
+  0% { opacity: 0; transform: translate3d(0, -30cqh, 0) scale(0.8); }
+  20% { opacity: 1; transform: translate3d(0, -40cqh, 0) scale(1); }
+  100% { opacity: 0; transform: translate3d(0, -40cqh, 0) scale(1); }
 }

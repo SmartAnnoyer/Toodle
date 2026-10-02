@@ -6,8 +6,6 @@ import { useAuth } from '../hooks/useAuth';
 import { ThemeSelect } from '../theme/ThemeSelect';
 import { api } from '../lib/http';
 import { readSoundPrefs, writeSoundEnabled, writeSoundVolume } from '../toodle/audio/ToodleAudioState';
-import { CHAOS_OPTIONS, readChaos, writeChaos } from '../toodle/settings';
-import type { ChaosLevel } from '../toodle/types';
 
 export function ProfilePage() {
   const { profile, loading, refreshProfile, signOut } = useAuth();
@@ -19,7 +17,6 @@ export function ProfilePage() {
   const [moodText, setMoodText] = useState(profile?.moodText ?? 'surviving');
   const [avatar, setAvatar] = useState(profile?.avatarEmoji ?? '✨');
   const [busy, setBusy] = useState(false);
-  const [chaos, setChaos] = useState<ChaosLevel>(readChaos);
   const [soundsOn, setSoundsOn] = useState(() => readSoundPrefs().enabled);
   const [soundVolume, setSoundVolume] = useState(() => readSoundPrefs().volume);
   const [showOnline, setShowOnline] = useState(profile?.showOnline ?? true);
@@ -105,21 +102,6 @@ export function ProfilePage() {
               });
           }}
         />
-      </div>
-      <div className="mt-4">
-        <p className="mb-2 text-sm text-muted">Toodle reactions</p>
-        <div className="grid grid-cols-2 gap-2">
-          {CHAOS_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => { setChaos(option.id); writeChaos(option.id); }}
-              className={`rounded-2xl border px-3 py-3 text-sm ${chaos === option.id ? 'border-primary bg-white/10' : 'border-line'}`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
       </div>
       <div className="mt-4 flex items-center justify-between rounded-2xl border border-line px-4 py-3 text-sm">
         <span>Toodle sounds</span>
