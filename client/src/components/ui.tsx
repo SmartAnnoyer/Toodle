@@ -7,7 +7,7 @@ export function InfinityLoop({ className = '', travel = false }: { className?: s
   const raw = useId().replace(/:/g, '');
   const reduce = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   return (
-    <svg className={`infinity-loop ${className}`} viewBox="0 -2 72 44" aria-hidden>
+    <svg className={`infinity-loop ${className}`} viewBox="8.5 2.5 55 35" aria-hidden>
       <defs>
         <linearGradient id={`${raw}-g`} x1="0" y1="0.2" x2="1" y2="0.8">
           <stop offset="0%" stopColor="#fff7fb" />

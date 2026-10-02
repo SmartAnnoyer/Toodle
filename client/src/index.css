@@ -157,11 +157,12 @@ body {
 }
 
 .infinity-loop {
-  width: 1.55em;
+  width: 1.36em;
   height: 0.86em;
-  margin-inline: -0.02em 0.04em;
+  margin-inline: -0.26em -0.2em;
+  flex: none;
   overflow: visible;
-  filter: drop-shadow(0 0 8px rgba(244, 114, 182, 0.55));
+  filter: drop-shadow(0 0 6px rgba(244, 114, 182, 0.45));
 }
 
 .chat-tool {
