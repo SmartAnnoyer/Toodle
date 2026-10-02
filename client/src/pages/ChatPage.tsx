@@ -17,7 +17,7 @@ import { useVibe } from '../music/useVibe';
 import type { MusicSnapshot, ToodleMusicEvent } from '../music/MusicTypes';
 import { ChatBurst, type ChatBurstState } from '../chat/ChatBurst';
 import { HerMark, type HerMarkState } from '../chat/HerMark';
-import { herMarkFor } from '../chat/herMark';
+import { herMarkFor } from '../chat/herWords';
 import { keywordEffectFor } from '../chat/keywordEffects';
 import { readChaos } from '../toodle/settings';
 import { ToodlePresence } from '../toodle/ToodlePresence';

@@ -82,6 +82,7 @@ export const SocketEvents = {
   MusicGuessInvite: 'music:guess-invite',
   MusicGuessStart: 'music:guess-start',
   MusicGuessSubmit: 'music:guess-submit',
+  MusicGuessJudge: 'music:guess-judge',
   MusicGuessHint: 'music:guess-hint',
   MusicGuessReveal: 'music:guess-reveal',
   MusicGuessNext: 'music:guess-next',

@@ -5,7 +5,12 @@ class MusicManager {
   private audio: HTMLAudioElement | null = null;
   private url = '';
   private level = 0.85;
+  private clip = 0;
   private onEnded: (() => void) | null = null;
+
+  armClip(seconds: number) {
+    this.clip = seconds > 0 ? seconds : 0;
+  }
 
   bindEnded(handler: (() => void) | null) {
     this.onEnded = handler;
@@ -49,7 +54,9 @@ class MusicManager {
   async follow(state: SharedMusicState, now: number) {
     const audio = this.element();
     if (!audio || !state.audioUrl) return false;
-    audio.loop = state.mode !== 'guess';
+    const clipping = state.mode === 'guess' && !state.revealed && (state.clipSeconds ?? 0) > 0;
+    this.clip = clipping ? state.clipSeconds ?? 0 : 0;
+    audio.loop = this.clip <= 0;
     const remote = livePosition(state, now);
     if (this.url !== state.audioUrl) {
       await this.load(audio, state.audioUrl);
@@ -85,6 +92,7 @@ class MusicManager {
   stop() {
     const audio = this.audio;
     if (!audio) return;
+    this.clip = 0;
     audio.loop = false;
     audio.pause();
     audio.currentTime = 0;
@@ -108,7 +116,17 @@ class MusicManager {
     const audio = new Audio();
     audio.preload = 'auto';
     audio.volume = this.level;
-    audio.addEventListener('ended', () => this.onEnded?.());
+    audio.addEventListener('timeupdate', () => {
+      if (this.clip > 0 && audio.currentTime >= this.clip - 0.04) audio.currentTime = 0;
+    });
+    audio.addEventListener('ended', () => {
+      if (this.clip > 0) {
+        audio.currentTime = 0;
+        void audio.play().catch(() => undefined);
+        return;
+      }
+      this.onEnded?.();
+    });
     this.audio = audio;
     return audio;
   }

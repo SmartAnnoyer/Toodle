@@ -168,7 +168,7 @@ export function useVibe({
       if (!current || current.status !== 'playing') return;
       const position = livePosition(current, serverNowMs());
       played.current += 4;
-      if (!near.current && current.duration - position < 4 && position > 1) {
+      if (!near.current && current.mode !== 'guess' && current.duration - position < 4 && position > 1) {
         near.current = true;
         onEventRef.current('music_near_end');
       }
@@ -315,8 +315,9 @@ export function useVibe({
     setExpanded(true);
   }
 
-  async function startGuess(track: MusicTrack, seconds = 60) {
+  async function startGuess(track: MusicTrack, seconds = 10) {
     if (!friendId) return;
+    musicPlayer.armClip(seconds);
     const heard = await musicPlayer.start(track, 0, false);
     const duration = musicPlayer.duration() || track.duration;
     if (!(duration > 0)) return;
@@ -345,8 +346,14 @@ export function useVibe({
     emitRoom(SocketEvents.MusicGuessSubmit, { text: trimmed });
   }
 
-  function giveHint(kind: 'letter' | 'mood') {
-    emitRoom(SocketEvents.MusicGuessHint, { kind });
+  function judgeGuess(correct: boolean) {
+    emitRoom(SocketEvents.MusicGuessJudge, { correct });
+  }
+
+  function giveHint(text: string) {
+    const trimmed = text.trim().slice(0, 40);
+    if (trimmed.length < 2) return;
+    emitRoom(SocketEvents.MusicGuessHint, { text: trimmed });
   }
 
   function reveal() {
@@ -394,6 +401,7 @@ export function useVibe({
     inviteGuess,
     startGuess: (track: MusicTrack, seconds?: number) => void startGuess(track, seconds),
     submitGuess,
+    judgeGuess,
     giveHint,
     reveal,
     nextRound,

@@ -1,13 +1,14 @@
 import type { MusicSnapshot, SharedMusicState } from './MusicTypes';
 
-export function livePosition(state: Pick<SharedMusicState, 'position' | 'status' | 'startedAt' | 'duration'>, now: number): number {
-  const duration = Math.max(0, state.duration);
+export function livePosition(state: Pick<SharedMusicState, 'position' | 'status' | 'startedAt' | 'duration' | 'mode' | 'revealed' | 'clipSeconds'>, now: number): number {
+  const clip = state.mode === 'guess' && !state.revealed && state.clipSeconds && state.clipSeconds > 0 ? state.clipSeconds : 0;
+  const span = clip > 0 ? clip : Math.max(0, state.duration);
   const parked = Math.max(0, state.position);
-  const base = duration > 0 ? Math.min(parked, duration) : parked;
+  const base = span > 0 ? Math.min(parked, span) : parked;
   if (state.status !== 'playing' || state.startedAt == null) return base;
   const next = base + (now - state.startedAt) / 1000;
-  if (duration <= 0) return Math.max(0, next);
-  return next % duration;
+  if (span <= 0) return Math.max(0, next);
+  return next % span;
 }
 
 export type DriftFix = 'ignore' | 'smooth' | 'hard';
@@ -41,6 +42,7 @@ export function vibeNotice(code: string | undefined, mine: boolean, friendName: 
   if (code === 'skipped') return `${who} changed the song`;
   if (code === 'started') return `${who} started the vibe`;
   if (code === 'friend-left') return `${friendName} left the vibe`;
+  if (code === 'guess') return 'A guess is waiting.';
   if (code === 'wrong') return 'Not quite. Keep listening.';
   if (code === 'correct') return 'Got it.';
   if (code === 'reveal') return 'The song is out.';

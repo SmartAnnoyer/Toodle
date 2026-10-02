@@ -49,9 +49,10 @@ export interface SharedMusicState {
   role?: 'picker' | 'guesser';
   round?: number;
   revealAt?: number | null;
+  clipSeconds?: number;
   hints?: string[];
   scores?: Record<string, number>;
-  lastGuess?: { userId: string; text: string; correct: boolean };
+  lastGuess?: { userId: string; text: string; correct: boolean; pending?: boolean };
   pickerId?: string;
   guesserId?: string;
   waiting?: boolean;

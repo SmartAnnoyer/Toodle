@@ -16,13 +16,23 @@ const GROUPS: { id: string; words: string[]; lines: string[] }[] = [
   },
   {
     id: 'vibes',
-    words: ['enjoy enjoy', 'nekey best', 'happy ga undu'],
+    words: ['enjoy enjoy', 'nekey best', 'happy ga undu', 'nice nice'],
     lines: ['✨ Good vibes', "That's her energy 💫", 'Happy mode ✨', 'Her mark ✨'],
   },
   {
     id: 'command',
-    words: ['chaalanu', 'challey', 'urko', 'enough'],
+    words: ['chaalanu', 'challey', 'urko', 'enough', 'chaalu', 'chalu'],
     lines: ['😂 Classic', 'Okay okay...', 'Her command 😭', 'Yes madam 🫡', 'Her mark ✨'],
+  },
+  {
+    id: 'bye',
+    words: ['tata'],
+    lines: ['👋 Tata', 'There she goes ✨', 'Her bye 😌', 'Her mark ✨'],
+  },
+  {
+    id: 'name',
+    words: ['toodles', 'toodle'],
+    lines: ['👀 She said it', 'Name drop ✨', 'Toodle heard that 😌', 'Her mark ✨'],
   },
   {
     id: 'drama',

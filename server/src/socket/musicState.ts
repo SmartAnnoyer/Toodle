@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { guessMatches, hintLine } from './guessMatch.js';
+import { guessMatches } from './guessMatch.js';
 
 export type RoomEnergy = 'calm' | 'normal' | 'energetic' | 'chaotic';
 export type MusicControl = 'both' | 'hostOnly';
@@ -25,12 +25,13 @@ export interface GuessRound {
   hidden: boolean;
   revealed: boolean;
   revealAt: number | null;
+  clipSeconds: number;
   hints: string[];
   hintKinds: string[];
   scores: Record<string, number>;
   winnerId?: string;
   token: string;
-  lastGuess?: { userId: string; text: string; correct: boolean };
+  lastGuess?: { userId: string; text: string; correct: boolean; pending?: boolean };
   track?: TrackCommand;
 }
 
@@ -70,7 +71,8 @@ export type MusicCommand =
   | { type: 'guess-invite'; pickerId: string; guesserId: string }
   | { type: 'guess-start'; track: TrackCommand; seconds: number; guesserId?: string }
   | { type: 'guess-submit'; text: string }
-  | { type: 'guess-hint'; kind: 'letter' | 'mood' }
+  | { type: 'guess-judge'; correct: boolean }
+  | { type: 'guess-hint'; text: string }
   | { type: 'guess-reveal' }
   | { type: 'guess-next'; pickerId: string; guesserId: string };
 
@@ -93,9 +95,10 @@ export interface PublicMusic {
   role?: 'picker' | 'guesser';
   round?: number;
   revealAt?: number | null;
+  clipSeconds?: number;
   hints?: string[];
   scores?: Record<string, number>;
-  lastGuess?: { userId: string; text: string; correct: boolean };
+  lastGuess?: { userId: string; text: string; correct: boolean; pending?: boolean };
   pickerId?: string;
   guesserId?: string;
   waiting?: boolean;
@@ -108,6 +111,12 @@ export interface PublicMusic {
 }
 
 const ENERGIES = new Set<RoomEnergy>(['calm', 'normal', 'energetic', 'chaotic']);
+
+function playbackClock(state: RoomMusic): RoomMusic {
+  const clip = state.mode === 'guess' && state.game && !state.game.revealed ? state.game.clipSeconds : 0;
+  if (!(clip > 0)) return state;
+  return { ...state, duration: clip };
+}
 
 export function liveMusicPosition(state: Pick<RoomMusic, 'position' | 'status' | 'startedAt' | 'duration'>, now: number): number {
   const duration = Math.max(0, state.duration);
@@ -138,7 +147,7 @@ function bump(current: RoomMusic, userId: string, notice: string, patch: Partial
 
 function locked(current: RoomMusic | null, userId: string, command: MusicCommand): boolean {
   if (!current || current.control !== 'hostOnly' || current.hostId === userId) return false;
-  return command.type !== 'stop' && command.type !== 'control' && command.type !== 'guess-submit';
+  return command.type !== 'stop' && command.type !== 'control' && command.type !== 'guess-submit' && command.type !== 'guess-judge';
 }
 
 function adopt(current: RoomMusic | null, track: TrackCommand, conversationId: string, userId: string, now: number, status: 'playing' | 'paused', position: number, notice: string): RoomMusic {
@@ -173,6 +182,7 @@ function freshGame(pickerId: string, guesserId: string, round: number, scores: R
     hidden: true,
     revealed: false,
     revealAt: null,
+    clipSeconds: 0,
     hints: [],
     hintKinds: [],
     scores,
@@ -210,7 +220,7 @@ export function reduceMusic(current: RoomMusic | null, command: MusicCommand, us
       changed: true,
       next: bump(state, userId, 'started', {
         status: 'playing',
-        position: liveMusicPosition(state, now),
+        position: liveMusicPosition(playbackClock(state), now),
         startedAt: now,
       }),
     };
@@ -221,14 +231,15 @@ export function reduceMusic(current: RoomMusic | null, command: MusicCommand, us
       changed: true,
       next: bump(state, userId, 'paused', {
         status: 'paused',
-        position: liveMusicPosition(state, now),
+        position: liveMusicPosition(playbackClock(state), now),
         startedAt: undefined,
       }),
     };
   }
   if (command.type === 'seek') {
     if (!state || !Number.isFinite(command.position)) return { next: state, changed: expired.changed };
-    const position = Math.min(state.duration, Math.max(0, command.position));
+    const span = playbackClock(state).duration;
+    const position = Math.min(span > 0 ? span : state.duration, Math.max(0, command.position));
     return {
       changed: true,
       next: bump(state, userId, 'seek', {
@@ -278,10 +289,11 @@ export function reduceMusic(current: RoomMusic | null, command: MusicCommand, us
     if (state?.game && pickerId !== userId) return { next: state, changed: expired.changed };
     const guesserId = state?.game?.guesserId ?? command.guesserId;
     if (!guesserId || guesserId === userId) return { next: state, changed: expired.changed };
-    const seconds = [0, 30, 45, 60, 90].includes(command.seconds) ? command.seconds : 60;
+    const seconds = [5, 10, 15, 20, 30].includes(command.seconds) ? command.seconds : 10;
     const game = freshGame(pickerId, guesserId, state?.game?.round ?? 1, state?.game?.scores ?? {});
     game.track = command.track;
-    game.revealAt = seconds > 0 ? now + seconds * 1000 : null;
+    game.clipSeconds = Math.min(seconds, command.track.duration);
+    game.revealAt = null;
     const next = adopt(state, command.track, conversationId, userId, now, 'playing', 0, 'guess-start');
     next.mode = 'guess';
     next.hostId = state?.hostId ?? userId;
@@ -294,33 +306,42 @@ export function reduceMusic(current: RoomMusic | null, command: MusicCommand, us
     if (!state || !game || game.revealed || game.guesserId !== userId || !game.track) return { next: state, changed: expired.changed };
     const text = command.text.trim().slice(0, 80);
     if (text.length < 2) return { next: state, changed: expired.changed };
-    const correct = guessMatches(text, game.track.title, game.track.artist);
-    if (!correct) {
+    return {
+      changed: true,
+      next: bump(state, userId, 'guess', { game: { ...game, lastGuess: { userId, text, correct: false, pending: true } } }),
+    };
+  }
+  if (command.type === 'guess-judge') {
+    const game = state?.game;
+    const pending = game?.lastGuess;
+    if (!state || !game || !pending?.pending || game.revealed || game.pickerId !== userId) return { next: state, changed: expired.changed };
+    if (!command.correct) {
       return {
         changed: true,
-        next: bump(state, userId, 'wrong', { game: { ...game, lastGuess: { userId, text, correct: false } } }),
+        next: bump(state, userId, 'wrong', { game: { ...game, lastGuess: { ...pending, correct: false, pending: false } } }),
       };
     }
-    const scores = { ...game.scores, [userId]: (game.scores[userId] ?? 0) + 1 };
+    const scores = { ...game.scores, [pending.userId]: (game.scores[pending.userId] ?? 0) + 1 };
     const opened = reveal(state, userId, 'correct');
     return {
       changed: true,
       next: {
         ...opened,
-        game: opened.game ? { ...opened.game, scores, winnerId: userId, lastGuess: { userId, text, correct: true } } : opened.game,
+        game: opened.game ? { ...opened.game, scores, winnerId: pending.userId, lastGuess: { ...pending, correct: true, pending: false } } : opened.game,
       },
     };
   }
   if (command.type === 'guess-hint') {
     const game = state?.game;
     if (!state || !game || game.revealed || game.pickerId !== userId || !game.track) return { next: state, changed: expired.changed };
-    if (game.hintKinds.includes(command.kind)) return { next: state, changed: expired.changed };
-    const line = hintLine(command.kind, game.track.title, game.track.mood);
-    if (!line) return { next: state, changed: expired.changed };
+    const text = command.text.trim().replace(/\s+/g, ' ').slice(0, 40);
+    if (text.length < 2 || game.hints.length >= 3) return { next: state, changed: expired.changed };
+    if (game.hints.some((line) => line.toLowerCase() === text.toLowerCase())) return { next: state, changed: expired.changed };
+    if (guessMatches(text, game.track.title, game.track.artist)) return { next: state, changed: expired.changed };
     return {
       changed: true,
       next: bump(state, userId, 'hint', {
-        game: { ...game, hintKinds: [...game.hintKinds, command.kind], hints: [...game.hints, line] },
+        game: { ...game, hints: [...game.hints, text] },
       }),
     };
   }
@@ -407,6 +428,7 @@ export function projectMusic(state: RoomMusic, userId: string): PublicMusic {
     role: game.pickerId === userId ? 'picker' as const : 'guesser' as const,
     round: game.round,
     revealAt: game.revealAt,
+    clipSeconds: game.clipSeconds > 0 ? game.clipSeconds : undefined,
     hints: game.hints,
     scores: game.scores,
     lastGuess: game.lastGuess,

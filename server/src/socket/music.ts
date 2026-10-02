@@ -36,7 +36,8 @@ const guessStartSchema = roomSchema.extend({
   guesserId: z.string().uuid().optional(),
 });
 const guessSubmitSchema = roomSchema.extend({ text: z.string().min(1).max(80) });
-const guessHintSchema = roomSchema.extend({ kind: z.enum(['letter', 'mood']) });
+const guessJudgeSchema = roomSchema.extend({ correct: z.boolean() });
+const guessHintSchema = roomSchema.extend({ text: z.string().min(1).max(40) });
 const guessNextSchema = roomSchema.extend({
   pickerId: z.string().uuid(),
   guesserId: z.string().uuid(),
@@ -170,10 +171,16 @@ export function attachMusic(socket: Socket, userId: string) {
     run(parsed.data.conversationId, { type: 'guess-submit', text: parsed.data.text }, userId);
   });
 
+  socket.on(SocketEvents.MusicGuessJudge, (payload: unknown) => {
+    const parsed = guessJudgeSchema.safeParse(payload);
+    if (!parsed.success || !joined(parsed.data.conversationId)) return;
+    run(parsed.data.conversationId, { type: 'guess-judge', correct: parsed.data.correct }, userId);
+  });
+
   socket.on(SocketEvents.MusicGuessHint, (payload: unknown) => {
     const parsed = guessHintSchema.safeParse(payload);
     if (!parsed.success || !joined(parsed.data.conversationId)) return;
-    run(parsed.data.conversationId, { type: 'guess-hint', kind: parsed.data.kind }, userId);
+    run(parsed.data.conversationId, { type: 'guess-hint', text: parsed.data.text }, userId);
   });
 
   socket.on(SocketEvents.MusicGuessReveal, (payload: unknown) => {
