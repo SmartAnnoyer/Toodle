@@ -42,8 +42,22 @@
   color-scheme: dark;
 }
 
-* {
+button,
+a,
+[role='button'],
+[role='switch'],
+summary {
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+button:active:not(:disabled),
+a:active,
+[role='button']:active,
+[role='switch']:active,
+summary:active {
+  transform: scale(0.96);
+  transition: transform 40ms linear;
 }
 
 html,
@@ -116,6 +130,29 @@ body {
   height: var(--chat-height, 100dvh);
   transform: translateY(var(--chat-shift, 0px));
   overscroll-behavior: none;
+}
+
+.infinity-mark {
+  display: grid;
+  min-height: 8rem;
+  place-items: center;
+}
+
+.infinity-word {
+  display: inline-flex;
+  align-items: center;
+  font-family: Nunito, Outfit, ui-sans-serif, system-ui, sans-serif;
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.infinity-loop {
+  width: 1.35em;
+  height: 0.68em;
+  margin-inline: 0.03em;
+  overflow: visible;
 }
 
 .chat-tool {

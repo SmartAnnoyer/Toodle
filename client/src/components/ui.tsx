@@ -1,8 +1,46 @@
 import { motion } from 'framer-motion';
-import { createContext, useCallback, useContext, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useId, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react';
 
 export function Wordmark({ className = '' }: { className?: string }) {
   return <span className={`font-display font-extrabold tracking-tight text-gradient ${className}`}>Toodle</span>;
+}
+
+const INFINITY_PATH = 'M36 18C36 8 58 8 58 18C58 28 36 28 36 18C36 8 14 8 14 18C14 28 36 28 36 18';
+
+export function InfinityLoop({ className = '' }: { className?: string }) {
+  const raw = useId().replace(/:/g, '');
+  const reduce = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return (
+    <svg className={`infinity-loop ${className}`} viewBox="0 0 72 36" aria-hidden>
+      <defs>
+        <linearGradient id={`${raw}-g`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#8b5cf6" />
+          <stop offset="48%" stopColor="#f472b6" />
+          <stop offset="100%" stopColor="#22d3ee" />
+        </linearGradient>
+      </defs>
+      <path id={`${raw}-p`} d={INFINITY_PATH} fill="none" stroke={`url(#${raw}-g)`} strokeWidth="7" strokeLinecap="round" />
+      {reduce ? null : (
+        <circle r="3.1" fill="#fff">
+          <animateMotion dur="1.35s" repeatCount="indefinite" calcMode="linear">
+            <mpath href={`#${raw}-p`} />
+          </animateMotion>
+        </circle>
+      )}
+    </svg>
+  );
+}
+
+export function InfinityMark({ className = '' }: { className?: string }) {
+  return (
+    <div className={`infinity-mark ${className}`} role="status" aria-live="polite" aria-label="Loading">
+      <span className="infinity-word" aria-hidden>
+        <span className="text-gradient">T</span>
+        <InfinityLoop />
+        <span className="text-gradient">dle</span>
+      </span>
+    </div>
+  );
 }
 
 export function Button({

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Button, EmptyState, useToast } from '../components/ui';
+import { Avatar, Button, EmptyState, InfinityMark, useToast } from '../components/ui';
 import { api } from '../lib/http';
 import { nudge } from '../lib/feedback';
 import type { FriendRequest } from '../types';
@@ -12,6 +12,7 @@ export function RequestsPage() {
   const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
   const [accepted, setAccepted] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState('');
 
   async function load() {
     try {
@@ -29,16 +30,23 @@ export function RequestsPage() {
   useEffect(() => { void load(); }, []);
 
   async function act(id: string, action: 'accept' | 'ignore') {
+    const key = `${id}:${action}`;
+    if (busy) return;
+    setBusy(key);
     try {
       await api(`/api/requests/${id}/${action}`, { method: 'POST' });
       if (action === 'accept') nudge([12, 30, 12]);
       await load();
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.');
+    } finally {
+      setBusy('');
     }
   }
 
   async function start(userId: string, conversationId: string | null) {
+    if (busy) return;
+    setBusy(userId);
     try {
       if (conversationId) {
         navigate(`/chat/${conversationId}`);
@@ -48,13 +56,14 @@ export function RequestsPage() {
       navigate(`/chat/${created.id}`);
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.');
+      setBusy('');
     }
   }
 
   return (
     <div className="px-4 pt-6">
       <h1 className="text-3xl font-semibold">Requests</h1>
-      {loading ? <p className="mt-8 text-muted">Looking…</p> : null}
+      {loading ? <InfinityMark /> : null}
       {!loading && incoming.length === 0 && outgoing.length === 0 && accepted.length === 0 ? (
         <EmptyState emoji="👀" title="Nobody is Toodling you yet." />
       ) : null}
@@ -69,8 +78,8 @@ export function RequestsPage() {
               </div>
             </div>
             <div className="mt-4 flex gap-2">
-              <Button className="flex-1" onClick={() => void act(request.id, 'accept')}>Accept</Button>
-              <Button variant="ghost" onClick={() => void act(request.id, 'ignore')}>Ignore</Button>
+              <Button className="flex-1" disabled={Boolean(busy)} onClick={() => void act(request.id, 'accept')}>{busy === `${request.id}:accept` ? 'Accepting' : 'Accept'}</Button>
+              <Button variant="ghost" disabled={Boolean(busy)} onClick={() => void act(request.id, 'ignore')}>{busy === `${request.id}:ignore` ? 'Ignoring' : 'Ignore'}</Button>
             </div>
           </article>
         ))}
@@ -85,8 +94,8 @@ export function RequestsPage() {
               <p className="font-semibold">{request.user.displayName}</p>
               <p className="text-sm text-muted">@{request.user.username}</p>
             </div>
-            <Button onClick={() => void start(request.user.id, request.conversationId)}>
-              {request.conversationId ? 'Open chat' : 'Start Toodling'}
+            <Button disabled={busy === request.user.id} onClick={() => void start(request.user.id, request.conversationId)}>
+              {busy === request.user.id ? 'Opening' : request.conversationId ? 'Open chat' : 'Start Toodling'}
             </Button>
           </article>
         ))}

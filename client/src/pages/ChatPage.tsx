@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, ty
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { EMOJIS, MOODS, REACTIONS, RENEW_OPTIONS } from '../constants';
 import { ChatRules } from '../components/RulesEditor';
-import { Button, ConfirmBar, EmptyState, useToast } from '../components/ui';
+import { Button, ConfirmBar, EmptyState, InfinityMark, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
 import { useCountdown } from '../hooks/useCountdown';
@@ -362,7 +362,7 @@ export function ChatPage() {
   if (loading && !conversation) {
     return (
       <div className="chat-frame app-bg mx-auto grid max-w-[820px] place-items-center">
-        <p className="text-sm text-muted">Opening chat…</p>
+        <InfinityMark />
       </div>
     );
   }
@@ -482,7 +482,7 @@ export function ChatPage() {
       <HerMark mark={herMark} />
       <div ref={scroller} className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-1" onPointerDown={() => setMoodOpen(false)}>
         <div className="relative z-10 space-y-2 px-4">
-        {loading ? <p className="pt-16 text-center text-sm text-muted">Opening chat…</p> : messages.length === 0 ? <p className="pt-6 text-center text-muted">Say the first thing.</p> : null}
+        {loading ? <InfinityMark /> : messages.length === 0 ? <p className="pt-6 text-center text-muted">Say the first thing.</p> : null}
         {messages.map((message) => (
           <MessageBubble
             key={message.id}

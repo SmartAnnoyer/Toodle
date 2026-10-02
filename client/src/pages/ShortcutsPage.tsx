@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, EmptyState, useToast } from '../components/ui';
+import { Button, EmptyState, InfinityMark, useToast } from '../components/ui';
 import { SocketEvents } from '../constants';
 import { useSocket } from '../hooks/useSocket';
 import { api } from '../lib/http';
@@ -14,16 +14,20 @@ export function ShortcutsPage() {
   const [trigger, setTrigger] = useState('/');
   const [content, setContent] = useState('');
   const [shareWith, setShareWith] = useState<Record<string, string>>({});
+  const [ready, setReady] = useState(false);
 
   async function load() {
     const data = await api<{ mine: Shortcut[]; incoming: IncomingShare[]; sharedWithMe: Shortcut[] }>('/api/shortcuts');
     setMine(data.mine);
     setIncoming(data.incoming);
     setSharedWithMe(data.sharedWithMe);
+    setReady(true);
   }
 
   useEffect(() => {
-    load().catch((error) => toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.'));
+    load()
+      .catch((error) => toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.'))
+      .finally(() => setReady(true));
   }, [toast]);
 
   useEffect(() => {
@@ -78,6 +82,15 @@ export function ShortcutsPage() {
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.');
     }
+  }
+
+  if (!ready) {
+    return (
+      <div className="px-4 pt-6">
+        <h1 className="text-3xl font-semibold">Shortcuts</h1>
+        <InfinityMark />
+      </div>
+    );
   }
 
   return (

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Avatar, Button, ConfirmBar, EmptyState, Wordmark, useToast } from '../components/ui';
+import { Avatar, Button, ConfirmBar, EmptyState, InfinityMark, Wordmark, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { SocketEvents } from '../constants';
 import { useCountdown } from '../hooks/useCountdown';
@@ -115,7 +115,7 @@ export function HomePage() {
           <Button className="mt-4" variant="danger" onClick={() => void signOut()}>Log out</Button>
         </div>
       ) : null}
-      {loading ? <p className="mt-10 text-center text-muted">Loading chats…</p> : null}
+      {loading ? <InfinityMark /> : null}
       {!loading && active.length === 0 && gone.length === 0 ? (
         <EmptyState emoji="👀" title="It's suspiciously quiet here" body="Find someone and send a ping." action={<Link to="/find" className="text-primary">Find someone</Link>} />
       ) : null}
@@ -196,6 +196,7 @@ function ChatCard({ chat, onDelete, onBlock }: { chat: ConversationSummary; onDe
   const drag = useRef({ x: 0, y: 0, origin: 0, active: false, axis: '' as '' | 'x' | 'y' });
   const [shift, setShift] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [pressed, setPressed] = useState(false);
   const preview = chat.lastMessage
     ? chat.lastMessage.kind === 'gif' ? 'GIF' : chat.lastMessage.kind === 'sticker' ? 'Sticker' : chat.lastMessage.body
     : 'No messages yet';
@@ -204,6 +205,7 @@ function ChatCard({ chat, onDelete, onBlock }: { chat: ConversationSummary; onDe
     if (event.button !== 0) return;
     drag.current = { x: event.clientX, y: event.clientY, origin: shift, active: true, axis: '' };
     setDragging(true);
+    setPressed(true);
   }
 
   function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
@@ -224,22 +226,26 @@ function ChatCard({ chat, onDelete, onBlock }: { chat: ConversationSummary; onDe
   }
 
   function onPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
-    if (!drag.current.active && drag.current.axis === 'y') return;
     const dx = event.clientX - drag.current.x;
+    const dy = event.clientY - drag.current.y;
     const axis = drag.current.axis;
     const origin = drag.current.origin;
     drag.current.active = false;
     setDragging(false);
+    setPressed(false);
     if (axis === 'y') return;
+    if (Math.abs(dx) < 22 && Math.abs(dy) < 22 && origin > -40) {
+      setShift(0);
+      navigate(`/chat/${chat.id}`);
+      return;
+    }
     if (axis === 'x') {
       setShift(origin + dx < -72 ? -156 : 0);
       return;
     }
     if (origin < -40) {
       setShift(0);
-      return;
     }
-    navigate(`/chat/${chat.id}`);
   }
 
   return (
@@ -250,11 +256,11 @@ function ChatCard({ chat, onDelete, onBlock }: { chat: ConversationSummary; onDe
       </div>
       <div
         className="glass relative flex touch-pan-y select-none items-center gap-3 p-3"
-        style={{ transform: `translateX(${shift}px)`, transition: dragging ? 'none' : 'transform 160ms ease' }}
+        style={{ transform: `translateX(${shift}px) scale(${pressed && shift === 0 ? 0.98 : 1})`, transition: dragging ? 'none' : 'transform 80ms ease' }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => { drag.current.active = false; setDragging(false); setShift(0); }}
+        onPointerCancel={() => { drag.current.active = false; setDragging(false); setPressed(false); setShift(0); }}
       >
         <Avatar emoji={chat.otherUser.avatarEmoji} online={chat.otherUser.online} />
         <div className="min-w-0 flex-1">

@@ -11,6 +11,7 @@ export function FindPage() {
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState<SearchUser[]>([]);
   const [searching, setSearching] = useState(false);
+  const [busyId, setBusyId] = useState('');
 
   useEffect(() => {
     if (query.trim().length < 1) {
@@ -28,6 +29,8 @@ export function FindPage() {
   }, [query, toast]);
 
   async function ping(user: SearchUser) {
+    if (busyId) return;
+    setBusyId(user.id);
     try {
       if (user.conversationId) {
         navigate(`/chat/${user.conversationId}`);
@@ -44,6 +47,8 @@ export function FindPage() {
       setUsers((current) => current.map((item) => item.id === user.id ? { ...item, relationship: 'outgoing' } : item));
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.');
+    } finally {
+      setBusyId('');
     }
   }
 
@@ -75,8 +80,8 @@ export function FindPage() {
                   .catch((error) => toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.'));
               }}
             >Block</button>
-            <Button className="px-4 py-2" onClick={() => void ping(user)}>
-              {user.conversationId ? 'Chat' : user.relationship === 'accepted' ? 'Chat' : user.relationship === 'outgoing' ? 'Pinged' : user.relationship === 'incoming' ? 'They pinged you' : 'Ping 👋'}
+            <Button className="px-4 py-2" disabled={busyId === user.id} onClick={() => void ping(user)}>
+              {busyId === user.id ? 'Opening' : user.conversationId ? 'Chat' : user.relationship === 'accepted' ? 'Chat' : user.relationship === 'outgoing' ? 'Pinged' : user.relationship === 'incoming' ? 'They pinged you' : 'Ping 👋'}
             </Button>
           </article>
         ))}

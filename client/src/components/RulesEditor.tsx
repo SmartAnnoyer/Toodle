@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CONVERSATION_EXPIRY, MESSAGE_COUNTS, MESSAGE_EXPIRY } from '../constants';
-import { Toggle, useToast } from './ui';
+import { InfinityMark, Toggle, useToast } from './ui';
 import { api } from '../lib/http';
 import type { ConversationDetail, RuleView } from '../types';
 
@@ -95,7 +95,7 @@ export function ChatRules({ conversationId, onClose, onGhost }: { conversationId
         ) : null}
       </div>
       <div className="mt-5 grid min-h-0 flex-1 grid-cols-2 content-start gap-3 overflow-y-auto">
-        {!ready ? <p className="col-span-2 py-16 text-center text-sm text-muted">Loading…</p> : null}
+        {!ready ? <InfinityMark className="col-span-2" /> : null}
         {ready ? rules.map((rule) => {
           const look = LOOK[rule.ruleType] ?? { mark: '✦', line: rule.explanation };
           const expanded = open === rule.ruleType;

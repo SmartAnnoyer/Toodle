@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AVATARS, MOODS } from '../constants';
-import { Avatar, Button, Field, Toggle, useToast } from '../components/ui';
+import { Avatar, Button, Field, InfinityMark, Toggle, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { ThemeSelect } from '../theme/ThemeSelect';
 import { api } from '../lib/http';
@@ -27,7 +27,7 @@ export function ProfilePage() {
     setShowOnline(profile.showOnline);
   }, [profile]);
 
-  if (loading) return <p className="px-4 pt-10 text-muted">Loading you…</p>;
+  if (loading) return <InfinityMark className="pt-16" />;
   if (!profile) {
     return (
       <div className="px-4 pt-16 text-center">

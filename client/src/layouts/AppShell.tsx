@@ -26,7 +26,7 @@ export function AppShell() {
               key={item.to}
               to={item.to}
               end={item.end}
-              className={({ isActive }) => `flex min-w-16 flex-col items-center rounded-full px-3 py-1 text-xs ${isActive ? 'bg-white/10 text-ink' : 'text-muted'}`}
+              className={({ isActive }) => `flex min-w-16 flex-col items-center rounded-full px-3 py-1 text-xs transition-none ${isActive ? 'bg-white/10 text-ink' : 'text-muted'}`}
             >
               <span className="text-lg">{item.emoji}</span>
               {item.label}
