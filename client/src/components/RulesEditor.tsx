@@ -10,7 +10,7 @@ const LOOK: Record<string, { mark: string; line: string }> = {
   message_expiration: { mark: '⏳', line: 'Messages fade' },
   message_count: { mark: '💬', line: 'A message budget' },
   conversation_expiration: { mark: '💣', line: 'The chat ends' },
-  ghost_mode: { mark: '🫥', line: 'Gone when you both leave' },
+  ghost_mode: { mark: '👻', line: 'Gone when you both leave' },
 };
 
 function summary(rule: RuleView): string {
@@ -29,6 +29,7 @@ function summary(rule: RuleView): string {
 export function ChatRules({ conversationId, onClose, onGhost }: { conversationId: string; onClose?: () => void; onGhost?: (enabled: boolean) => void }) {
   const toast = useToast();
   const [rules, setRules] = useState<RuleView[]>([]);
+  const [ready, setReady] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const epoch = useRef(0);
 
@@ -36,13 +37,18 @@ export function ChatRules({ conversationId, onClose, onGhost }: { conversationId
     if (!conversationId) return;
     let cancel = false;
     const started = epoch.current;
+    setReady(false);
     api<ConversationDetail>(`/api/conversations/${conversationId}`)
       .then((detail) => {
         if (cancel || epoch.current !== started) return;
         setRules(detail.rules.filter((rule) => !HIDDEN.has(rule.ruleType)));
+        setReady(true);
       })
       .catch((error) => {
-        if (!cancel) toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.');
+        if (!cancel) {
+          setReady(true);
+          toast(error instanceof Error ? error.message : 'Toodle tripped. Try again.');
+        }
       });
     return () => {
       cancel = true;
@@ -89,7 +95,8 @@ export function ChatRules({ conversationId, onClose, onGhost }: { conversationId
         ) : null}
       </div>
       <div className="mt-5 grid min-h-0 flex-1 grid-cols-2 content-start gap-3 overflow-y-auto">
-        {rules.map((rule) => {
+        {!ready ? <p className="col-span-2 py-16 text-center text-sm text-muted">Loading…</p> : null}
+        {ready ? rules.map((rule) => {
           const look = LOOK[rule.ruleType] ?? { mark: '✦', line: rule.explanation };
           const expanded = open === rule.ruleType;
           return (
@@ -150,7 +157,7 @@ export function ChatRules({ conversationId, onClose, onGhost }: { conversationId
               ) : null}
             </article>
           );
-        })}
+        }) : null}
       </div>
     </div>
   );

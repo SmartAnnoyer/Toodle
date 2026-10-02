@@ -50,6 +50,11 @@ const GROUPS: { id: string; words: string[]; lines: string[] }[] = [
     lines: ['👀 Dangerous word', '😂 Noted...', 'Here we go again', 'Her mark ✨'],
   },
   {
+    id: 'flirty',
+    words: ['noru musuko', 'nooru musko', 'noru musko', 'noru muyyi', 'noru muy'],
+    lines: ['💗 Her favourite', '😘 Flirty one', '✨ Her special', '👀 She says this a lot', 'Her mark ✨'],
+  },
+  {
     id: 'famous',
     words: ['neku chala undhi'],
     lines: ['😂 We know...', 'Too much? 👀', 'Her famous line ✨', 'Her mark ✨'],

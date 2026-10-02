@@ -256,7 +256,8 @@ export function ChatPage() {
         method: 'PUT',
         body: JSON.stringify({ ruleType: 'ghost_mode', enabled: true, configuration: {} }),
       });
-      toast('Ghost mode is on. This chat disappears when you both leave.');
+      toast('👻 Ghost mode is on. This chat disappears when you both leave.');
+      popGhost(true);
     } catch (err) {
       setConversation((current) => current ? { ...current, ghostMode: false } : current);
       toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.');
@@ -265,6 +266,16 @@ export function ChatPage() {
     }
   }
   enterGhostRef.current = () => { void enterGhost(); };
+
+  function popGhost(on: boolean) {
+    setBurst({
+      token: Date.now(),
+      emojis: on ? ['👻', '👻', '✨'] : ['👻', '💨', '✨'],
+      motion: 'rise',
+      density: on ? 26 : 18,
+      pop: on ? 0.75 : 0.5,
+    });
+  }
 
   function toggleDrawer(next: Drawer) {
     setMoodOpen(false);
@@ -329,7 +340,10 @@ export function ChatPage() {
           const count = result.streak?.count ?? conversation?.streakCount ?? 0;
           toast(count > 0 ? `🔥 ${count} day streak` : 'No streak yet. Both of you have to show up.');
         }
-        if (result.action === 'ghost') toast(result.ghostEnabled ? '🫥 Ghost mode is on' : 'Ghost mode is off');
+        if (result.action === 'ghost') {
+          popGhost(Boolean(result.ghostEnabled));
+          toast(result.ghostEnabled ? '👻 Ghost mode is on' : '👻 Ghost mode is off');
+        }
       }
       if (result.streak?.increased) nudge([8, 20, 8]);
     } catch (err) {
@@ -345,7 +359,13 @@ export function ChatPage() {
     typingTimer.current = window.setTimeout(() => signalTyping(false), 1200);
   }
 
-  if (loading) return <div className="app-bg grid min-h-dvh place-items-center text-muted">Opening chat…</div>;
+  if (loading && !conversation) {
+    return (
+      <div className="chat-frame app-bg mx-auto grid max-w-[820px] place-items-center">
+        <p className="text-sm text-muted">Opening chat…</p>
+      </div>
+    );
+  }
   if (!conversation || conversation.status !== 'active') {
     return (
       <div className="app-bg grid min-h-dvh place-items-center px-6">
@@ -389,15 +409,6 @@ export function ChatPage() {
             onClick={() => { setContactOpen(false); setDrawer(null); setMoodOpen((open) => !open); }}
           >
             {profile?.moodEmoji ?? '🫠'}
-          </button>
-          <button
-            type="button"
-            className="chat-tool shrink-0 text-lg"
-            aria-label="Chat settings"
-            aria-expanded={rulesOpen}
-            onClick={() => { setMoodOpen(false); setContactOpen(false); setDrawer(null); setRulesOpen(true); }}
-          >
-            ⚙️
           </button>
         </div>
         {moodOpen ? (
@@ -443,7 +454,7 @@ export function ChatPage() {
           ) : null}
           {countdown ? <span>💣 This conversation ends in {countdown}</span> : null}
           {conversation.remainingMessages != null ? <span>💬 {conversation.remainingMessages} messages remaining</span> : null}
-          {conversation.ghostMode ? <span>🫥 Ghost mode</span> : null}
+          {conversation.ghostMode ? <span>👻 Ghost mode</span> : null}
         </div>
         <div className="mt-2 flex min-w-0 items-center">
           <VibePanel place="bar" vibe={{ ...vibe, reconnecting: status === 'disconnected' || vibe.reconnecting }} friendName={conversation.otherUser.displayName} myId={profile?.id} />
@@ -471,7 +482,7 @@ export function ChatPage() {
       <HerMark mark={herMark} />
       <div ref={scroller} className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-1" onPointerDown={() => setMoodOpen(false)}>
         <div className="relative z-10 space-y-2 px-4">
-        {messages.length === 0 ? <p className="pt-6 text-center text-muted">Say the first thing.</p> : null}
+        {loading ? <p className="pt-16 text-center text-sm text-muted">Opening chat…</p> : messages.length === 0 ? <p className="pt-6 text-center text-muted">Say the first thing.</p> : null}
         {messages.map((message) => (
           <MessageBubble
             key={message.id}
@@ -653,7 +664,10 @@ export function ChatPage() {
             <ChatRules
               conversationId={id}
               onClose={() => setRulesOpen(false)}
-              onGhost={(enabled) => setConversation((current) => current ? { ...current, ghostMode: enabled } : current)}
+              onGhost={(enabled) => {
+                setConversation((current) => current ? { ...current, ghostMode: enabled } : current);
+                popGhost(enabled);
+              }}
             />
           </motion.div>
         ) : null}

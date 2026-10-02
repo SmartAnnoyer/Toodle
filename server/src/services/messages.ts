@@ -274,7 +274,7 @@ async function runAction(
     await upsertRule(ctx.conversationId, ctx.userId, 'ghost_mode', enabled, {});
     emitToUsers(ctx.memberIds, SocketEvents.ConversationUpdated, { conversationId: ctx.conversationId });
     await insertSystem(ctx.conversationId, enabled
-      ? '🫥 Ghost mode is on. This chat disappears when you both leave.'
+      ? '👻 Ghost mode is on. This chat disappears when you both leave.'
       : 'Ghost mode is off.');
     return { type: 'action' as const, action, ghostEnabled: enabled, serverNow: serverNow() };
   }
