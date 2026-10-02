@@ -1,44 +1,49 @@
 import { motion } from 'framer-motion';
 import { createContext, useCallback, useContext, useId, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react';
 
-export function Wordmark({ className = '' }: { className?: string }) {
-  return <span className={`font-display font-extrabold tracking-tight text-gradient ${className}`}>Toodle</span>;
-}
+const INFINITY_PATH = 'M14 20C14 8 30 8 36 20C42 32 58 32 58 20C58 8 42 8 36 20C30 32 14 32 14 20';
 
-const INFINITY_PATH = 'M36 18C36 8 58 8 58 18C58 28 36 28 36 18C36 8 14 8 14 18C14 28 36 28 36 18';
-
-export function InfinityLoop({ className = '' }: { className?: string }) {
+export function InfinityLoop({ className = '', travel = false }: { className?: string; travel?: boolean }) {
   const raw = useId().replace(/:/g, '');
   const reduce = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   return (
-    <svg className={`infinity-loop ${className}`} viewBox="0 0 72 36" aria-hidden>
+    <svg className={`infinity-loop ${className}`} viewBox="0 -2 72 44" aria-hidden>
       <defs>
-        <linearGradient id={`${raw}-g`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#8b5cf6" />
-          <stop offset="48%" stopColor="#f472b6" />
-          <stop offset="100%" stopColor="#22d3ee" />
+        <linearGradient id={`${raw}-g`} x1="0" y1="0.2" x2="1" y2="0.8">
+          <stop offset="0%" stopColor="#fff7fb" />
+          <stop offset="22%" stopColor="#ffd0ea" />
+          <stop offset="46%" stopColor="#7af3ff" />
+          <stop offset="72%" stopColor="#e9d5ff" />
+          <stop offset="100%" stopColor="#f0abfc" />
         </linearGradient>
       </defs>
-      <path id={`${raw}-p`} d={INFINITY_PATH} fill="none" stroke={`url(#${raw}-g)`} strokeWidth="7" strokeLinecap="round" />
-      {reduce ? null : (
-        <circle r="3.1" fill="#fff">
-          <animateMotion dur="1.35s" repeatCount="indefinite" calcMode="linear">
+      <path id={`${raw}-p`} d={INFINITY_PATH} fill="none" stroke={`url(#${raw}-g)`} strokeWidth="9.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={INFINITY_PATH} fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" opacity="0.55" />
+      {travel && !reduce ? (
+        <circle r="2.5" fill="#fff">
+          <animateMotion dur="1.45s" repeatCount="indefinite" calcMode="linear">
             <mpath href={`#${raw}-p`} />
           </animateMotion>
         </circle>
-      )}
+      ) : null}
     </svg>
+  );
+}
+
+export function Wordmark({ className = '', travel = false }: { className?: string; travel?: boolean }) {
+  return (
+    <span className={`infinity-word font-display font-extrabold tracking-tight ${className}`}>
+      <span className="infinity-letter">T</span>
+      <InfinityLoop travel={travel} />
+      <span className="infinity-letter">dle</span>
+    </span>
   );
 }
 
 export function InfinityMark({ className = '' }: { className?: string }) {
   return (
     <div className={`infinity-mark ${className}`} role="status" aria-live="polite" aria-label="Loading">
-      <span className="infinity-word" aria-hidden>
-        <span className="text-gradient">T</span>
-        <InfinityLoop />
-        <span className="text-gradient">dle</span>
-      </span>
+      <span aria-hidden><Wordmark travel /></span>
     </div>
   );
 }
