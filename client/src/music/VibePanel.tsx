@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTheme } from '../theme/ThemeProvider';
 import { musicPlayer } from './MusicManager';
 import { vibeNotice, vibePresence } from './sync';
+import { VIBE_ENABLED } from './vibeFlag';
 import type { useVibe } from './useVibe';
 
 type VibeApi = ReturnType<typeof useVibe>;
@@ -84,7 +85,17 @@ function Tool({
   );
 }
 
-export function VibePanel({
+export function VibePanel(props: {
+  vibe: VibeApi;
+  friendName: string;
+  myId?: string;
+  place?: 'bar' | 'sheet';
+}) {
+  if (!VIBE_ENABLED) return null;
+  return <VibePanelOn {...props} />;
+}
+
+function VibePanelOn({
   vibe,
   friendName,
   myId,

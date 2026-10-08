@@ -13,6 +13,7 @@ import { api } from '../lib/http';
 import { formatClock, formatRemaining, humanDuration, serverNowMs } from '../lib/time';
 import type { ChatMessage, GifResult } from '../types';
 import { VibePanel } from '../music/VibePanel';
+import { VIBE_ENABLED } from '../music/vibeFlag';
 import { useVibe } from '../music/useVibe';
 import type { MusicSnapshot, ToodleMusicEvent } from '../music/MusicTypes';
 import { ChatBurst, type ChatBurstState } from '../chat/ChatBurst';
@@ -311,10 +312,10 @@ export function ChatPage() {
     const trimmed = body.trim();
     if (!trimmed && extra?.kind !== 'gif' && extra?.kind !== 'sticker') return;
     if (trimmed) toodle.notice(trimmed);
-    if (/^let'?s vibe\b/i.test(trimmed)) {
+    if (VIBE_ENABLED && /^let'?s vibe\b/i.test(trimmed)) {
       if (!vibe.expanded) vibe.toggle();
       void vibe.play();
-    } else if (/you pick/i.test(trimmed) && /guess/i.test(trimmed)) {
+    } else if (VIBE_ENABLED && /you pick/i.test(trimmed) && /guess/i.test(trimmed)) {
       vibe.inviteGuess('them');
     }
     const fromComposer = body === text;

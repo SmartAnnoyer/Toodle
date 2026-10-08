@@ -8,6 +8,7 @@ import { musicPlayer } from './MusicManager';
 import { searchTracks } from './MusicSearch';
 import { livePosition, snapshotFrom } from './sync';
 import type { MusicSnapshot, MusicTrack, SharedMusicState, ToodleMusicEvent } from './MusicTypes';
+import { VIBE_ENABLED } from './vibeFlag';
 
 function isState(value: unknown): value is SharedMusicState {
   if (!value || typeof value !== 'object') return false;
@@ -88,6 +89,7 @@ export function useVibe({
   }
 
   useEffect(() => {
+    if (!VIBE_ENABLED) return;
     let gone = false;
     void searchTracks(query).then((found) => {
       if (!gone) setTracks(found);
@@ -102,6 +104,10 @@ export function useVibe({
   }, [conversationId]);
 
   useEffect(() => {
+    if (!VIBE_ENABLED) {
+      musicPlayer.stop();
+      return;
+    }
     if (!socket || !conversationId) return;
     const apply = async (payload: unknown) => {
       if (!payload || typeof payload !== 'object') return;
@@ -163,6 +169,7 @@ export function useVibe({
   }, [socket, conversationId, myId]);
 
   useEffect(() => {
+    if (!VIBE_ENABLED) return;
     const handle = window.setInterval(() => {
       const current = stateRef.current;
       if (!current || current.status !== 'playing') return;
@@ -198,6 +205,7 @@ export function useVibe({
   }
 
   async function play(track?: MusicTrack) {
+    if (!VIBE_ENABLED) return;
     const current = stateRef.current;
     if (!track && current) {
       const heard = await musicPlayer.resume();
@@ -308,7 +316,7 @@ export function useVibe({
   }
 
   function inviteGuess(picker: 'me' | 'them') {
-    if (!myId || !friendId) return;
+    if (!VIBE_ENABLED || !myId || !friendId) return;
     const pickerId = picker === 'me' ? myId : friendId;
     const guesserId = picker === 'me' ? friendId : myId;
     emitRoom(SocketEvents.MusicGuessInvite, { pickerId, guesserId });
@@ -316,7 +324,7 @@ export function useVibe({
   }
 
   async function startGuess(track: MusicTrack, seconds = 10) {
-    if (!friendId) return;
+    if (!VIBE_ENABLED || !friendId) return;
     musicPlayer.armClip(seconds);
     const heard = await musicPlayer.start(track, 0, false);
     const duration = musicPlayer.duration() || track.duration;
