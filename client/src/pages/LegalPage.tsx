@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Screen, Wordmark } from '../components/ui';
-import { MIN_AGE, SUPPORT_EMAIL } from '../legal';
+import { MIN_AGE, SAFETY_EMAIL, SUPPORT_EMAIL } from '../legal';
 
 const DELETE_MAIL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Delete my Toodle account')}&body=${encodeURIComponent('Please delete my Toodle account and the data associated with it.\n\nAccount email:\nUsername:\n')}`;
 
@@ -39,6 +39,7 @@ export function PrivacyPage() {
       <p>Toodle is for people {MIN_AGE} and older. We do not want accounts from anyone younger.</p>
       <h2 className="text-base font-semibold text-ink">Contact</h2>
       <p>Privacy questions: <a className="text-primary" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></p>
+      <p>Child safety: <Link to="/child-safety" className="text-primary underline">Child safety standards</Link></p>
     </Frame>
   );
 }
@@ -50,7 +51,7 @@ export function TermsPage() {
       <p>You must be {MIN_AGE} or older. You are responsible for the messages you send.</p>
       <h2 className="text-base font-semibold text-ink">Not allowed</h2>
       <p>No harassment, hate, sexual content involving anyone under 18, spam, or threats. We have zero tolerance for that. We may remove messages and delete accounts that break these terms.</p>
-      <p>Use Report and Block in a chat when someone crosses the line. We review reports and aim to act within 24 hours.</p>
+      <p>Use Report and Block in a chat when someone crosses the line. We review reports and aim to act within 24 hours. Our <Link to="/child-safety" className="text-primary underline">child safety standards</Link> explain how to report child sexual abuse and exploitation.</p>
       <h2 className="text-base font-semibold text-ink">Your account</h2>
       <p>Keep your password to yourself. You can reset it from the login screen, change it in Account and password, and delete the account there. Deleting it removes the login, profile, and chats you created. You can also use the <Link to="/delete-account" className="text-primary underline">delete account page</Link>.</p>
       <p>Questions: <a className="text-primary" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></p>
@@ -71,6 +72,23 @@ export function DeleteAccountPage() {
       <p>Email us from the address on the account, or include that email and your username. We will delete the account and the associated data.</p>
       <p><a className="text-primary underline" href={DELETE_MAIL}>Request account deletion</a></p>
       <p>Send it to <a className="text-primary" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
+    </Frame>
+  );
+}
+
+export function ChildSafetyPage() {
+  return (
+    <Frame title="Child safety standards">
+      <p>These are Toodle’s published standards against child sexual abuse and exploitation. Last updated 8 October 2026.</p>
+      <h2 className="text-base font-semibold text-ink">Not allowed</h2>
+      <p>Toodle has zero tolerance for child sexual abuse material and for sexual content or grooming involving anyone under 18. Accounts that do this are removed.</p>
+      <p>Toodle is for people {MIN_AGE} and older. The app does not allow photo or video uploads.</p>
+      <h2 className="text-base font-semibold text-ink">Report it in the app</h2>
+      <p>Open the chat, open the other person’s name, then choose Report. Pick sexual or other, describe what happened, and send. You can also block that person in the same place.</p>
+      <h2 className="text-base font-semibold text-ink">What we do</h2>
+      <p>Reports are stored and reviewed. We remove the content and delete the account when a report shows a violation. When we confirm child sexual abuse material, we report it to the relevant regional and national authorities.</p>
+      <h2 className="text-base font-semibold text-ink">Contact</h2>
+      <p>Child safety contact: <a className="text-primary" href={`mailto:${SAFETY_EMAIL}`}>{SAFETY_EMAIL}</a></p>
     </Frame>
   );
 }
