@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button, Field, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/http';
 import { supabase } from '../lib/supabase';
+import { handleBack } from '../native/back';
 
 export function AccountPage() {
   const { profile, signOut } = useAuth();
@@ -56,7 +57,7 @@ export function AccountPage() {
 
   return (
     <div className="px-4 pb-8 pt-8">
-      <Link to="/profile" className="text-sm text-muted">← Profile</Link>
+      <button type="button" className="text-sm text-muted" onClick={() => handleBack()}>← Back</button>
       <h1 className="mt-3 text-3xl font-semibold">Account and password</h1>
       <p className="mt-2 text-sm text-muted">{profile ? `@${profile.username}` : ''}</p>
 

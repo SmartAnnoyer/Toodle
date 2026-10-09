@@ -7,7 +7,8 @@ import { parseTrigger, type ActionType } from '../engines/shortcutEngine.js';
 import { db } from '../lib/db.js';
 import { AppError, throwDb } from '../lib/errors.js';
 import { rateLimit } from '../middleware/rateLimit.js';
-import { emitToUsers, isUserInConversation } from '../socket/hub.js';
+import { emitToUsers } from '../socket/hub.js';
+import { pushToUser } from './push.js';
 import { serverNow } from '../utils/time.js';
 import { expireConversation, insertSystem, loadMembers, loadRules, requireMember, upsertRule } from './conversationStore.js';
 import { mapMessage, type MessageRow } from './mappers.js';
@@ -240,17 +241,16 @@ export async function sendMessage(userId: string, conversationId: string, input:
   }
 
   const others = memberIds.filter((id) => id !== userId);
-  await Promise.all(others.filter((id) => !isUserInConversation(id, conversationId)).map(async (id) => {
-    const profiles = await getProfiles([userId]);
-    const me = profiles.get(userId);
-    return notify({
-      userId: id,
-      type: 'message',
-      title: 'New message',
-      body: `💬 @${me?.username ?? 'someone'} sent you something.`,
-      payload: { conversationId, messageId: message.id },
-    });
-  }));
+  const profiles = await getProfiles([userId]);
+  const sender = profiles.get(userId);
+  const preview = kind === 'gif' ? 'Sent a GIF' : kind === 'sticker' ? 'Sent a sticker' : body.slice(0, 140);
+  await Promise.all(others.map((id) => notify({
+    userId: id,
+    type: 'message',
+    title: `${sender?.avatar_emoji ?? '💬'} ${sender?.display_name ?? 'Someone'}`,
+    body: preview,
+    payload: { conversationId, messageId: message.id, senderId: userId },
+  })));
 
   return {
     type: 'message' as const,
@@ -364,5 +364,6 @@ export async function markRead(userId: string, conversationId: string) {
     userId,
     lastReadAt,
   });
+  void pushToUser(userId, { type: 'read', title: '', body: '', payload: { conversationId }, dataOnly: true });
   return { lastReadAt };
 }

@@ -2,6 +2,7 @@ import { SocketEvents } from '../constants/events.js';
 import { db } from '../lib/db.js';
 import { AppError, throwDb } from '../lib/errors.js';
 import { emitToUsers } from '../socket/hub.js';
+import { pushToUser } from './push.js';
 
 export async function notify(input: {
   userId: string;
@@ -25,6 +26,12 @@ export async function notify(input: {
   if (!data) throw new AppError(500, 'Toodle tripped. Try again.');
   const mapped = mapNotification(data);
   emitToUsers([input.userId], SocketEvents.NotificationNew, mapped);
+  void pushToUser(input.userId, {
+    type: input.type,
+    title: input.title,
+    body: input.body,
+    payload: { ...input.payload, notificationId: mapped.id },
+  });
   return mapped;
 }
 

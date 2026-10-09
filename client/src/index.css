@@ -132,6 +132,32 @@ body {
   overscroll-behavior: none;
 }
 
+.push-banner {
+  position: fixed;
+  z-index: 80;
+  top: max(0.6rem, env(safe-area-inset-top));
+  left: 0.75rem;
+  right: 0.75rem;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.8rem 1rem;
+  border: 0;
+  border-radius: 1.2rem;
+  background: color-mix(in srgb, var(--elevated) 92%, #c084fc);
+  color: var(--text);
+  text-align: left;
+  box-shadow: var(--shadow);
+}
+
+.push-banner strong {
+  font-size: 0.95rem;
+}
+
+.push-banner span {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .infinity-mark {
   display: grid;
   min-height: 8rem;

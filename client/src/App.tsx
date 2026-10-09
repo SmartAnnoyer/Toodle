@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { listenForHardwareBack, setRouteBack } from './native/back';
+import { PushBridge } from './native/PushBridge';
 import { ToastProvider } from './components/ui';
 import { AuthProvider } from './hooks/useAuth';
 import { SocketProvider } from './hooks/useSocket';
@@ -20,6 +22,45 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { RulesPage } from './pages/RulesPage';
 import { ShortcutsPage } from './pages/ShortcutsPage';
 import { WelcomePage } from './pages/WelcomePage';
+
+function parentPath(path: string) {
+  if (path.startsWith('/chat/') && path.endsWith('/rules')) return path.slice(0, -'/rules'.length);
+  if (path.startsWith('/chat/')) return '/';
+  if (path === '/account') return '/profile';
+  if (path === '/find' || path === '/requests' || path === '/shortcuts' || path === '/profile') return '/';
+  if (path === '/forgot' || path === '/reset-password') return '/login';
+  if (path === '/privacy' || path === '/terms' || path === '/delete-account' || path === '/child-safety') return '/welcome';
+  return null;
+}
+
+function AndroidBack() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const startKey = useRef(location.key);
+  const locationRef = useRef(location);
+  locationRef.current = location;
+
+  useEffect(() => listenForHardwareBack(), []);
+
+  useEffect(() => {
+    setRouteBack(() => {
+      const current = locationRef.current;
+      if (current.key !== startKey.current) {
+        navigate(-1);
+        return true;
+      }
+      const parent = parentPath(current.pathname);
+      if (parent) {
+        navigate(parent, { replace: true });
+        return true;
+      }
+      return false;
+    });
+    return () => setRouteBack(null);
+  }, [navigate]);
+
+  return null;
+}
 
 function RecoveryGate() {
   const navigate = useNavigate();
@@ -44,6 +85,8 @@ export function App() {
           <ToastProvider>
             <BrowserRouter>
               <RecoveryGate />
+              <AndroidBack />
+              <PushBridge />
               <Routes>
                 <Route path="/welcome" element={<WelcomePage />} />
                 <Route path="/login" element={<LoginPage />} />

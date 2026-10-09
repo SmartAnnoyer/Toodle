@@ -23,6 +23,7 @@ import { keywordEffectFor } from '../chat/keywordEffects';
 import { readChaos } from '../toodle/settings';
 import { ToodlePresence } from '../toodle/ToodlePresence';
 import { useToodleChat } from '../toodle/useToodleChat';
+import { handleBack, useBackLayer } from '../native/back';
 
 type Drawer = 'emoji' | 'gif' | 'sticker' | 'more' | 'renew' | null;
 
@@ -57,6 +58,14 @@ export function ChatPage() {
     setPicked([]);
     setAsk(null);
   }, [id]);
+  useBackLayer(ask != null, () => setAsk(null), 100);
+  useBackLayer(contactOpen, () => setContactOpen(false), 80);
+  useBackLayer(rulesOpen, () => setRulesOpen(false), 70);
+  useBackLayer(drawer != null, () => setDrawer(null), 60);
+  useBackLayer(moodOpen, () => setMoodOpen(false), 50);
+  useBackLayer(picked.length > 0, () => setPicked([]), 40);
+  useBackLayer(selected != null, () => setSelected(null), 35);
+  useBackLayer(reply != null, () => setReply(null), 30);
   const scroller = useRef<HTMLDivElement>(null);
   const burstSeen = useRef(new Set<string>());
   const burstEcho = useRef<{ senderId: string; body: string; at: number }[]>([]);
@@ -397,7 +406,7 @@ export function ChatPage() {
       <header className="relative z-20 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
         {banner ? <p className="mb-2 text-center text-xs text-muted">{banner}</p> : null}
         <div className="flex items-center gap-1">
-          <button type="button" onClick={() => navigate('/')} className="chat-tool shrink-0 text-lg" aria-label="Back">←</button>
+          <button type="button" onClick={() => handleBack()} className="chat-tool shrink-0 text-lg" aria-label="Back">←</button>
           <button type="button" onClick={openContact} className="min-w-0 flex-1 touch-manipulation rounded-2xl px-1 py-1 text-left" aria-label={`Double tap to open ${conversation.otherUser.displayName}`}>
             <p className="truncate text-lg font-semibold">{conversation.otherUser.avatarEmoji} {conversation.otherUser.displayName}</p>
             <p className="truncate text-sm text-muted">{conversation.otherUser.moodEmoji} {conversation.otherUser.moodText} · {conversation.otherUser.online ? 'online' : 'offline'}</p>

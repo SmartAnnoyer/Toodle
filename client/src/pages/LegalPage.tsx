@@ -1,16 +1,16 @@
 import type { ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Screen, Wordmark } from '../components/ui';
+import { handleBack } from '../native/back';
 import { MIN_AGE, SAFETY_EMAIL, SUPPORT_EMAIL } from '../legal';
 
 const DELETE_MAIL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Delete my Toodle account')}&body=${encodeURIComponent('Please delete my Toodle account and the data associated with it.\n\nAccount email:\nUsername:\n')}`;
 
 function Frame({ title, children }: { title: string; children: ReactNode }) {
-  const navigate = useNavigate();
   return (
     <Screen className="app-bg overflow-y-auto px-5 py-8">
       <article className="mx-auto max-w-md pb-16">
-        <button type="button" className="text-sm text-muted" onClick={() => navigate(-1)}>← Back</button>
+        <button type="button" className="text-sm text-muted" onClick={() => handleBack()}>← Back</button>
         <Wordmark className="mt-4 block text-3xl" />
         <h1 className="mt-3 text-3xl font-semibold">{title}</h1>
         <div className="mt-6 space-y-4 text-sm leading-6">{children}</div>

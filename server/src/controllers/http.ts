@@ -12,6 +12,7 @@ import * as notifications from '../services/notifications.js';
 import { searchGifs } from '../services/gifs.js';
 import { deleteAccount } from '../services/account.js';
 import { blockUser, isReportReason, reportUser } from '../services/safety.js';
+import * as devices from '../services/devices.js';
 
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
@@ -204,6 +205,19 @@ export const http = {
   async revokeShare(req: Request, res: Response) {
     const body = parse(z.object({ recipientId: idSchema }), req.body);
     res.json(await shortcuts.revokeShare(req.userId, parse(idSchema, req.params.id), body.recipientId));
+  },
+
+  async saveDevice(req: Request, res: Response) {
+    const body = parse(z.object({
+      token: z.string().min(8).max(4096),
+      platform: z.enum(['android', 'ios']),
+    }), req.body);
+    res.status(201).json(await devices.saveDevice(req.userId, body.token, body.platform));
+  },
+
+  async removeDevice(req: Request, res: Response) {
+    const body = parse(z.object({ token: z.string().min(8).max(4096) }), req.body);
+    res.json(await devices.removeDevice(req.userId, body.token));
   },
 
   async notifications(req: Request, res: Response) {

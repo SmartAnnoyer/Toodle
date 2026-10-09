@@ -8,6 +8,7 @@ import { useSocket } from '../hooks/useSocket';
 import { api } from '../lib/http';
 import { formatAgo } from '../lib/time';
 import type { ConversationSummary } from '../types';
+import { useBackLayer } from '../native/back';
 
 const HIDDEN_KEY = 'toodle-hidden-chats';
 
@@ -50,6 +51,7 @@ export function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ask, setAsk] = useState<null | { title: string; confirm: string; run: () => void }>(null);
+  useBackLayer(ask != null, () => setAsk(null), 100);
 
   async function load() {
     try {

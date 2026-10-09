@@ -78,6 +78,8 @@ api.post('/shortcuts/:id/revoke', asyncHandler(http.revokeShare));
 api.post('/shortcut-shares/:id/accept', asyncHandler(http.acceptShare));
 api.post('/shortcut-shares/:id/reject', asyncHandler(http.rejectShare));
 
+api.post('/devices', asyncHandler(http.saveDevice));
+api.delete('/devices', asyncHandler(http.removeDevice));
 api.get('/notifications', asyncHandler(http.notifications));
 api.post('/notifications/read-all', asyncHandler(http.readAllNotifications));
 api.post('/notifications/:id/read', asyncHandler(http.readNotification));
