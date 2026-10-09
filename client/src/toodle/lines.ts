@@ -31,9 +31,19 @@ const MOOD_LINES: Record<string, string> = {
   cooking: 'CHEF MODE.',
   watching: 'Same.',
   'dead inside': 'I will lie down with you.',
+  dead: 'I will lie down with you.',
   overthinking: 'And we are back.',
   'in love': 'I saw nothing.',
   'barely alive': 'Blink twice if you need water.',
+  unhinged: 'Say less. I am already unwell.',
+  'main character': 'The lighting is doing a lot.',
+  'locked in': 'No distractions. I am a distraction.',
+  'in my feels': 'I brought tissues. They are metaphorical.',
+  'going out': 'Shoes on. Decisions off.',
+  soft: 'Okay that is dangerously cute.',
+  menace: 'I support this. Quietly.',
+  delulu: 'And yet. It might work.',
+  lowkey: 'I will pretend I did not see that.',
 };
 
 export function lineFor(event: ToodleEvent, ctx: ToodleContext, random: () => number): { line?: string; suggestion?: string; pose?: ToodlePose } {

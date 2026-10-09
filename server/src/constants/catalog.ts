@@ -1,19 +1,23 @@
 export const MOODS = [
-  { emoji: '😂', text: 'bored' },
+  { emoji: '😭', text: 'unhinged' },
   { emoji: '🫠', text: 'surviving' },
-  { emoji: '🤡', text: 'questionable decisions' },
-  { emoji: '😴', text: 'sleepy' },
-  { emoji: '🔥', text: 'cooking' },
+  { emoji: '💅', text: 'main character' },
+  { emoji: '🫡', text: 'locked in' },
+  { emoji: '🥀', text: 'in my feels' },
+  { emoji: '🪩', text: 'going out' },
+  { emoji: '💀', text: 'dead' },
   { emoji: '👀', text: 'watching' },
-  { emoji: '💀', text: 'dead inside' },
+  { emoji: '🫶', text: 'soft' },
+  { emoji: '😈', text: 'menace' },
+  { emoji: '🫧', text: 'delulu' },
+  { emoji: '🖤', text: 'lowkey' },
+  { emoji: '🔥', text: 'cooking' },
   { emoji: '🧠', text: 'overthinking' },
-  { emoji: '❤️', text: 'in love' },
-  { emoji: '🥱', text: 'barely alive' },
 ] as const;
 
-export const AVATARS = ['🦊', '🌙', '☕', '✨', '🌸', '🔥', '💜', '🦋', '🍓', '⚡', '🌊', '🎧'] as const;
+export const AVATARS = ['✨', '💀', '😭', '🪩', '🫶', '💅', '🫧', '🌙', '🔥', '🦋', '🍓', '🎧', '👽', '🖤', '⭐', '😈'] as const;
 
-export const REACTION_EMOJIS = ['😂', '❤️', '😭', '🔥', '✨', '💀', '👀', '🫠', '🤡', '😴', '🥱', '🧠', '💜', '🌙', '☕', '🌸', '⚡', '🥺', '😘', '🤝', '👋', '💕', '😎', '🎉'] as const;
+export const REACTION_EMOJIS = ['😂', '❤️', '😭', '🔥', '✨', '💀', '👀', '🫠', '💅', '🫡', '🥀', '🪩', '🫶', '😈', '🫧', '🖤', '👽', '⭐', '🥺', '😘', '😎', '🎉', '💜', '🌙'] as const;
 
 export const DEFAULT_SHORTCUTS = [
   { trigger: '/shrug', name: 'Shrug', type: 'TEXT' as const, content: '¯\\_(ツ)_/¯', actionType: null },

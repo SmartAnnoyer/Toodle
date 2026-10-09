@@ -107,7 +107,10 @@ export function HomePage() {
       <header>
         <Wordmark className="text-4xl" />
       </header>
-      <Link to="/find" className="glass mt-5 block rounded-[1.6rem] px-4 py-4 text-muted">Find someone to Toodle with</Link>
+      <Link to="/find" className="glass mt-5 flex items-center gap-3 rounded-full px-4 py-4 text-muted">
+        <span aria-hidden>🔎</span>
+        Search a username
+      </Link>
       {pending > 0 ? (
         <Link to="/requests" className="og-note mt-3 block rounded-2xl bg-white/10 px-4 py-3 text-sm">👋 {pending} {pending === 1 ? 'person wants' : 'people want'} to Toodle</Link>
       ) : null}

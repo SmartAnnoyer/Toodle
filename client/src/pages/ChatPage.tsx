@@ -10,7 +10,7 @@ import { useCountdown } from '../hooks/useCountdown';
 import { useSocket } from '../hooks/useSocket';
 import { nudge } from '../lib/feedback';
 import { api } from '../lib/http';
-import { formatClock, formatRemaining, humanDuration, serverNowMs } from '../lib/time';
+import { chatDay, formatClock, formatRemaining, humanDuration, serverNowMs } from '../lib/time';
 import type { ChatMessage, GifResult } from '../types';
 import { VibePanel } from '../music/VibePanel';
 import { VIBE_ENABLED } from '../music/vibeFlag';
@@ -54,6 +54,7 @@ export function ChatPage() {
   const [ask, setAsk] = useState<null | { title: string; confirm: string; run: () => void }>(null);
   const [burst, setBurst] = useState<ChatBurstState | null>(null);
   const [herMark, setHerMark] = useState<HerMarkState | null>(null);
+  const [away, setAway] = useState(false);
   useEffect(() => {
     setPicked([]);
     setAsk(null);
@@ -67,6 +68,7 @@ export function ChatPage() {
   useBackLayer(selected != null, () => setSelected(null), 35);
   useBackLayer(reply != null, () => setReply(null), 30);
   const scroller = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
   const burstSeen = useRef(new Set<string>());
   const burstEcho = useRef<{ senderId: string; body: string; at: number }[]>([]);
   const burstArmed = useRef(false);
@@ -135,7 +137,9 @@ export function ChatPage() {
   }, []);
 
   useEffect(() => {
-    scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
+    const node = scroller.current;
+    if (!node || !stick.current) return;
+    node.scrollTo({ top: node.scrollHeight });
   }, [messages.length, typing]);
 
   useEffect(() => {
@@ -337,6 +341,9 @@ export function ChatPage() {
     setText('');
     setReply(null);
     setDrawer(null);
+    stick.current = true;
+    setAway(false);
+    if (composer.current) composer.current.style.height = '';
     signalTyping(false);
     if (fromComposer) composer.current?.focus({ preventScroll: true });
     try {
@@ -364,6 +371,11 @@ export function ChatPage() {
 
   function onType(value: string) {
     setText(value);
+    const node = composer.current;
+    if (node) {
+      node.style.height = 'auto';
+      node.style.height = `${Math.min(node.scrollHeight, 112)}px`;
+    }
     signalTyping(true);
     if (typingTimer.current) window.clearTimeout(typingTimer.current);
     typingTimer.current = window.setTimeout(() => signalTyping(false), 1200);
@@ -490,12 +502,27 @@ export function ChatPage() {
       <div className="relative min-h-0 flex-1">
       <ChatBurst burst={burst} />
       <HerMark mark={herMark} />
-      <div ref={scroller} className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-1" onPointerDown={() => setMoodOpen(false)}>
+      <div
+        ref={scroller}
+        className="absolute inset-0 z-10 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-1"
+        onPointerDown={() => setMoodOpen(false)}
+        onScroll={() => {
+          const node = scroller.current;
+          if (!node) return;
+          const near = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
+          stick.current = near;
+          setAway(!near);
+        }}
+      >
         <div className="relative z-10 space-y-2 px-4">
         {loading ? <InfinityMark /> : messages.length === 0 ? <p className="pt-6 text-center text-muted">Say the first thing.</p> : null}
-        {messages.map((message) => (
+        {messages.map((message, index) => {
+          const day = chatDay(message.createdAt);
+          const previous = index > 0 ? chatDay(messages[index - 1].createdAt) : null;
+          return (
+          <div key={message.id} id={`msg-${message.id}`}>
+          {day !== previous ? <p className="py-2 text-center text-[11px] uppercase tracking-wide text-muted">{day}</p> : null}
           <MessageBubble
-            key={message.id}
             message={message}
             mine={message.senderId === profile?.id}
             seen={Boolean(message.senderId === profile?.id && conversation.otherLastReadAt && conversation.otherLastReadAt >= message.createdAt)}
@@ -508,7 +535,12 @@ export function ChatPage() {
               setSelected(null);
               setPicked((current) => current.includes(message.id) ? current.filter((item) => item !== message.id) : [...current, message.id]);
             }}
-            onReply={() => { setReply(message); setSelected(null); }}
+            onReply={() => { setReply(message); setSelected(null); composer.current?.focus({ preventScroll: true }); }}
+            onJump={(messageId) => document.getElementById(`msg-${messageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+            onCopy={() => {
+              void navigator.clipboard.writeText(message.body).then(() => toast('Copied')).catch(() => toast('Could not copy'));
+              setSelected(null);
+            }}
             onDelete={() => {
               if (message.localStatus === 'sending') return;
               setAsk({
@@ -535,7 +567,9 @@ export function ChatPage() {
               }).catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
             }}
           />
-        ))}
+          </div>
+          );
+        })}
         {typing ? <p className="text-sm text-muted">typing…</p> : null}
         </div>
         {readChaos() !== 'off' && !error && drawer !== 'renew' && !rulesOpen ? (
@@ -549,6 +583,20 @@ export function ChatPage() {
           />
         ) : null}
       </div>
+      {away ? (
+        <button
+          type="button"
+          className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-line bg-elevated px-3 py-2 text-xs font-semibold shadow"
+          onClick={() => {
+            stick.current = true;
+            setAway(false);
+            const node = scroller.current;
+            node?.scrollTo({ top: node.scrollHeight, behavior: 'smooth' });
+          }}
+        >
+          ↓ Latest
+        </button>
+      ) : null}
       </div>
 
       {ghostPull > 0 ? (
@@ -778,6 +826,8 @@ function MessageBubble({
   onDelete,
   onReact,
   onRetry,
+  onJump,
+  onCopy,
 }: {
   message: ChatMessage;
   mine: boolean;
@@ -792,6 +842,8 @@ function MessageBubble({
   onDelete: () => void;
   onReact: (emoji: string) => void;
   onRetry?: () => void;
+  onJump?: (messageId: string) => void;
+  onCopy?: () => void;
 }) {
   const drag = useRef({ x: 0, y: 0, active: false, axis: '' as '' | 'x' | 'y' });
   const lastTap = useRef(0);
@@ -915,7 +967,16 @@ function MessageBubble({
           style={{ transform: pop ? undefined : `translateX(${shift}px)`, ['--msg-shift' as string]: `${shift}px` }}
         >
           {pop ? <span className="react-float">{pop}</span> : null}
-          {message.replyTo ? <p className="mb-1 truncate text-xs opacity-70">↩ {message.replyTo.body}</p> : null}
+          {message.replyTo ? (
+            <button
+              type="button"
+              className="mb-1 block w-full truncate text-left text-xs opacity-70"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => { event.stopPropagation(); onJump?.(message.replyTo?.id ?? ''); }}
+            >
+              ↩ {message.replyTo.body}
+            </button>
+          ) : null}
           {message.kind === 'gif' && gifUrl ? <img src={gifUrl} alt={message.body} className="mb-1 max-h-52 rounded-2xl" /> : null}
           {message.kind === 'gif' && !gifUrl ? <span className="block text-5xl">{label || '✨'}</span> : null}
           {message.kind === 'sticker' && gifUrl ? <img src={gifUrl} alt={message.body} className="mb-1 max-h-40 object-contain" /> : null}
@@ -953,7 +1014,7 @@ function MessageBubble({
               ))}
               <button type="button" className="grid h-11 w-11 place-items-center rounded-full bg-ink/10 text-lg" aria-label="Add emoji" onClick={() => setMoreEmoji((open) => !open)}>+</button>
               <button type="button" className="min-h-11 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={onReply}>Reply</button>
-              <button type="button" className="min-h-11 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={() => void navigator.clipboard.writeText(message.body)}>Copy</button>
+              <button type="button" className="min-h-11 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={onCopy}>Copy</button>
               <button type="button" className="min-h-11 rounded-full bg-ink/10 px-3 text-xs font-semibold" onClick={onMark}>Select</button>
               {canDelete ? <button type="button" className="min-h-11 rounded-full bg-danger/15 px-3 text-xs font-semibold text-danger" onClick={onDelete}>Delete</button> : null}
             </div>
@@ -974,6 +1035,11 @@ function MessageBubble({
 function GifSheet({ kind, onKind, onPick, onClose }: { kind: 'gif' | 'sticker'; onKind: (kind: 'gif' | 'sticker') => void; onPick: (gif: GifResult) => void; onClose: () => void }) {
   const [query, setQuery] = useState('');
   const [gifs, setGifs] = useState<GifResult[]>([]);
+  const search = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    search.current?.focus();
+  }, [kind]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -989,7 +1055,7 @@ function GifSheet({ kind, onKind, onPick, onClose }: { kind: 'gif' | 'sticker'; 
       <div className="mb-2 flex items-center gap-2">
         <button type="button" className={`text-sm font-semibold ${kind === 'gif' ? '' : 'opacity-50'}`} onClick={() => onKind('gif')}>GIFs</button>
         <button type="button" className={`text-sm font-semibold ${kind === 'sticker' ? '' : 'opacity-50'}`} onClick={() => onKind('sticker')}>Stickers</button>
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={kind === 'sticker' ? 'Search stickers' : 'Search GIFs'} className="min-w-0 flex-1 bg-transparent outline-none" />
+        <input ref={search} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={kind === 'sticker' ? 'Search stickers' : 'Search GIFs'} autoCapitalize="none" autoCorrect="off" spellCheck={false} className="min-w-0 flex-1 bg-transparent text-base outline-none" />
         <button type="button" onClick={onClose}>✕</button>
       </div>
       <div className="grid grid-cols-4 gap-2">

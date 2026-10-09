@@ -6,7 +6,7 @@ import { db } from '../lib/db.js';
 const PASSWORD = 'toodle-dev-1';
 
 const PEOPLE = [
-  { username: 'akki', displayName: 'Akki', email: 'akki@seed.toodle.app', avatar: '🦊', moodEmoji: '🫠', moodText: 'surviving' },
+  { username: 'akki', displayName: 'Akki', email: 'akki@seed.toodle.app', avatar: '✨', moodEmoji: '🫠', moodText: 'surviving' },
   { username: 'bestie', displayName: 'Bestie', email: 'bestie@seed.toodle.app', avatar: '💜', moodEmoji: '😂', moodText: 'bored' },
   { username: 'coffeeaddict', displayName: 'Coffee', email: 'coffeeaddict@seed.toodle.app', avatar: '☕', moodEmoji: '🥱', moodText: 'barely alive' },
   { username: 'moon', displayName: 'Moon', email: 'moon@seed.toodle.app', avatar: '🌙', moodEmoji: '❤️', moodText: 'in love' },

@@ -42,7 +42,7 @@ export function LoginPage() {
         <Wordmark className="text-4xl" />
         <h1 className="mt-8 text-3xl font-semibold">Welcome back.</h1>
         <div className="mt-6 space-y-4">
-          <Field label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
+          <Field label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" autoFocus />
           <Field label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
         </div>
         <Button className="mt-8" type="submit" disabled={busy || password.length < 8}>{busy ? 'Signing in…' : 'Enter'}</Button>

@@ -20,7 +20,7 @@ export function WelcomePage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [oldEnough, setOldEnough] = useState(false);
-  const [avatar, setAvatar] = useState('🦊');
+  const [avatar, setAvatar] = useState('✨');
   const [moodEmoji, setMoodEmoji] = useState('🫠');
   const [moodText, setMoodText] = useState('surviving');
   const [customMood, setCustomMood] = useState(false);
@@ -134,7 +134,7 @@ export function WelcomePage() {
                 ))}
               </div>
               <div className="mt-6">
-                <Field label="Display name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Akki" maxLength={32} />
+                <Field label="Display name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Akki" maxLength={32} autoFocus />
               </div>
               <div className="mt-auto flex gap-3 pt-8">
                 <Button variant="ghost" onClick={() => setStep(0)}>Back</Button>
@@ -147,7 +147,7 @@ export function WelcomePage() {
               <h1 className="text-4xl font-semibold">Pick your username.</h1>
               <p className="mt-2 text-sm text-muted">Email stays between you and Toodle. Nobody else sees it.</p>
               <div className="mt-6 space-y-4">
-                <Field label="Username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="akki" hint={usernameState || '3–20 letters, numbers, underscores'} />
+                <Field label="Username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="akki" hint={usernameState || '3–20 letters, numbers, underscores'} autoFocus autoCapitalize="none" autoCorrect="off" spellCheck={false} />
                 <Field label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@email.com" autoComplete="email" />
                 <Field label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" autoComplete="new-password" />
                 <Field label="Confirm password" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" hint={passwordMismatch ? 'Those passwords do not match.' : undefined} />

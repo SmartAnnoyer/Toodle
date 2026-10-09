@@ -1,21 +1,25 @@
 export const MOODS = [
-  { emoji: '😂', text: 'bored' },
+  { emoji: '😭', text: 'unhinged' },
   { emoji: '🫠', text: 'surviving' },
-  { emoji: '🤡', text: 'questionable decisions' },
-  { emoji: '😴', text: 'sleepy' },
-  { emoji: '🔥', text: 'cooking' },
+  { emoji: '💅', text: 'main character' },
+  { emoji: '🫡', text: 'locked in' },
+  { emoji: '🥀', text: 'in my feels' },
+  { emoji: '🪩', text: 'going out' },
+  { emoji: '💀', text: 'dead' },
   { emoji: '👀', text: 'watching' },
-  { emoji: '💀', text: 'dead inside' },
+  { emoji: '🫶', text: 'soft' },
+  { emoji: '😈', text: 'menace' },
+  { emoji: '🫧', text: 'delulu' },
+  { emoji: '🖤', text: 'lowkey' },
+  { emoji: '🔥', text: 'cooking' },
   { emoji: '🧠', text: 'overthinking' },
-  { emoji: '❤️', text: 'in love' },
-  { emoji: '🥱', text: 'barely alive' },
 ] as const;
 
-export const AVATARS = ['🦊', '🌙', '☕', '✨', '🌸', '🔥', '💜', '🦋', '🍓', '⚡', '🌊', '🎧'];
+export const AVATARS = ['✨', '💀', '😭', '🪩', '🫶', '💅', '🫧', '🌙', '🔥', '🦋', '🍓', '🎧', '👽', '🖤', '⭐', '😈'];
 
-export const EMOJIS = ['😂', '❤️', '😭', '🔥', '✨', '💀', '👀', '🫠', '🤡', '😴', '🥱', '🧠', '💜', '🌙', '☕', '🌸', '⚡', '🥺', '😘', '🤝', '👋', '💕', '😎', '🎉'];
+export const EMOJIS = ['😂', '❤️', '😭', '🔥', '✨', '💀', '👀', '🫠', '💅', '🫡', '🥀', '🪩', '🫶', '😈', '🫧', '🖤', '👽', '⭐', '🥺', '😘', '😎', '🎉', '💜', '🌙'];
 
-export const REACTIONS = ['❤️', '😂', '💀', '🔥', '👀', '😭'];
+export const REACTIONS = ['❤️', '😂', '💀', '🔥', '💅', '😭'];
 
 export const MESSAGE_EXPIRY = [
   { label: '30 seconds', seconds: 30 },

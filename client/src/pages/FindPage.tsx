@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Button, useToast } from '../components/ui';
 import { api } from '../lib/http';
@@ -12,6 +12,15 @@ export function FindPage() {
   const [users, setUsers] = useState<SearchUser[]>([]);
   const [searching, setSearching] = useState(false);
   const [busyId, setBusyId] = useState('');
+  const field = useRef<HTMLInputElement>(null);
+
+  useLayoutEffect(() => {
+    const node = field.current;
+    if (!node) return;
+    node.focus();
+    const timer = window.setTimeout(() => node.focus(), 50);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (query.trim().length < 1) {
@@ -56,12 +65,20 @@ export function FindPage() {
     <div className="px-4 pt-6">
       <h1 className="text-3xl font-semibold">Find people</h1>
       <input
+        ref={field}
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="@username"
-        className="glass mt-5 w-full rounded-full px-4 py-3 outline-none"
+        autoFocus
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        enterKeyHint="search"
+        inputMode="text"
+        className="glass mt-5 w-full rounded-full px-4 py-3 text-base outline-none ring-primary/40 focus:ring-2"
       />
       {searching ? <p className="mt-4 text-sm text-muted">Searching…</p> : null}
+      {!searching && query.trim().length > 0 && users.length === 0 ? <p className="mt-4 text-sm text-muted">No one with that name.</p> : null}
       <div className="mt-4 space-y-3">
         {users.map((user) => (
           <article key={user.id} className="glass flex items-center gap-3 rounded-[1.6rem] p-3">
