@@ -11,10 +11,14 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: false,
   },
-  ...(hasFirebase ? {} : { includePlugins: ['@capacitor/app'] }),
+  ...(hasFirebase ? {} : { includePlugins: ['@capacitor/app', '@capacitor/local-notifications'] }),
   plugins: {
     PushNotifications: {
       presentationOptions: [],
+    },
+    LocalNotifications: {
+      smallIcon: 'ic_stat_toodle',
+      iconColor: '#C084FC',
     },
   },
 };

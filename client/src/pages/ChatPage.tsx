@@ -6,7 +6,7 @@ import { ChatRules } from '../components/RulesEditor';
 import { Button, ConfirmBar, EmptyState, InfinityMark, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
-import { useCountdown } from '../hooks/useCountdown';
+import { useCountdown, useTickingSeconds } from '../hooks/useCountdown';
 import { useSocket } from '../hooks/useSocket';
 import { nudge } from '../lib/feedback';
 import { api } from '../lib/http';
@@ -38,6 +38,7 @@ export function ChatPage() {
   const { banner, status } = useSocket();
   const { conversation, messages, typing, loading, error, streakPop, send, signalTyping, react, discard, setConversation } = useChat(id);
   const countdown = useCountdown(conversation?.status === 'active' ? conversation.expiresAt : null);
+  const streakLeft = useTickingSeconds(conversation?.streakAtRisk ? conversation.streakExpiresInSeconds : null);
   const [text, setText] = useState('');
   const [reply, setReply] = useState<ChatMessage | null>(null);
   const [drawer, setDrawer] = useState<Drawer>(null);
@@ -75,7 +76,6 @@ export function ChatPage() {
   const burstChat = useRef(id);
   const frame = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
-  const lastContactTap = useRef(0);
   const enterGhostRef = useRef<() => void>(() => {});
   const ghostLock = useRef(false);
   const rejoined = useRef(false);
@@ -310,15 +310,9 @@ export function ChatPage() {
   }
 
   function openContact() {
-    const now = Date.now();
-    if (now - lastContactTap.current < 320) {
-      lastContactTap.current = 0;
-      setMoodOpen(false);
-      setDrawer(null);
-      setContactOpen(true);
-      return;
-    }
-    lastContactTap.current = now;
+    setMoodOpen(false);
+    setDrawer(null);
+    setContactOpen(true);
   }
 
   async function submit(body = text, extra?: { kind?: 'text' | 'gif' | 'sticker'; metadata?: Record<string, unknown> }) {
@@ -419,7 +413,7 @@ export function ChatPage() {
         {banner ? <p className="mb-2 text-center text-xs text-muted">{banner}</p> : null}
         <div className="flex items-center gap-1">
           <button type="button" onClick={() => handleBack()} className="chat-tool shrink-0 text-lg" aria-label="Back">←</button>
-          <button type="button" onClick={openContact} className="min-w-0 flex-1 touch-manipulation rounded-2xl px-1 py-1 text-left" aria-label={`Double tap to open ${conversation.otherUser.displayName}`}>
+          <button type="button" onClick={openContact} className="min-w-0 flex-1 touch-manipulation rounded-2xl px-1 py-1 text-left" aria-label={`Open ${conversation.otherUser.displayName}`}>
             <p className="truncate text-lg font-semibold">{conversation.otherUser.avatarEmoji} {conversation.otherUser.displayName}</p>
             <p className="truncate text-sm text-muted">{conversation.otherUser.moodEmoji} {conversation.otherUser.moodText} · {conversation.otherUser.online ? 'online' : 'offline'}</p>
           </button>
@@ -471,9 +465,7 @@ export function ChatPage() {
         <div className="mt-1 flex flex-wrap gap-2 px-1 text-xs">
           {conversation.streakCount > 0 ? <span className="rounded-full bg-white/10 px-2 py-1">🔥 {conversation.streakCount} day streak</span> : null}
           {conversation.streakLost ? <span>💔 The streak didn't survive.</span> : null}
-          {conversation.streakAtRisk && conversation.streakExpiresInSeconds != null ? (
-            <span>🔥 Your streak expires in {formatRemaining(conversation.streakExpiresInSeconds)}</span>
-          ) : null}
+          {streakLeft ? <span>🔥 Your streak expires in {streakLeft}</span> : null}
           {countdown ? <span>💣 This conversation ends in {countdown}</span> : null}
           {conversation.remainingMessages != null ? <span>💬 {conversation.remainingMessages} messages remaining</span> : null}
           {conversation.ghostMode ? <span>👻 Ghost mode</span> : null}
@@ -515,7 +507,7 @@ export function ChatPage() {
         }}
       >
         <div className="relative z-10 space-y-2 px-4">
-        {loading ? <InfinityMark /> : messages.length === 0 ? <p className="pt-6 text-center text-muted">Say the first thing.</p> : null}
+        {loading && messages.length === 0 ? <InfinityMark /> : messages.length === 0 ? <p className="pt-6 text-center text-muted">Say the first thing.</p> : null}
         {messages.map((message, index) => {
           const day = chatDay(message.createdAt);
           const previous = index > 0 ? chatDay(messages[index - 1].createdAt) : null;
@@ -787,10 +779,23 @@ function MoreIcon() {
 }
 
 function Sheet({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
+  const opened = useRef(0);
+  useEffect(() => {
+    if (open) opened.current = Date.now();
+  }, [open]);
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+        <motion.div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => {
+            if (Date.now() - opened.current < 400) return;
+            onClose();
+          }}
+        >
           <motion.div
             initial={{ y: 48 }}
             animate={{ y: 0 }}

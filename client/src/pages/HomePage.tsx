@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, Button, ConfirmBar, EmptyState, InfinityMark, Wordmark, useToast } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { SocketEvents } from '../constants';
-import { useCountdown } from '../hooks/useCountdown';
+import { useCountdown, useTickingSeconds } from '../hooks/useCountdown';
 import { useSocket } from '../hooks/useSocket';
 import { api } from '../lib/http';
+import { readInbox, writeInbox } from '../lib/viewCache';
 import { formatAgo } from '../lib/time';
 import type { ConversationSummary } from '../types';
 import { useBackLayer } from '../native/back';
@@ -46,9 +47,10 @@ export function HomePage() {
   const { socket } = useSocket();
   const { signOut } = useAuth();
   const toast = useToast();
-  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [pending, setPending] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const savedInbox = readInbox();
+  const [conversations, setConversations] = useState<ConversationSummary[]>(savedInbox?.conversations ?? []);
+  const [pending, setPending] = useState(savedInbox?.pending ?? 0);
+  const [loading, setLoading] = useState(!savedInbox);
   const [error, setError] = useState<string | null>(null);
   const [ask, setAsk] = useState<null | { title: string; confirm: string; run: () => void }>(null);
   useBackLayer(ask != null, () => setAsk(null), 100);
@@ -59,8 +61,10 @@ export function HomePage() {
         api<{ conversations: ConversationSummary[] }>('/api/conversations'),
         api<{ incoming: { id: string }[] }>('/api/requests'),
       ]);
-      setConversations(visibleChats(inbox.conversations));
+      const next = visibleChats(inbox.conversations);
+      setConversations(next);
       setPending(requests.incoming.length);
+      writeInbox({ conversations: next, pending: requests.incoming.length });
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Toodle tripped. Try again.');
@@ -71,7 +75,11 @@ export function HomePage() {
 
   function forget(chat: ConversationSummary) {
     hideChat(chat.id, chat.updatedAt);
-    setConversations((current) => current.filter((item) => item.id !== chat.id));
+    setConversations((current) => {
+      const next = current.filter((item) => item.id !== chat.id);
+      writeInbox({ conversations: next, pending });
+      return next;
+    });
   }
 
   function restore(chat: ConversationSummary) {
@@ -120,7 +128,7 @@ export function HomePage() {
           <Button className="mt-4" variant="danger" onClick={() => void signOut()}>Log out</Button>
         </div>
       ) : null}
-      {loading ? <InfinityMark /> : null}
+      {loading && conversations.length === 0 ? <InfinityMark /> : null}
       {!loading && active.length === 0 && gone.length === 0 ? (
         <EmptyState emoji="👀" title="It's suspiciously quiet here" body="Find someone and send a ping." action={<Link to="/find" className="text-primary">Find someone</Link>} />
       ) : null}
@@ -198,6 +206,7 @@ export function HomePage() {
 function ChatCard({ chat, onDelete, onBlock }: { chat: ConversationSummary; onDelete: () => void; onBlock: () => void }) {
   const navigate = useNavigate();
   const countdown = useCountdown(chat.status === 'active' ? chat.expiresAt : null);
+  const streakLeft = useTickingSeconds(chat.streakAtRisk ? chat.streakExpiresInSeconds : null);
   const drag = useRef({ x: 0, y: 0, origin: 0, active: false, axis: '' as '' | 'x' | 'y' });
   const [shift, setShift] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -277,7 +286,7 @@ function ChatCard({ chat, onDelete, onBlock }: { chat: ConversationSummary; onDe
           <p className="truncate text-sm">{preview}</p>
           <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted">
             {chat.streakCount > 0 ? <span>🔥 {chat.streakCount}</span> : null}
-            {chat.streakAtRisk && chat.streakExpiresInSeconds != null ? <span>🔥 streak fading</span> : null}
+            {streakLeft ? <span>🔥 {streakLeft}</span> : null}
             {countdown ? <span>⏳ {countdown}</span> : null}
             {chat.remainingMessages != null ? <span>💬 {chat.remainingMessages}</span> : null}
           </div>

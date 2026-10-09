@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { SocketEvents } from '../constants';
 import { useAuth } from '../hooks/useAuth';
 import { useSocket } from '../hooks/useSocket';
-import { claimNotice, clearConversationNotifications, disablePush, enablePush, routeFor, type PushData } from './push';
+import { claimNotice, clearConversationNotifications, disablePush, enablePush, listenForTray, routeFor, showTray, type PushData } from './push';
 
 type Banner = { id: string; title: string; body: string; path: string | null };
 
@@ -35,11 +35,15 @@ export function PushBridge() {
     if (!claimNotice(note.id)) return;
     const openChat = chatId(locationRef.current);
     const incomingChat = note.path?.startsWith('/chat/') ? note.path.slice('/chat/'.length) : null;
-    if (openChat && incomingChat === openChat) {
+    const looking = document.visibilityState === 'visible' && openChat != null && incomingChat === openChat;
+    if (looking) {
       void clearConversationNotifications(openChat);
       return;
     }
-    if (document.visibilityState !== 'visible') return;
+    if (document.visibilityState !== 'visible') {
+      void showTray(note);
+      return;
+    }
     setBanner(note);
   }
 
@@ -86,7 +90,12 @@ export function PushBridge() {
       return;
     }
     let stop = () => {};
+    let stopTray = () => {};
     let alive = true;
+    void listenForTray(openPath).then((cleanup) => {
+      if (!alive) cleanup();
+      else stopTray = cleanup;
+    });
     void enablePush({
       onOpen: openPath,
       onArrive: (note) => show(note),
@@ -97,6 +106,7 @@ export function PushBridge() {
     return () => {
       alive = false;
       stop();
+      stopTray();
     };
   }, [userId]);
 

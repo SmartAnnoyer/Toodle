@@ -45,6 +45,43 @@ export async function clearConversationNotifications(conversationId: string) {
 
 let currentToken = '';
 
+function trayId(key: string) {
+  let hash = 0;
+  for (let index = 0; index < key.length; index += 1) hash = (hash * 31 + key.charCodeAt(index)) | 0;
+  return Math.abs(hash % 100000) + 1;
+}
+
+export async function showTray(note: { id: string; title: string; body: string; path: string | null }) {
+  if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable('LocalNotifications')) return;
+  const { LocalNotifications } = await import('@capacitor/local-notifications');
+  const permission = await LocalNotifications.requestPermissions();
+  if (permission.display !== 'granted') return;
+  await LocalNotifications.createChannel({ id: 'messages', name: 'Messages', description: 'New chats', importance: 5, visibility: 1 });
+  await LocalNotifications.createChannel({ id: 'requests', name: 'Requests', description: 'Pings', importance: 4, visibility: 1 });
+  const chat = note.path?.startsWith('/chat/') ?? false;
+  await LocalNotifications.schedule({
+    notifications: [{
+      id: trayId(chat && note.path ? note.path : note.id || 'requests'),
+      title: note.title,
+      body: note.body,
+      channelId: chat ? 'messages' : 'requests',
+      extra: { path: note.path ?? '' },
+    }],
+  });
+}
+
+export async function listenForTray(onOpen: (path: string) => void) {
+  if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable('LocalNotifications')) return () => {};
+  const { LocalNotifications } = await import('@capacitor/local-notifications');
+  const listener = await LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+    const path = action.notification.extra?.path;
+    if (typeof path === 'string' && path) onOpen(path);
+  });
+  return () => {
+    void listener.remove();
+  };
+}
+
 export async function enablePush(handlers: {
   onOpen: (path: string) => void;
   onArrive: (note: { id: string; title: string; body: string; path: string | null; data: PushData }) => void;

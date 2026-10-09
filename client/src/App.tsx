@@ -36,7 +36,6 @@ function parentPath(path: string) {
 function AndroidBack() {
   const navigate = useNavigate();
   const location = useLocation();
-  const startKey = useRef(location.key);
   const locationRef = useRef(location);
   locationRef.current = location;
 
@@ -44,12 +43,7 @@ function AndroidBack() {
 
   useEffect(() => {
     setRouteBack(() => {
-      const current = locationRef.current;
-      if (current.key !== startKey.current) {
-        navigate(-1);
-        return true;
-      }
-      const parent = parentPath(current.pathname);
+      const parent = parentPath(locationRef.current.pathname);
       if (parent) {
         navigate(parent, { replace: true });
         return true;

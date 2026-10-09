@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react';
 import { SocketEvents } from '../constants';
 import { api } from '../lib/http';
+import { readThread, writeThread } from '../lib/viewCache';
 import type { ChatMessage, ConversationDetail, ReplyPreview, SendResult } from '../types';
 import { useAuth } from './useAuth';
 import { emitAck, useSocket } from './useSocket';
@@ -40,10 +41,11 @@ function commitServer(prev: ChatMessage[], clientId: string, message: ChatMessag
 export function useChat(conversationId: string) {
   const { socket, status } = useSocket();
   const { profile } = useAuth();
-  const [conversation, setConversation] = useState<ConversationDetail | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const cached = readThread(conversationId);
+  const [conversation, setConversation] = useState<ConversationDetail | null>(cached?.conversation ?? null);
+  const [messages, setMessages] = useState<ChatMessage[]>(cached?.messages ?? []);
   const [typing, setTyping] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [streakPop, setStreakPop] = useState(false);
   const epoch = useRef(0);
@@ -71,7 +73,9 @@ export function useChat(conversationId: string) {
             ),
           );
         });
-        return [...history.messages, ...kept];
+        const next = [...history.messages, ...kept];
+        writeThread(conversationId, { conversation: detail, messages: next });
+        return next;
       });
       setError(null);
     } catch (err) {
@@ -83,9 +87,14 @@ export function useChat(conversationId: string) {
   }, [conversationId]);
 
   useEffect(() => {
-    setLoading(true);
+    const saved = readThread(conversationId);
+    setConversation(saved?.conversation ?? null);
+    setMessages(saved?.messages ?? []);
+    setTyping(false);
+    setError(null);
+    setLoading(!saved);
     void load();
-  }, [load]);
+  }, [conversationId, load]);
 
   useEffect(() => {
     if (status === 'connected') void load();
