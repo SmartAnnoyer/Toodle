@@ -1,0 +1,51 @@
+build:
+  name: Toodle iOS
+  steps:
+    - eas/checkout
+    - eas/install_node_modules
+    - run:
+        name: Build the web app and sync iOS
+        command: |
+          set -euo pipefail
+          ROOT="$(pwd)"
+          if [ -f "$ROOT/client/capacitor.config.ts" ]; then
+            npm run build -w client
+            cd "$ROOT/client"
+          else
+            npm run build
+          fi
+          npx cap sync ios
+          if [ ! -e "$ROOT/ios" ] && [ -d "$ROOT/client/ios" ]; then
+            ln -s "$ROOT/client/ios" "$ROOT/ios"
+          fi
+          /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$ROOT/ios/App/App/Info.plist"
+    - eas/configure_ios_credentials
+    - run:
+        name: Install CocoaPods
+        command: |
+          set -euo pipefail
+          cd ios/App
+          pod install
+    - eas/generate_gymfile_from_template:
+        inputs:
+          scheme: App
+          credentials: ${ eas.job.secrets.buildCredentials }
+          template: |
+            clean(<%- CLEAN %>)
+            scheme("<%- SCHEME %>")
+            workspace("App/App.xcworkspace")
+            <% if (BUILD_CONFIGURATION) { %>
+            configuration("<%- BUILD_CONFIGURATION %>")
+            <% } %>
+            export_options({
+              method: "<%- EXPORT_METHOD %>",
+              provisioningProfiles: {<% _.forEach(PROFILES, function(profile) { %>
+                "<%- profile.BUNDLE_ID %>" => "<%- profile.UUID %>",<% }); %>
+              }
+            })
+            export_xcargs "OTHER_CODE_SIGN_FLAGS=\"--keychain <%- KEYCHAIN_PATH %>\""
+            disable_xcpretty(true)
+            buildlog_path("<%- LOGS_DIRECTORY %>")
+            output_directory("<%- OUTPUT_DIRECTORY %>")
+    - eas/run_fastlane
+    - eas/find_and_upload_build_artifacts

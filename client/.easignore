@@ -1,0 +1,7 @@
+../.git
+node_modules
+android
+dist
+ios/App/Pods
+ios/App/build
+ios/DerivedData

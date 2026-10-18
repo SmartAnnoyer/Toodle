@@ -7,12 +7,15 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "android:bundle": "npm run build && npx cap sync android && cd android && bundleRelease.cmd"
+    "android:bundle": "npm run build && npx cap sync android && cd android && bundleRelease.cmd",
+    "release:ios:build": "npx eas-cli@latest build --platform ios --profile production",
+    "release:ios:submit": "npx eas-cli@latest submit --platform ios --profile production --latest --no-wait"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.9",
     "@capacitor/app": "^7.1.2",
     "@capacitor/core": "^7.6.9",
+    "@capacitor/ios": "^7.6.9",
     "@capacitor/local-notifications": "^7.0.0",
     "@capacitor/push-notifications": "^7.0.7",
     "@react-three/drei": "^9.122.0",

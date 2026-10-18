@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Toodle",
+    "slug": "toodle",
+    "version": "1.0.6",
+    "orientation": "portrait",
+    "owner": "akash_expo_akki",
+    "ios": {
+      "bundleIdentifier": "app.toodle",
+      "buildNumber": "2",
+      "supportsTablet": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1c49ede6-920c-455f-b991-601682d14f22"
+      }
+    }
+  }
+}

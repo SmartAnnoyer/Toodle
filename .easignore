@@ -1,0 +1,9 @@
+.git
+node_modules
+client/node_modules
+client/android
+client/dist
+client/ios/App/Pods
+client/ios/App/build
+client/ios/DerivedData
+server/node_modules
