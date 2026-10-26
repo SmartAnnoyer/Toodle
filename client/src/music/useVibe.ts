@@ -129,6 +129,8 @@ export function useVibe({
       setNeedsTap(view.status === 'playing' && !heard);
       if (payload.version === seen.current && previous?.status === view.status && previous.trackId === view.trackId && previous.notice === view.notice) return;
       seen.current = payload.version;
+      const friendStarted = view.updatedBy !== myId && (!previous || previous.mode !== view.mode);
+      if (friendStarted && (view.status === 'playing' || view.mode === 'guess')) setExpanded(true);
       let event: ToodleMusicEvent | undefined;
       if (previous && previous.trackId && view.trackId && previous.trackId !== view.trackId) event = 'music_changed';
       else if (previous?.status !== 'playing' && view.status === 'playing') {

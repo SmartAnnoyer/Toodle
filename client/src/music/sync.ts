@@ -37,19 +37,19 @@ export function vibePresence(state: SharedMusicState | null, myId: string | unde
 
 export function vibeNotice(code: string | undefined, mine: boolean, friendName: string): string {
   const who = mine ? 'You' : friendName;
-  if (code === 'paused') return `${who} paused the vibe`;
-  if (code === 'seek') return `${who} jumped in the song`;
+  if (code === 'paused') return `${who} paused`;
+  if (code === 'seek') return `${who} moved the song`;
   if (code === 'skipped') return `${who} changed the song`;
-  if (code === 'started') return `${who} started the vibe`;
-  if (code === 'friend-left') return `${friendName} left the vibe`;
+  if (code === 'started') return `${who} started a song`;
+  if (code === 'friend-left') return `${friendName} left`;
   if (code === 'guess') return 'A guess is waiting.';
-  if (code === 'wrong') return 'Not quite. Keep listening.';
-  if (code === 'correct') return 'Got it.';
+  if (code === 'wrong') return 'Not that one. Keep listening.';
+  if (code === 'correct') return 'That was it.';
   if (code === 'reveal') return 'The song is out.';
   if (code === 'hint') return 'A hint just dropped.';
-  if (code === 'guess-start') return 'Mystery song started.';
-  if (code === 'guess-wait') return 'Waiting on a song pick.';
-  if (code === 'switch') return 'New round. Your turn to switch it up.';
+  if (code === 'guess-start') return 'Guess this one.';
+  if (code === 'guess-wait') return 'Choosing a song.';
+  if (code === 'switch') return 'New round.';
   if (code === 'queued') return `${who} updated the queue`;
   return '';
 }

@@ -95,10 +95,9 @@ test('a guess loops a short clip until someone scores, and a named hint stays hi
   }, 'guesser', 5_000, 'chat');
   const replay = reduceMusic(swapped.next, { type: 'guess-start', track, seconds: 10 }, 'guesser', 6_000, 'chat');
   const spoken = reduceMusic(replay.next, { type: 'guess-submit', text: 'Pink Room' }, 'picker', 7_000, 'chat');
-  assert.equal(spoken.next?.game?.revealed, false);
-  const won = reduceMusic(spoken.next, { type: 'guess-judge', correct: true }, 'guesser', 8_000, 'chat');
-  assert.equal(won.next?.game?.revealed, true);
-  assert.equal(won.next?.game?.scores.picker, 1);
+  assert.equal(spoken.next?.game?.revealed, true);
+  assert.equal(spoken.next?.game?.scores.picker, 1);
+  assert.equal(spoken.next?.game?.lastGuess?.pending, false);
 });
 
 test('guess matching accepts a casual title and ignores a near miss', () => {

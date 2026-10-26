@@ -306,6 +306,22 @@ export function reduceMusic(current: RoomMusic | null, command: MusicCommand, us
     if (!state || !game || game.revealed || game.guesserId !== userId || !game.track) return { next: state, changed: expired.changed };
     const text = command.text.trim().slice(0, 80);
     if (text.length < 2) return { next: state, changed: expired.changed };
+    if (guessMatches(text, game.track.title, game.track.artist)) {
+      const scores = { ...game.scores, [userId]: (game.scores[userId] ?? 0) + 1 };
+      const opened = reveal(state, userId, 'correct');
+      return {
+        changed: true,
+        next: {
+          ...opened,
+          game: opened.game ? {
+            ...opened.game,
+            scores,
+            winnerId: userId,
+            lastGuess: { userId, text, correct: true, pending: false },
+          } : opened.game,
+        },
+      };
+    }
     return {
       changed: true,
       next: bump(state, userId, 'guess', { game: { ...game, lastGuess: { userId, text, correct: false, pending: true } } }),
