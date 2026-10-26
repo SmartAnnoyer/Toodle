@@ -36,7 +36,7 @@ const GROUPS: { id: string; words: string[]; lines: string[] }[] = [
   },
   {
     id: 'drama',
-    words: ['edisaavle', 'edisavle', 'edichavle', 'edichaavle'],
+    words: ['edisaavle', 'edisavle', 'edichavle', 'edichaavle', 'edchaavle', 'edchav'],
     lines: ['😂 Here we go', 'Drama detected 🎭', 'Her dialogue 😭', 'Classic line 💀', 'Her mark ✨'],
   },
   {
@@ -52,7 +52,7 @@ const GROUPS: { id: string; words: string[]; lines: string[] }[] = [
   {
     id: 'flirty',
     words: ['noru musuko', 'nooru musko', 'noru musko', 'noru muyyi', 'noru muy'],
-    lines: ['💗 Her favourite', '😘 Flirty one', '✨ Her special', '👀 She says this a lot', 'Her mark ✨'],
+    lines: ['💗 Her favourite', '💗 Flirty one', '✨ Her special', '👀 She says this a lot', 'Her mark ✨'],
   },
   {
     id: 'famous',
