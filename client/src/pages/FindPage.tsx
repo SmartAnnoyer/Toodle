@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, Button, useToast } from '../components/ui';
 import { api } from '../lib/http';
 import { nudge } from '../lib/feedback';
@@ -77,6 +77,7 @@ export function FindPage() {
         inputMode="text"
         className="glass mt-5 w-full rounded-full px-4 py-3 text-base outline-none ring-primary/40 focus:ring-2"
       />
+      <Link to="/blocked" className="mt-3 inline-block text-sm text-primary">Blocked people</Link>
       {searching ? <p className="mt-4 text-sm text-muted">Searching…</p> : null}
       {!searching && query.trim().length > 0 && users.length === 0 ? <p className="mt-4 text-sm text-muted">No one with that name.</p> : null}
       <div className="mt-4 space-y-3">

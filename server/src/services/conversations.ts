@@ -34,7 +34,7 @@ import {
 import { humanDuration, toPublicProfile, type ProfileRow } from './mappers.js';
 import { notify } from './notifications.js';
 import { getProfiles, presenceMap } from './profiles.js';
-import { assertNotBlocked } from './safety.js';
+import { assertNotBlocked, blockState, idsIBlocked } from './safety.js';
 
 interface InboxRow {
   conversation_id: string;
@@ -70,20 +70,19 @@ async function otherMemberMap(conversationIds: string[], userId: string) {
 }
 
 export async function listConversations(userId: string) {
-  const purged = await db().rpc('purge_expired_messages');
-  if (purged.error) throwDb(purged.error, 'purge messages');
   const { data, error } = await db().rpc('conversation_inbox', { uid: userId });
   if (error) throwDb(error, 'inbox');
-  const rows = (data ?? []) as InboxRow[];
+  const rows = ((data ?? []) as InboxRow[]).filter((row) => !row.left_at);
   const ids = rows.map((row) => row.conversation_id);
   const others = await otherMemberMap(ids, userId);
   const otherIds = [...others.users.values()];
-  const [profileMap, presence, streaks, rules, renewals] = await Promise.all([
+  const [profileMap, presence, streaks, rules, renewals, blockedIds] = await Promise.all([
     getProfiles(otherIds),
     presenceMap(otherIds),
     loadStreakRows(ids),
     loadEnabledRules(ids),
     loadPendingRenewals(ids),
+    idsIBlocked(userId),
   ]);
 
   const now = new Date();
@@ -109,6 +108,8 @@ export async function listConversations(userId: string) {
       unreadCount: row.unread_count ?? 0,
       youLeft: Boolean(row.left_at),
       ghostMode: isRuleEnabled(convoRules, 'ghost_mode'),
+      blockedByMe: blockedIds.has(otherId),
+      blocked: blockedIds.has(otherId),
       otherUser: toPublicProfile(profile, presence.get(otherId) ?? false),
       otherLastReadAt: others.reads.get(row.conversation_id) ?? null,
       lastMessage: row.last_message_id ? {
@@ -198,36 +199,38 @@ export async function getConversation(userId: string, conversationId: string) {
     await expireConversation(conversationId);
     conversation.status = 'expired';
   }
+  if (me.left_at) throw new AppError(410, '💨 Poof. This chat is gone.');
   const other = members.find((member) => member.user_id !== userId);
   if (!other) throw new AppError(404, 'This chat is missing someone.');
-  const profiles = await getProfiles([other.user_id]);
+  const [profiles, presence, loadedRules, streakResult, renewalResult, blocks] = await Promise.all([
+    getProfiles([other.user_id]),
+    presenceMap([other.user_id]),
+    loadRules(conversationId),
+    db().from('streaks').select('*').eq('conversation_id', conversationId).maybeSingle(),
+    db().from('conversation_renewals').select('*').eq('conversation_id', conversationId).eq('status', 'pending').maybeSingle(),
+    blockState(userId, other.user_id),
+  ]);
   const profile = profiles.get(other.user_id);
   if (!profile) throw new AppError(404, 'That person left Toodle.');
-  const presence = await presenceMap([other.user_id]);
-  const rules = presentRules(await loadRules(conversationId));
+  const rules = presentRules(loadedRules);
   const engineRules = rules.map((rule) => ({
     ruleType: rule.ruleType,
     enabled: rule.enabled,
     configuration: rule.configuration,
   }));
-  const { data: streakRow } = await db().from('streaks').select('*').eq('conversation_id', conversationId).maybeSingle();
+  const streakRow = streakResult.data;
   const view = viewStreak(streakRow ? {
     currentCount: streakRow.current_count as number,
     longestCount: streakRow.longest_count as number,
     lastCompletedOn: streakRow.last_completed_on as string | null,
     activity: (streakRow.activity ?? {}) as Record<string, string>,
   } : emptyStreak(), members.map((member) => member.user_id), new Date());
-  const { data: renewal } = await db()
-    .from('conversation_renewals')
-    .select('*')
-    .eq('conversation_id', conversationId)
-    .eq('status', 'pending')
-    .maybeSingle();
+  const renewal = renewalResult.data;
 
   return {
     id: conversation.id,
     status: conversation.status,
-    expiresAt: conversation.status === 'expired' ? conversation.expires_at : (await loadConversation(conversationId)).expires_at,
+    expiresAt: conversation.expires_at,
     messagesSent: conversation.messages_sent,
     remainingMessages: remainingMessages(engineRules, conversation.messages_sent),
     messageLimit: messageLimit(engineRules),
@@ -237,6 +240,8 @@ export async function getConversation(userId: string, conversationId: string) {
     streakLost: view.lost,
     youLeft: Boolean(me.left_at),
     ghostMode: isRuleEnabled(engineRules, 'ghost_mode'),
+    blockedByMe: blocks.blockedByMe,
+    blocked: blocks.blocked,
     otherUser: toPublicProfile(profile, presence.get(other.user_id) ?? false),
     otherLastReadAt: other.last_read_at,
     myLastReadAt: me.last_read_at,
@@ -467,8 +472,13 @@ export async function leaveConversation(userId: string, conversationId: string) 
     if (deleteError) throwDb(deleteError, 'vanish conversation');
     return { vanished: true };
   }
-  emitToUsers(nextMembers.map((member) => member.user_id), SocketEvents.ConversationUpdated, { conversationId });
-  return { vanished: false };
+  emitToUsers([userId], SocketEvents.ConversationExpired, { conversationId, vanished: true });
+  emitToUsers(
+    nextMembers.filter((member) => member.user_id !== userId).map((member) => member.user_id),
+    SocketEvents.ConversationUpdated,
+    { conversationId },
+  );
+  return { vanished: true };
 }
 
 export async function rejoinConversation(userId: string, conversationId: string) {

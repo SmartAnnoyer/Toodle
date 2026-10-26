@@ -138,6 +138,7 @@ export function ProfilePage() {
         <Button disabled={busy} onClick={() => void save()}>Save</Button>
         <ThemeSelect />
         <Button variant="ghost" onClick={() => navigate('/shortcuts')}>Manage shortcuts</Button>
+        <Button variant="ghost" onClick={() => navigate('/blocked')}>Blocked people</Button>
         <Button variant="ghost" onClick={() => navigate('/account')}>Account and password</Button>
         <p className="text-center text-xs text-muted">
           <Link to="/privacy" className="underline">Privacy</Link>

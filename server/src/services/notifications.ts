@@ -11,6 +11,12 @@ export async function notify(input: {
   body: string;
   payload?: Record<string, unknown>;
 }) {
+  void pushToUser(input.userId, {
+    type: input.type,
+    title: input.title,
+    body: input.body,
+    payload: input.payload,
+  });
   const { data, error } = await db()
     .from('notifications')
     .insert({
@@ -26,12 +32,6 @@ export async function notify(input: {
   if (!data) throw new AppError(500, 'Toodle tripped. Try again.');
   const mapped = mapNotification(data);
   emitToUsers([input.userId], SocketEvents.NotificationNew, mapped);
-  void pushToUser(input.userId, {
-    type: input.type,
-    title: input.title,
-    body: input.body,
-    payload: { ...input.payload, notificationId: mapped.id },
-  });
   return mapped;
 }
 

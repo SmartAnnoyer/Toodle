@@ -11,7 +11,7 @@ import * as shortcuts from '../services/shortcuts.js';
 import * as notifications from '../services/notifications.js';
 import { searchGifs } from '../services/gifs.js';
 import { deleteAccount } from '../services/account.js';
-import { blockUser, isReportReason, reportUser } from '../services/safety.js';
+import { blockUser, isReportReason, listBlocked, reportUser, unblockUser } from '../services/safety.js';
 import * as devices from '../services/devices.js';
 
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
@@ -251,6 +251,15 @@ export const http = {
   async blockUser(req: Request, res: Response) {
     const body = parse(z.object({ userId: idSchema }), req.body);
     res.json(await blockUser(req.userId, body.userId));
+  },
+
+  async unblockUser(req: Request, res: Response) {
+    const body = parse(z.object({ userId: idSchema }), req.body);
+    res.json(await unblockUser(req.userId, body.userId));
+  },
+
+  async listBlocked(req: Request, res: Response) {
+    res.json({ users: await listBlocked(req.userId) });
   },
 
   async reportUser(req: Request, res: Response) {

@@ -60,6 +60,8 @@ export interface ConversationSummary {
   unreadCount: number;
   youLeft: boolean;
   ghostMode: boolean;
+  blockedByMe?: boolean;
+  blocked?: boolean;
   otherUser: PublicProfile;
   otherLastReadAt: string | null;
   lastMessage: LastMessage | null;

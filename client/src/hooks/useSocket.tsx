@@ -29,7 +29,19 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       seen.current = false;
       return;
     }
-    const next = io(apiUrl(), { auth: { token }, autoConnect: true, reconnection: true });
+    const next = io(apiUrl(), {
+      auth: { token },
+      autoConnect: true,
+      reconnection: true,
+      reconnectionDelay: 400,
+      reconnectionDelayMax: 2000,
+      timeout: 8000,
+      transports: ['websocket', 'polling'],
+    });
+    const wake = () => {
+      if (document.visibilityState === 'visible' && next.disconnected) next.connect();
+    };
+    document.addEventListener('visibilitychange', wake);
     setSocket(next);
     setStatus('connecting');
     const onConnect = () => {
@@ -47,6 +59,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     next.on('connect', onConnect);
     next.on('disconnect', onDisconnect);
     return () => {
+      document.removeEventListener('visibilitychange', wake);
       next.off('connect', onConnect);
       next.off('disconnect', onDisconnect);
       next.disconnect();

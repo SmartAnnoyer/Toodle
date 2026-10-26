@@ -56,15 +56,15 @@ export async function showTray(note: { id: string; title: string; body: string; 
   const { LocalNotifications } = await import('@capacitor/local-notifications');
   const permission = await LocalNotifications.requestPermissions();
   if (permission.display !== 'granted') return;
-  await LocalNotifications.createChannel({ id: 'messages', name: 'Messages', description: 'New chats', importance: 5, visibility: 1 });
-  await LocalNotifications.createChannel({ id: 'requests', name: 'Requests', description: 'Pings', importance: 4, visibility: 1 });
+  await LocalNotifications.createChannel({ id: 'messages_v2', name: 'Messages', description: 'New chats', importance: 5, visibility: 1, vibration: true });
+  await LocalNotifications.createChannel({ id: 'requests_v2', name: 'Requests', description: 'Pings', importance: 5, visibility: 1, vibration: true });
   const chat = note.path?.startsWith('/chat/') ?? false;
   await LocalNotifications.schedule({
     notifications: [{
       id: trayId(chat && note.path ? note.path : note.id || 'requests'),
       title: note.title,
       body: note.body,
-      channelId: chat ? 'messages' : 'requests',
+      channelId: chat ? 'messages_v2' : 'requests_v2',
       extra: { path: note.path ?? '' },
     }],
   });
@@ -91,8 +91,8 @@ export async function enablePush(handlers: {
   const permission = await PushNotifications.requestPermissions();
   if (permission.receive !== 'granted') return () => {};
   if (Capacitor.getPlatform() === 'android') {
-    await PushNotifications.createChannel({ id: 'messages', name: 'Messages', description: 'New chats', importance: 5, visibility: 1 });
-    await PushNotifications.createChannel({ id: 'requests', name: 'Requests', description: 'Pings', importance: 4, visibility: 1 });
+    await PushNotifications.createChannel({ id: 'messages_v2', name: 'Messages', description: 'New chats', importance: 5, visibility: 1, vibration: true });
+    await PushNotifications.createChannel({ id: 'requests_v2', name: 'Requests', description: 'Pings', importance: 5, visibility: 1, vibration: true });
   }
   await PushNotifications.register();
   const listeners = await Promise.all([

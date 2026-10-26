@@ -63,7 +63,7 @@ export function RequestsPage() {
   return (
     <div className="px-4 pt-6">
       <h1 className="text-3xl font-semibold">Requests</h1>
-      {loading ? <InfinityMark /> : null}
+      {loading && incoming.length === 0 && outgoing.length === 0 && accepted.length === 0 ? <InfinityMark /> : null}
       {!loading && incoming.length === 0 && outgoing.length === 0 && accepted.length === 0 ? (
         <EmptyState emoji="👀" title="Nobody is Toodling you yet." />
       ) : null}

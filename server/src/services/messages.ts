@@ -224,6 +224,22 @@ export async function sendMessage(userId: string, conversationId: string, input:
   if (error) throwDb(error, 'send message');
   if (!data) throw new AppError(500, 'Toodle tripped. Try again.');
 
+  const message = mapMessage(data as MessageRow);
+  emitMessage(memberIds, message);
+
+  const others = members.filter((member) => member.user_id !== userId && !member.left_at).map((member) => member.user_id);
+  const preview = kind === 'gif' ? 'Sent a GIF' : kind === 'sticker' ? 'Sent a sticker' : body.slice(0, 140);
+  void getProfiles([userId]).then((profiles) => {
+    const sender = profiles.get(userId);
+    return Promise.all(others.map((id) => notify({
+      userId: id,
+      type: 'message',
+      title: `${sender?.avatar_emoji ?? '💬'} ${sender?.display_name ?? 'Someone'}`,
+      body: preview,
+      payload: { conversationId, messageId: message.id, senderId: userId },
+    })));
+  }).catch((err) => console.error('notify', err));
+
   const nextCount = conversation.messages_sent + 1;
   const { error: countError } = await db()
     .from('conversations')
@@ -232,25 +248,12 @@ export async function sendMessage(userId: string, conversationId: string, input:
   if (countError) throwDb(countError, 'message count');
 
   const streak = await applyStreak(conversationId, memberIds, userId);
-  const message = mapMessage(data as MessageRow);
-  emitMessage(memberIds, message, { count: streak.count, increased: streak.increased });
+  if (streak.increased) emitMessage(memberIds, message, { count: streak.count, increased: true });
 
   const remaining = remainingMessages(rules, nextCount);
   if (remaining === 0) {
     await insertSystem(conversationId, '💨 This conversation ran out of messages.');
   }
-
-  const others = memberIds.filter((id) => id !== userId);
-  const profiles = await getProfiles([userId]);
-  const sender = profiles.get(userId);
-  const preview = kind === 'gif' ? 'Sent a GIF' : kind === 'sticker' ? 'Sent a sticker' : body.slice(0, 140);
-  await Promise.all(others.map((id) => notify({
-    userId: id,
-    type: 'message',
-    title: `${sender?.avatar_emoji ?? '💬'} ${sender?.display_name ?? 'Someone'}`,
-    body: preview,
-    payload: { conversationId, messageId: message.id, senderId: userId },
-  })));
 
   return {
     type: 'message' as const,
@@ -274,7 +277,7 @@ async function runAction(
     await upsertRule(ctx.conversationId, ctx.userId, 'ghost_mode', enabled, {});
     emitToUsers(ctx.memberIds, SocketEvents.ConversationUpdated, { conversationId: ctx.conversationId });
     await insertSystem(ctx.conversationId, enabled
-      ? '👻 Ghost mode is on. This chat disappears when you both leave.'
+      ? '👻 Ghost mode is on. Pull again and your chat poofs.'
       : 'Ghost mode is off.');
     return { type: 'action' as const, action, ghostEnabled: enabled, serverNow: serverNow() };
   }

@@ -4,6 +4,7 @@ import { api } from '../lib/http';
 import { readThread, writeThread } from '../lib/viewCache';
 import type { ChatMessage, ConversationDetail, ReplyPreview, SendResult } from '../types';
 import { useAuth } from './useAuth';
+import { playReceive, playSend } from '../chat/chatSound';
 import { emitAck, useSocket } from './useSocket';
 
 type SendExtra = {
@@ -49,6 +50,8 @@ export function useChat(conversationId: string) {
   const [error, setError] = useState<string | null>(null);
   const [streakPop, setStreakPop] = useState(false);
   const epoch = useRef(0);
+  const profileId = useRef(profile?.id);
+  profileId.current = profile?.id;
 
   const load = useCallback(async () => {
     const mine = ++epoch.current;
@@ -108,6 +111,7 @@ export function useChat(conversationId: string) {
     const onNew = (message: ChatMessage) => {
       if (message.conversationId !== conversationId) return;
       setMessages((prev) => adoptIncoming(prev, message));
+      if (message.senderId && message.senderId !== profileId.current && message.kind !== 'system') playReceive();
       if (message.streak?.increased) {
         setStreakPop(true);
         window.setTimeout(() => setStreakPop(false), 1400);
@@ -202,6 +206,7 @@ export function useChat(conversationId: string) {
           ? prev.map((item) => item.clientId === clientId ? { ...item, localStatus: 'sending' } : item)
           : [...prev, optimistic]
       ));
+      playSend();
     }
     const payload = {
       conversationId,

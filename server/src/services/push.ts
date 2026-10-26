@@ -26,7 +26,7 @@ export function pushTag(type: string, payload: Record<string, unknown> | undefin
 }
 
 export function pushChannel(type: string) {
-  return type === 'message' ? 'messages' : 'requests';
+  return type === 'message' ? 'messages_v2' : 'requests_v2';
 }
 
 export function shouldDeliver(viewing: boolean) {
@@ -86,21 +86,21 @@ function dataStrings(input: PushInput) {
 export function buildFcmMessage(token: string, input: PushInput) {
   const tag = pushTag(input.type, input.payload);
   const data = dataStrings(input);
+  if (!input.dataOnly) {
+    data.title = input.title;
+    data.body = input.body;
+    data.channelId = pushChannel(input.type);
+    data.tag = tag;
+  }
   const message: Record<string, unknown> = {
     token,
     data,
     android: {
-      collapse_key: tag,
       priority: 'HIGH',
-      notification: input.dataOnly ? undefined : {
-        channel_id: pushChannel(input.type),
-        tag,
-        icon: 'ic_stat_toodle',
-        color: '#C084FC',
-      },
+      ttl: '86400s',
     },
     apns: {
-      headers: { 'apns-collapse-id': tag, 'apns-priority': '10' },
+      headers: { 'apns-priority': '10', 'apns-push-type': input.dataOnly ? 'background' : 'alert' },
       payload: {
         aps: input.dataOnly
           ? { 'content-available': 1 }
@@ -108,9 +108,6 @@ export function buildFcmMessage(token: string, input: PushInput) {
       },
     },
   };
-  if (!input.dataOnly) {
-    message.notification = { title: input.title, body: input.body };
-  }
   return { message };
 }
 

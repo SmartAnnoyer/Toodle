@@ -16,6 +16,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { HomePage } from './pages/HomePage';
 import { ChildSafetyPage, DeleteAccountPage, PrivacyPage, TermsPage } from './pages/LegalPage';
 import { LoginPage } from './pages/LoginPage';
+import { BlockedPage } from './pages/BlockedPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RequestsPage } from './pages/RequestsPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
@@ -97,6 +98,7 @@ export function App() {
                     <Route path="/find" element={<FindPage />} />
                     <Route path="/shortcuts" element={<ShortcutsPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/blocked" element={<BlockedPage />} />
                     <Route path="/account" element={<AccountPage />} />
                   </Route>
                   <Route path="/chat/:id" element={<ChatPage />} />

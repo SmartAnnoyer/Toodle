@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -8,7 +9,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
 import { useCountdown, useTickingSeconds } from '../hooks/useCountdown';
 import { useSocket } from '../hooks/useSocket';
-import { nudge } from '../lib/feedback';
+import { unlockChatSound } from '../chat/chatSound';
+import { buzz, nudge } from '../lib/feedback';
 import { api } from '../lib/http';
 import { chatDay, formatClock, formatRemaining, humanDuration, serverNowMs } from '../lib/time';
 import type { ChatMessage, GifResult } from '../types';
@@ -77,8 +79,9 @@ export function ChatPage() {
   const frame = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const enterGhostRef = useRef<() => void>(() => {});
+  const exitGhostRef = useRef<() => void>(() => {});
   const ghostLock = useRef(false);
-  const rejoined = useRef(false);
+  const leavingGhost = useRef(false);
   const typingTimer = useRef<number | null>(null);
   const musicRef = useRef<MusicSnapshot | null>(null);
   const noteMusic = useRef<(event: ToodleMusicEvent) => void>(() => {});
@@ -104,16 +107,6 @@ export function ChatPage() {
   noteMusic.current = toodle.noteMusic;
 
   useEffect(() => {
-    rejoined.current = false;
-  }, [id]);
-
-  useEffect(() => {
-    if (!conversation?.youLeft || rejoined.current) return;
-    rejoined.current = true;
-    void api(`/api/conversations/${id}/rejoin`, { method: 'POST' }).catch(() => undefined);
-  }, [conversation?.youLeft, id]);
-
-  useEffect(() => {
     const pending = pendingGhostLeave.get(id);
     if (pending) {
       window.clearTimeout(pending);
@@ -122,11 +115,12 @@ export function ChatPage() {
     const conversationId = id;
     const ghost = Boolean(conversation?.ghostMode);
     return () => {
-      if (!ghost) return;
+      if (!ghost || leavingGhost.current) return;
       const handle = window.setTimeout(() => {
         pendingGhostLeave.delete(conversationId);
+        buzz('out');
         void api(`/api/conversations/${conversationId}/leave`, { method: 'POST' }).catch(() => undefined);
-      }, 350);
+      }, 280);
       pendingGhostLeave.set(conversationId, handle);
     };
   }, [conversation?.ghostMode, id]);
@@ -204,34 +198,65 @@ export function ChatPage() {
     const node = frame.current;
     const viewport = window.visualViewport;
     if (!node || !viewport) return;
+    let pluginInset = 0;
     const apply = () => {
-      node.style.setProperty('--chat-height', `${viewport.height}px`);
-      node.style.setProperty('--chat-shift', `${viewport.offsetTop}px`);
+      const layout = window.innerHeight;
+      const visible = Math.min(layout, viewport.height);
+      const offset = viewport.offsetTop;
+      const covered = Math.max(0, layout - visible - offset);
+      const inset = covered > 48 ? 0 : pluginInset;
+      const height = inset > 0 ? Math.max(240, layout - inset) : visible;
+      node.style.setProperty('--chat-height', `${Math.round(height)}px`);
+      node.style.setProperty('--chat-shift', `${Math.round(offset)}px`);
     };
     apply();
     viewport.addEventListener('resize', apply);
     viewport.addEventListener('scroll', apply);
+    window.addEventListener('resize', apply);
+    let removeKeyboard = () => {};
+    if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Keyboard')) {
+      void import('@capacitor/keyboard').then(({ Keyboard }) => {
+        const show = Keyboard.addListener('keyboardWillShow', (info) => {
+          pluginInset = info.keyboardHeight;
+          apply();
+        });
+        const hide = Keyboard.addListener('keyboardWillHide', () => {
+          pluginInset = 0;
+          apply();
+        });
+        removeKeyboard = () => {
+          void show.then((listener) => listener.remove());
+          void hide.then((listener) => listener.remove());
+        };
+      }).catch(() => undefined);
+    }
     return () => {
       viewport.removeEventListener('resize', apply);
       viewport.removeEventListener('scroll', apply);
+      window.removeEventListener('resize', apply);
+      removeKeyboard();
     };
   }, [conversation?.status, loading]);
 
   useEffect(() => {
     const node = scroller.current;
-    if (!node || conversation?.status !== 'active' || conversation.ghostMode) return;
-    const pull = { y: 0, active: false, amount: 0 };
+    if (!node || conversation?.status !== 'active') return;
+    const pull = { y: 0, active: false, amount: 0, edge: '' as '' | 'top' | 'bottom' };
+    const atTop = () => node.scrollTop < 36;
     const atBottom = () => node.scrollHeight - node.scrollTop - node.clientHeight < 36;
     const start = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
       pull.y = event.touches[0].clientY;
-      pull.active = atBottom();
+      pull.edge = atTop() ? 'top' : atBottom() ? 'bottom' : '';
+      pull.active = pull.edge !== '';
       pull.amount = 0;
     };
     const move = (event: TouchEvent) => {
       if (!pull.active || event.touches.length !== 1) return;
-      const travel = pull.y - event.touches[0].clientY;
-      if (travel <= 12 || !atBottom()) {
+      const delta = event.touches[0].clientY - pull.y;
+      const travel = pull.edge === 'top' ? delta : -delta;
+      const still = pull.edge === 'top' ? atTop() : atBottom();
+      if (travel <= 12 || !still) {
         if (pull.amount !== 0) {
           pull.amount = 0;
           setGhostPull(0);
@@ -244,7 +269,10 @@ export function ChatPage() {
       if (amount > 6) event.preventDefault();
     };
     const end = () => {
-      if (pull.amount >= GHOST_PULL) enterGhostRef.current();
+      if (pull.amount >= GHOST_PULL) {
+        if (conversation?.ghostMode) exitGhostRef.current();
+        else enterGhostRef.current();
+      }
       pull.active = false;
       pull.amount = 0;
       setGhostPull(0);
@@ -270,7 +298,8 @@ export function ChatPage() {
         method: 'PUT',
         body: JSON.stringify({ ruleType: 'ghost_mode', enabled: true, configuration: {} }),
       });
-      toast('👻 Ghost mode is on. This chat disappears when you both leave.');
+      buzz('in');
+      toast('👻 Ghost mode is on. Pull again and your chat poofs.');
       popGhost(true);
     } catch (err) {
       setConversation((current) => current ? { ...current, ghostMode: false } : current);
@@ -280,6 +309,22 @@ export function ChatPage() {
     }
   }
   enterGhostRef.current = () => { void enterGhost(); };
+
+  async function exitGhost() {
+    if (!conversation?.ghostMode || ghostLock.current) return;
+    ghostLock.current = true;
+    leavingGhost.current = true;
+    buzz('out');
+    try {
+      await api(`/api/conversations/${id}/leave`, { method: 'POST' });
+      navigate('/');
+    } catch (err) {
+      ghostLock.current = false;
+      leavingGhost.current = false;
+      toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.');
+    }
+  }
+  exitGhostRef.current = () => { void exitGhost(); };
 
   function popGhost(on: boolean) {
     setBurst({
@@ -408,7 +453,7 @@ export function ChatPage() {
   const mediaKind = drawer === 'sticker' ? 'sticker' : 'gif';
 
   return (
-    <div ref={frame} className="chat-frame app-bg mx-auto flex max-w-[820px] flex-col">
+    <div ref={frame} className="chat-frame app-bg mx-auto flex max-w-[820px] flex-col" onPointerDown={() => unlockChatSound()}>
       <header className="relative z-20 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
         {banner ? <p className="mb-2 text-center text-xs text-muted">{banner}</p> : null}
         <div className="flex items-center gap-1">
@@ -593,7 +638,9 @@ export function ChatPage() {
 
       {ghostPull > 0 ? (
         <div className="flex items-end justify-center overflow-hidden text-xs text-muted" style={{ height: Math.min(ghostPull, 56) }}>
-          {ghostPull >= GHOST_PULL ? 'Release for ghost mode' : 'Pull up for ghost mode'}
+          {conversation.ghostMode
+            ? (ghostPull >= GHOST_PULL ? 'Release and your chat poofs' : 'Keep pulling to leave')
+            : (ghostPull >= GHOST_PULL ? 'Release for ghost mode' : 'Keep pulling for ghost mode')}
         </div>
       ) : null}
 
@@ -664,7 +711,28 @@ export function ChatPage() {
             <Button variant="soft" className="px-3 py-2" onClick={() => navigate('/shortcuts')}>Shortcuts</Button>
           </div>
         ) : null}
-        <div className="flex items-end gap-1.5">
+        {conversation.blocked ? (
+          <div className="mb-2 flex items-center justify-between gap-3 rounded-2xl bg-white/10 px-3 py-3 text-sm">
+            <p>{conversation.blockedByMe ? 'Blocked. You can still read this chat.' : 'You can’t send messages here.'}</p>
+            {conversation.blockedByMe ? (
+              <button
+                type="button"
+                className="min-h-11 shrink-0 font-semibold text-primary"
+                onClick={() => {
+                  api('/api/safety/unblock', { method: 'POST', body: JSON.stringify({ userId: conversation.otherUser.id }) })
+                    .then(() => {
+                      setConversation((current) => current ? { ...current, blockedByMe: false, blocked: false } : current);
+                      toast('Unblocked');
+                    })
+                    .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
+                }}
+              >
+                Unblock
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        <div className={`flex items-end gap-1.5 ${conversation.blocked ? 'pointer-events-none opacity-40' : ''}`}>
           <button type="button" className="chat-tool shrink-0" data-on={drawer === 'more'} aria-label="More" onClick={() => toggleDrawer('more')}>
             <MoreIcon />
           </button>
@@ -746,7 +814,11 @@ export function ChatPage() {
             }}>Report</Button>
             <Button variant="danger" className="px-4 py-2" onClick={() => {
               api('/api/safety/block', { method: 'POST', body: JSON.stringify({ userId: conversation.otherUser.id }) })
-                .then(() => { toast('Blocked. They cannot ping you.'); setContactOpen(false); })
+                .then(() => {
+                  setConversation((current) => current ? { ...current, blockedByMe: true, blocked: true } : current);
+                  toast('Blocked. You can still read this chat.');
+                  setContactOpen(false);
+                })
                 .catch((err) => toast(err instanceof Error ? err.message : 'Toodle tripped. Try again.'));
             }}>Block</Button>
           </div>

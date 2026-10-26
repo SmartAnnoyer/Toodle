@@ -20,6 +20,10 @@ const config: CapacitorConfig = {
       smallIcon: 'ic_stat_toodle',
       iconColor: '#C084FC',
     },
+    Keyboard: {
+      resize: 'native',
+      resizeOnFullScreen: true,
+    },
   },
 };
 

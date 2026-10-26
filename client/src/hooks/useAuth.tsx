@@ -13,10 +13,20 @@ interface AuthValue {
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
+const ME_KEY = 'toodle-me';
+
+function readCachedMe(): Me | null {
+  try {
+    const raw = localStorage.getItem(ME_KEY);
+    return raw ? JSON.parse(raw) as Me : null;
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Me | null>(null);
+  const [profile, setProfile] = useState<Me | null>(readCachedMe);
   const [loading, setLoading] = useState(true);
 
   const refreshProfile = useCallback(async () => {
@@ -24,10 +34,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await api<Me>('/api/profile/me');
       setProfile(me);
+      localStorage.setItem(ME_KEY, JSON.stringify(me));
       return me;
     } catch {
-      setProfile(null);
-      return null;
+      return readCachedMe();
     }
   }, []);
 
@@ -40,12 +50,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!active) return;
       setSession(data.session);
-      if (data.session) await refreshProfile();
+      if (!data.session) {
+        setProfile(null);
+        localStorage.removeItem(ME_KEY);
+      } else if (readCachedMe()) {
+        setLoading(false);
+        void refreshProfile();
+      } else {
+        await refreshProfile();
+      }
       if (active) setLoading(false);
     });
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
-      if (!next) setProfile(null);
+      if (!next) {
+        setProfile(null);
+        localStorage.removeItem(ME_KEY);
+      }
     });
     return () => {
       active = false;
@@ -61,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut: async () => {
       setProfile(null);
       setSession(null);
+      localStorage.removeItem(ME_KEY);
       await supabase?.auth.signOut({ scope: 'local' }).catch(() => undefined);
     },
   }), [session, profile, loading, refreshProfile]);

@@ -82,6 +82,22 @@ export function HomePage() {
     });
   }
 
+  function blockPerson(chat: ConversationSummary) {
+    setAsk({
+      title: `Block ${chat.otherUser.displayName}?`,
+      confirm: 'Block',
+      run: () => {
+        setConversations((current) => current.map((item) => item.id === chat.id ? { ...item, blockedByMe: true, blocked: true } : item));
+        void api('/api/safety/block', { method: 'POST', body: JSON.stringify({ userId: chat.otherUser.id }) })
+          .then(() => toast('Blocked. You can still open the chat and read it.'))
+          .catch(() => {
+            setConversations((current) => current.map((item) => item.id === chat.id ? { ...item, blockedByMe: false, blocked: false } : item));
+            toast('Toodle tripped. Try again.');
+          });
+      },
+    });
+  }
+
   function restore(chat: ConversationSummary) {
     unhideChat(chat.id);
     void load();
@@ -94,7 +110,11 @@ export function HomePage() {
 
   useEffect(() => {
     if (!socket) return;
-    const refresh = () => { void load(); };
+    let timer = 0;
+    const refresh = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { void load(); }, 280);
+    };
     socket.on(SocketEvents.ConversationUpdated, refresh);
     socket.on(SocketEvents.MessageNew, refresh);
     socket.on(SocketEvents.NotificationNew, refresh);
@@ -104,6 +124,7 @@ export function HomePage() {
       socket.off(SocketEvents.MessageNew, refresh);
       socket.off(SocketEvents.NotificationNew, refresh);
       socket.off(SocketEvents.ConversationExpired, refresh);
+      window.clearTimeout(timer);
     };
   }, [socket]);
 
@@ -145,16 +166,7 @@ export function HomePage() {
                 void api(`/api/conversations/${chat.id}/leave`, { method: 'POST' }).catch(() => restore(chat));
               },
             })}
-            onBlock={() => setAsk({
-              title: `Block ${chat.otherUser.displayName}?`,
-              confirm: 'Block',
-              run: () => {
-                forget(chat);
-                void api('/api/safety/block', { method: 'POST', body: JSON.stringify({ userId: chat.otherUser.id }) })
-                  .then(() => api(`/api/conversations/${chat.id}/leave`, { method: 'POST' }).catch(() => undefined))
-                  .catch(() => restore(chat));
-              },
-            })}
+            onBlock={() => blockPerson(chat)}
           />
         ))}
       </div>
@@ -173,16 +185,7 @@ export function HomePage() {
                   void api(`/api/conversations/${chat.id}/leave`, { method: 'POST' }).catch(() => restore(chat));
                 },
               })}
-              onBlock={() => setAsk({
-                title: `Block ${chat.otherUser.displayName}?`,
-                confirm: 'Block',
-                run: () => {
-                  forget(chat);
-                  void api('/api/safety/block', { method: 'POST', body: JSON.stringify({ userId: chat.otherUser.id }) })
-                    .then(() => api(`/api/conversations/${chat.id}/leave`, { method: 'POST' }).catch(() => undefined))
-                    .catch(() => restore(chat));
-                },
-              })}
+              onBlock={() => blockPerson(chat)}
             />
           ))}
         </div>
@@ -285,6 +288,7 @@ function ChatCard({ chat, onDelete, onBlock }: { chat: ConversationSummary; onDe
           <p className="truncate text-sm text-muted">{chat.otherUser.moodEmoji} {chat.otherUser.moodText}</p>
           <p className="truncate text-sm">{preview}</p>
           <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted">
+            {chat.blockedByMe ? <span>Blocked</span> : null}
             {chat.streakCount > 0 ? <span>🔥 {chat.streakCount}</span> : null}
             {streakLeft ? <span>🔥 {streakLeft}</span> : null}
             {countdown ? <span>⏳ {countdown}</span> : null}

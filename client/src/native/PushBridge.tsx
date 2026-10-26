@@ -40,10 +40,8 @@ export function PushBridge() {
       void clearConversationNotifications(openChat);
       return;
     }
-    if (document.visibilityState !== 'visible') {
-      void showTray(note);
-      return;
-    }
+    if (document.visibilityState !== 'visible') return;
+    void showTray(note);
     setBanner(note);
   }
 
